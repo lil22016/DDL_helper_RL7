@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="green">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
@@ -10,6 +10,7 @@
 </head>
 <body>
   <div id="petalRain" class="petal-rain" aria-hidden="true"></div>
+
   <div id="warningBackdrop" class="warning-backdrop" aria-hidden="true">
     <div class="warning-copy">
       <div id="warningKicker" class="warning-kicker"></div>
@@ -18,42 +19,65 @@
   </div>
 
   <div class="garden-frame">
-  <header class="topbar">
-    <div>
-      <div class="eyebrow">DEADLINE GARDEN</div>
-      <h1 id="todayHeading">Today</h1>
-      <div id="summaryLine" class="summary-line">0 tasks remaining</div>
-    </div>
-    <div class="top-actions">
-      <button id="importBtn" class="soft-btn">Batch Paste</button>
-      <button id="addBtn" class="primary-btn">+ Add task</button>
-      <button id="todoToggle" class="todo-pill">Todo <span id="todoCount">0</span></button>
-    </div>
-  </header>
-
-  <main class="page-shell">
-    <section class="hero-card glass">
-      <div class="section-label">NEXT DEADLINE</div>
-      <div id="nextTitle" class="next-title">Nothing due soon</div>
-      <div id="nextMeta" class="next-meta">Your calendar is clear.</div>
-      <div id="nextCountdown" class="next-countdown"></div>
-    </section>
-
-    <section class="calendar-card glass">
-      <div class="calendar-toolbar">
-        <div class="month-nav">
-          <button id="prevMonth" class="icon-btn" aria-label="Previous month">‹</button>
-          <h2 id="monthLabel"></h2>
-          <button id="nextMonth" class="icon-btn" aria-label="Next month">›</button>
+    <header class="topbar">
+      <div class="brand-row">
+        <div class="theme-wrap">
+          <button id="themeBtn" class="theme-btn" aria-label="Change color theme" title="Change theme">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M8.2 3.4 10.5 5h3L15.8 3.4l4 2.1-2.1 4v10.3H6.3V9.5l-2.1-4 4-2.1Z"/>
+              <path d="M9.1 4.3c.4 1.5 1.4 2.3 2.9 2.3s2.5-.8 2.9-2.3"/>
+            </svg>
+          </button>
+          <div id="themeMenu" class="theme-menu hidden" role="menu" aria-label="Color themes">
+            <div class="theme-menu-title">Garden color</div>
+            <div class="theme-swatches">
+              <button class="theme-swatch red" data-theme-choice="red" aria-label="Red theme"></button>
+              <button class="theme-swatch orange" data-theme-choice="orange" aria-label="Orange theme"></button>
+              <button class="theme-swatch yellow" data-theme-choice="yellow" aria-label="Yellow theme"></button>
+              <button class="theme-swatch green" data-theme-choice="green" aria-label="Green theme"></button>
+              <button class="theme-swatch blue" data-theme-choice="blue" aria-label="Blue theme"></button>
+              <button class="theme-swatch indigo" data-theme-choice="indigo" aria-label="Indigo theme"></button>
+              <button class="theme-swatch purple" data-theme-choice="purple" aria-label="Purple theme"></button>
+            </div>
+          </div>
         </div>
-        <button id="todayBtn" class="soft-btn small">Today</button>
+        <div>
+          <div class="eyebrow">DEADLINE GARDEN</div>
+          <h1 id="todayHeading">Today</h1>
+          <div id="summaryLine" class="summary-line">0 tasks remaining</div>
+        </div>
       </div>
-      <div class="weekday-row">
-        <div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div>
+
+      <div class="top-actions">
+        <button id="importBtn" class="soft-btn">Batch Paste</button>
+        <button id="addBtn" class="primary-btn">+ Add task</button>
+        <button id="todoToggle" class="todo-pill">Todo <span id="todoCount">0</span></button>
       </div>
-      <div id="calendarGrid" class="calendar-grid"></div>
-    </section>
-  </main>
+    </header>
+
+    <main class="page-shell">
+      <section class="hero-card glass">
+        <div class="section-label">NEXT DEADLINE</div>
+        <div id="nextTitle" class="next-title">Nothing due soon</div>
+        <div id="nextMeta" class="next-meta">Your calendar is clear.</div>
+        <div id="nextCountdown" class="next-countdown"></div>
+      </section>
+
+      <section class="calendar-card glass">
+        <div class="calendar-toolbar">
+          <div class="month-nav">
+            <button id="prevMonth" class="icon-btn" aria-label="Previous month">‹</button>
+            <h2 id="monthLabel"></h2>
+            <button id="nextMonth" class="icon-btn" aria-label="Next month">›</button>
+          </div>
+          <button id="todayBtn" class="soft-btn small">Today</button>
+        </div>
+        <div class="weekday-row">
+          <div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div>
+        </div>
+        <div id="calendarGrid" class="calendar-grid"></div>
+      </section>
+    </main>
   </div>
 
   <aside id="todoPanel" class="todo-panel glass" aria-hidden="true">
@@ -62,7 +86,7 @@
         <div class="section-label">TO DO</div>
         <div id="todoSubtitle" class="todo-subtitle">Nothing pending</div>
       </div>
-      <button id="closeTodo" class="icon-btn">×</button>
+      <button id="closeTodo" class="icon-btn" aria-label="Close to-do list">×</button>
     </div>
     <div id="todoList" class="todo-list"></div>
   </aside>
@@ -73,7 +97,6 @@
 
   <div id="toast" class="toast"></div>
   <canvas id="confettiCanvas"></canvas>
-
   <script src="app.js"></script>
 </body>
 </html>
