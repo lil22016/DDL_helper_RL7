@@ -68,7 +68,7 @@ function renderCalendar(){
     </div>`
   }
   $('#calendarGrid').innerHTML=html;
-  document.querySelectorAll('.event-chip').forEach(el=>el.onclick=e=>{e.stopPropagation();openTaskModal(tasks.find(t=>t.id===el.dataset.id))});
+  document.querySelectorAll('.event-chip').forEach(el=>el.onclick=e=>{e.stopPropagation();openTaskDetails(tasks.find(t=>t.id===el.dataset.id))});
   document.querySelectorAll('.day-cell').forEach(el=>el.onclick=()=>{el.classList.remove('calendar-click');void el.offsetWidth;el.classList.add('calendar-click');setTimeout(()=>openTaskModal(null,el.dataset.date),90)})
 }
 
@@ -114,32 +114,38 @@ function getTodoGroups(pending,now=new Date()){
 }
 
 const TODO_PREF_KEY='deadline-garden-todo-sections-v2';
-let todoOpen={today:true,week:true,next:true,later:false},todoSignature='';
+let todoOpen={today:true,week:true,next:true,later:false,completed:false},todoSignature='';
 try{const saved=JSON.parse(localStorage.getItem(TODO_PREF_KEY)||'{}');for(const k of Object.keys(todoOpen))if(typeof saved[k]==='boolean')todoOpen[k]=saved[k]}catch{}
 
 function renderTodo(){
-  const pending=tasks.filter(t=>!t.done),groups=getTodoGroups(pending),today=fmtDateInput(new Date());
+  const pending=tasks.filter(t=>!t.done),completed=tasks.filter(t=>t.done).sort((a,b)=>(b.completedAt||0)-(a.completedAt||0)),groups=getTodoGroups(pending),today=fmtDateInput(new Date());
   const overdue=groups.today.filter(t=>t.date<today).length;
   $('#todoSubtitle').textContent=groups.today.length?`${groups.today.length} for today${overdue?' · includes overdue':''}`:'Nothing due today';
-  const signature=JSON.stringify([today,pending]);
+  const signature=JSON.stringify([today,pending,completed.map(t=>[t.id,t.completedAt,t.title,t.date,t.time,t.course])]);
   if(signature!==todoSignature){
     todoSignature=signature;
     const sections=[['today','Today',groups.today],['week','This week',groups.week]];
     if(groups.weekend)sections.push(['next','Next week',groups.next]);
     sections.push(['later','All later deadlines',groups.later]);
-    $('#todoList').innerHTML=sections.map(([key,label,items])=>`<details class="todo-section" data-section="${key}" ${todoOpen[key]?'open':''}>
+    sections.push(['completed','Completed',completed.slice(0,40)]);
+    $('#todoList').innerHTML=sections.map(([key,label,items])=>`<details class="todo-section ${key==='completed'?'completed-section':''}" data-section="${key}" ${todoOpen[key]?'open':''}>
       <summary><span class="todo-arrow">›</span><span class="todo-section-label">${label}</span><span class="todo-section-count">${items.length}</span></summary>
-      <div class="todo-section-items">${items.length?items.map(t=>`<div class="todo-item">
-        <label class="todo-check"><input type="checkbox" data-check="${escapeHtml(t.id)}" aria-label="Mark ${escapeHtml(t.title)} as done"></label>
-        <div class="todo-content">
+      <div class="todo-section-items">${items.length?items.map(t=>`<div class="todo-item ${t.done?'is-completed':''}">
+        <label class="todo-check">${t.done
+          ?`<button class="restore-check" data-restore="${escapeHtml(t.id)}" aria-label="Return ${escapeHtml(t.title)} to to-do">↶</button>`
+          :`<input type="checkbox" data-check="${escapeHtml(t.id)}" aria-label="Mark ${escapeHtml(t.title)} as done">`
+        }</label>
+        <button class="todo-content todo-content-button" data-view-task="${escapeHtml(t.id)}">
           <div class="todo-title">${escapeHtml(t.title)}</div>
           ${t.course?`<div class="todo-course">${escapeHtml(t.course)}</div>`:''}
           <div class="todo-meta">${escapeHtml(formatDue(t))}</div>
-          <div class="todo-timer" data-timer="${escapeHtml(t.id)}"></div>
-        </div>
-      </div>`).join(''):`<div class="todo-empty">${key==='today'?'All clear for today.':key==='week'?'No other tasks due this week.':key==='next'?'Nothing due next week.':'No later deadlines.'}</div>`}</div>
+          ${t.done?`<div class="todo-completed-note">Completed${t.completedAt?` · ${new Date(t.completedAt).toLocaleDateString(undefined,{month:'short',day:'numeric'})}`:''}</div>`:`<div class="todo-timer" data-timer="${escapeHtml(t.id)}"></div>`}
+        </button>
+      </div>`).join(''):`<div class="todo-empty">${key==='today'?'All clear for today.':key==='week'?'No other tasks due this week.':key==='next'?'Nothing due next week.':key==='completed'?'Nothing completed yet.':'No later deadlines.'}</div>`}</div>
     </details>`).join('');
     document.querySelectorAll('[data-check]').forEach(c=>c.onchange=()=>completeTask(c.dataset.check));
+    document.querySelectorAll('[data-restore]').forEach(b=>b.onclick=e=>{e.stopPropagation();restoreTask(b.dataset.restore)});
+    document.querySelectorAll('[data-view-task]').forEach(b=>b.onclick=()=>openTaskDetails(tasks.find(t=>t.id===b.dataset.viewTask)));
     document.querySelectorAll('[data-section]').forEach(el=>el.ontoggle=()=>{todoOpen[el.dataset.section]=el.open;try{localStorage.setItem(TODO_PREF_KEY,JSON.stringify(todoOpen))}catch{}})
   }
   const byId=new Map(pending.map(t=>[t.id,t]));
@@ -160,6 +166,62 @@ function closeModal(){
   const root=$('#modalRoot');root.classList.remove('visible');setTimeout(()=>root.classList.add('hidden'),190)
 }
 $('#modalRoot').onclick=e=>{if(e.target===$('#modalRoot'))closeModal()}
+
+function normalizeTaskLink(value){
+  let s=(value||'').trim();if(!s)return'';
+  if(!/^[a-z][a-z0-9+.-]*:\/\//i.test(s))s='https://'+s;
+  try{const u=new URL(s);return /^https?:$/.test(u.protocol)?u.href:''}catch{return''}
+}
+function descriptionHtml(text){
+  return escapeHtml(text||'').replace(/\n/g,'<br>');
+}
+function openTaskDetails(task){
+  if(!task)return;
+  const link=normalizeTaskLink(task.link);
+  const repeatText=task.repeat?.enabled
+    ? repeatDescription(task.date,task.repeat)+(task.repeat.until?` Ends ${dateFromInput(task.repeat.until).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'})}.`:'')
+    :'';
+  showModal(`<div class="task-detail">
+    <div class="task-detail-top">
+      <div>
+        <div class="section-label">${task.done?'COMPLETED TASK':'TASK DETAILS'}</div>
+        <h3>${escapeHtml(task.title)}</h3>
+      </div>
+      ${task.done?'<span class="completed-badge">Completed</span>':''}
+    </div>
+
+    <div class="task-detail-grid">
+      ${task.course?`<div class="detail-block"><span>Course</span><strong>${escapeHtml(task.course)}</strong></div>`:''}
+      <div class="detail-block"><span>Date</span><strong>${escapeHtml(dateFromInput(task.date).toLocaleDateString(undefined,{weekday:'short',month:'long',day:'numeric',year:'numeric'}))}</strong></div>
+      <div class="detail-block"><span>Due time</span><strong>${task.time?escapeHtml(new Date(`${task.date}T${task.time}:00`).toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'})):'No specific time'}</strong></div>
+      ${repeatText?`<div class="detail-block full"><span>Repeat</span><strong>${escapeHtml(repeatText)}</strong></div>`:''}
+    </div>
+
+    <div class="detail-description">
+      <span>Description</span>
+      <div>${task.notes?descriptionHtml(task.notes):'<em>No description added.</em>'}</div>
+    </div>
+
+    ${link?`<a class="task-link-card" href="${escapeHtml(link)}" target="_blank" rel="noopener noreferrer">
+      <span class="link-icon">↗</span><span><strong>Open task link</strong><small>${escapeHtml(link.replace(/^https?:\/\//,'').replace(/\/$/,''))}</small></span>
+    </a>`:''}
+
+    <div class="task-detail-actions">
+      <div class="task-state-actions">
+        ${task.done
+          ?`<button id="detailRestore" class="soft-btn">↶ Return to To-do</button>`
+          :`<button id="detailDone" class="soft-btn">✓ Mark as done</button>`
+        }
+      </div>
+      <button id="detailClose" class="soft-btn">Close</button>
+      <button id="detailEdit" class="detail-edit-btn">Edit</button>
+    </div>
+  </div>`);
+  $('#detailClose').onclick=closeModal;
+  $('#detailEdit').onclick=()=>openTaskModal(task);
+  if(task.done)$('#detailRestore').onclick=async()=>{closeModal();await restoreTask(task.id)}
+  else $('#detailDone').onclick=async()=>{closeModal();await completeTask(task.id)}
+}
 
 function recurrenceDates(startDate,repeat){
   if(!repeat?.enabled)return[startDate];
@@ -191,7 +253,9 @@ function readTaskForm(){
   const repeat=enabled?{enabled:true,unit:$('#fRepeatUnit').value,interval:Math.max(1,Number($('#fRepeatInterval').value)||1),until:$('#fRepeatUntil').value}:null;
   if(enabled&&!repeat.until){toast('Choose a Repeat until date.');return null}
   if(enabled&&dateFromInput(repeat.until)<dateFromInput(date)){toast('Repeat until must be on or after the start date.');return null}
-  return{title,course:$('#fCourse').value.trim(),date,time:$('#fTime').value,notes:$('#fNotes').value.trim(),repeat}
+  const rawLink=$('#fLink').value.trim(),link=normalizeTaskLink(rawLink);
+  if(rawLink&&!link){toast('Enter a valid http(s) link.');return null}
+  return{title,course:$('#fCourse').value.trim(),date,time:$('#fTime').value,link,notes:$('#fNotes').value.trim(),repeat}
 }
 function bindRepeatPreview(){
   const update=()=>{
@@ -224,7 +288,8 @@ function openTaskModal(task=null,prefillDate=''){
         <div class="repeat-until"><label>Repeat until</label><input id="fRepeatUntil" type="date" value="${existingRepeat.until||''}"><div class="field-hint">The last occurrence will be on or before this date.</div></div>
       </div>
     </div>
-    <div class="field full"><label>Notes</label><textarea id="fNotes">${escapeHtml(t.notes||'')}</textarea></div>
+    <div class="field full"><label>Link (optional)</label><input id="fLink" type="url" value="${escapeHtml(t.link||'')}" placeholder="https://…"></div>
+    <div class="field full"><label>Description</label><textarea id="fNotes" placeholder="Add instructions, details, or anything useful…">${escapeHtml(t.notes||'')}</textarea></div>
   </div>
   <div class="modal-actions">${task?'<button id="deleteTask" class="danger-btn">Delete</button>':''}<button id="cancelModal" class="soft-btn">Cancel</button><button id="saveTask" class="primary-btn">Save</button></div>`);
   $('#cancelModal').onclick=closeModal;bindRepeatPreview();
@@ -244,7 +309,7 @@ async function createFromForm(form,seriesId=null){
   const dates=recurrenceDates(form.date,form.repeat);
   if(!dates.length){toast('Could not create repeated dates.');return}
   const sid=form.repeat?.enabled?(seriesId||crypto.randomUUID()):null,now=Date.now();
-  for(const occurrenceDate of dates)await idbPut({id:crypto.randomUUID(),seriesId:sid,title:form.title,course:form.course,date:occurrenceDate,time:form.time,notes:form.notes,repeat:form.repeat||null,done:false,createdAt:now});
+  for(const occurrenceDate of dates)await idbPut({id:crypto.randomUUID(),seriesId:sid,title:form.title,course:form.course,date:occurrenceDate,time:form.time,link:form.link,notes:form.notes,repeat:form.repeat||null,done:false,createdAt:now});
   toast(form.repeat?.enabled?`Added ${dates.length} repeated tasks.`:'Task added.')
 }
 
@@ -257,7 +322,7 @@ function chooseSeriesSaveScope(task,form){
     <div class="modal-actions"><button id="scopeCancel" class="soft-btn">Cancel</button></div>`);
   $('#scopeCancel').onclick=()=>openTaskModal(task);
   $('#scopeOne').onclick=async()=>{
-    await idbPut({...task,title:form.title,course:form.course,date:form.date,time:form.time,notes:form.notes,updatedAt:Date.now()});
+    await idbPut({...task,title:form.title,course:form.course,date:form.date,time:form.time,link:form.link,notes:form.notes,updatedAt:Date.now()});
     closeModal();await refresh();toast('Only this occurrence was updated.')
   };
   $('#scopeFuture').onclick=async()=>applySeriesFromHere(task,form)
@@ -270,7 +335,7 @@ async function applySeriesFromHere(task,form){
   if(form.repeat?.enabled){
     await createFromForm(form,task.seriesId)
   }else{
-    await idbPut({id:crypto.randomUUID(),seriesId:null,title:form.title,course:form.course,date:form.date,time:form.time,notes:form.notes,repeat:null,done:false,createdAt:Date.now()});
+    await idbPut({id:crypto.randomUUID(),seriesId:null,title:form.title,course:form.course,date:form.date,time:form.time,link:form.link,notes:form.notes,repeat:null,done:false,createdAt:Date.now()});
     toast('Future repeats removed; this occurrence is now one-time.')
   }
   closeModal();await refresh()
@@ -292,6 +357,11 @@ async function deleteSingle(task){await idbDelete(task.id);closeModal();await re
 function openEmergency(task,diff){
   showModal(`<div class="section-label">URGENT DEADLINE</div><h3 style="font-size:30px;margin-top:6px">${escapeHtml(countdown(diff))}</h3><div style="font-size:18px;font-weight:800">${escapeHtml(task.course?task.course+' · ':'')}${escapeHtml(task.title)}</div><div class="next-meta" style="margin-top:7px">${escapeHtml(formatDue(task))}</div><div class="modal-actions"><button id="emClose" class="soft-btn">Keep working</button><button id="emDone" class="primary-btn">Mark as done</button></div>`);
   $('#emClose').onclick=closeModal;$('#emDone').onclick=()=>{closeModal();completeTask(task.id)}
+}
+async function restoreTask(id){
+  const t=tasks.find(x=>x.id===id);if(!t)return;
+  t.done=false;delete t.completedAt;
+  await idbPut(t);await refresh();toast('Returned to To-do.');
 }
 async function completeTask(id){
   const t=tasks.find(x=>x.id===id);if(!t)return;
