@@ -5,6 +5,12 @@ const pad=n=>String(n).padStart(2,'0');
 const fmtDateInput=d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
 const THEME_KEY='deadline-garden-theme-v1';
 const THEMES=['red','orange','yellow','green','blue','indigo','purple'];
+const CAL_DISPLAY_KEY='deadline-garden-calendar-display-v1';
+let calendarDisplay={time:true,course:false,title:true};
+try{
+  const savedDisplay=JSON.parse(localStorage.getItem(CAL_DISPLAY_KEY)||'{}');
+  for(const key of Object.keys(calendarDisplay))if(typeof savedDisplay[key]==='boolean')calendarDisplay[key]=savedDisplay[key];
+}catch{}
 
 function openDB(){return new Promise((resolve,reject)=>{const r=indexedDB.open(DB_NAME,DB_VERSION);r.onupgradeneeded=()=>{const d=r.result;if(!d.objectStoreNames.contains(STORE))d.createObjectStore(STORE,{keyPath:'id'});};r.onsuccess=()=>{db=r.result;resolve(db)};r.onerror=()=>reject(r.error)})}
 function idbGetAll(){return new Promise((resolve,reject)=>{const r=db.transaction(STORE).objectStore(STORE).getAll();r.onsuccess=()=>resolve(r.result||[]);r.onerror=()=>reject(r.error)})}
@@ -36,6 +42,18 @@ function renderHeader(){
   const diff=dueMs(next)-Date.now();$('#nextCountdown').textContent=diff<=2*3600e3?countdown(diff):''
 }
 
+function calendarChipContent(t){
+  const parts=[];
+  if(calendarDisplay.time&&t.time){
+    const d=new Date(`${t.date}T${t.time}:00`);
+    parts.push(d.toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'}));
+  }
+  if(calendarDisplay.course&&t.course)parts.push(t.course);
+  if(calendarDisplay.title)parts.push(t.title);
+  if(!parts.length)parts.push(t.title||t.course||formatDue(t));
+  return parts.join(' · ');
+}
+
 function renderCalendar(){
   const y=currentMonth.getFullYear(),m=currentMonth.getMonth();
   $('#monthLabel').textContent=currentMonth.toLocaleDateString(undefined,{month:'long',year:'numeric'});
@@ -45,13 +63,38 @@ function renderCalendar(){
     const dayTasks=tasks.filter(t=>t.date===ds),outside=d.getMonth()!==m,today=ds===fmtDateInput(new Date());
     html+=`<div class="day-cell ${outside?'outside':''} ${today?'today':''}" data-date="${ds}">
       <div class="day-number"><span>${d.getDate()}</span></div>
-      ${dayTasks.slice(0,5).map(t=>`<button class="event-chip ${t.done?'done':''} urgent${urgency(t)}" data-id="${t.id}">${escapeHtml(t.time?t.time+' ':'')}${escapeHtml(t.title)}</button>`).join('')}
+      ${dayTasks.slice(0,5).map(t=>`<button class="event-chip ${t.done?'done':''} urgent${urgency(t)}" data-id="${t.id}" title="${escapeHtml([t.course,t.title,formatDue(t)].filter(Boolean).join(' · '))}">${escapeHtml(calendarChipContent(t))}</button>`).join('')}
       ${dayTasks.length>5?`<div class="tiny">+${dayTasks.length-5} more</div>`:''}
     </div>`
   }
   $('#calendarGrid').innerHTML=html;
   document.querySelectorAll('.event-chip').forEach(el=>el.onclick=e=>{e.stopPropagation();openTaskModal(tasks.find(t=>t.id===el.dataset.id))});
   document.querySelectorAll('.day-cell').forEach(el=>el.onclick=()=>{el.classList.remove('calendar-click');void el.offsetWidth;el.classList.add('calendar-click');setTimeout(()=>openTaskModal(null,el.dataset.date),90)})
+}
+
+function openCalendarDisplay(){
+  showModal(`<div class="section-label">CALENDAR</div><h3>Choose what task labels show</h3>
+    <div class="display-choice-list">
+      <label class="display-choice"><input id="displayTime" type="checkbox" ${calendarDisplay.time?'checked':''}><span><strong>Deadline time</strong><small>Example: 2:30 PM</small></span></label>
+      <label class="display-choice"><input id="displayCourse" type="checkbox" ${calendarDisplay.course?'checked':''}><span><strong>Course</strong><small>Example: HDFS 2300</small></span></label>
+      <label class="display-choice"><input id="displayTitle" type="checkbox" ${calendarDisplay.title?'checked':''}><span><strong>Task name</strong><small>Example: Chapter 1 Reading Quiz</small></span></label>
+    </div>
+    <div class="display-preview"><span>Preview</span><strong id="displayPreviewText"></strong></div>
+    <div class="modal-actions"><button id="displayCancel" class="soft-btn">Cancel</button><button id="displaySave" class="primary-btn">Save display</button></div>`);
+  const updatePreview=()=>{
+    const demo={date:fmtDateInput(new Date()),time:'14:30',course:'HDFS 2300',title:'Reading Quiz'};
+    const draft={time:$('#displayTime').checked,course:$('#displayCourse').checked,title:$('#displayTitle').checked};
+    const old=calendarDisplay;calendarDisplay=draft;$('#displayPreviewText').textContent=calendarChipContent(demo);calendarDisplay=old;
+  };
+  ['#displayTime','#displayCourse','#displayTitle'].forEach(s=>$(s).onchange=updatePreview);updatePreview();
+  $('#displayCancel').onclick=closeModal;
+  $('#displaySave').onclick=()=>{
+    const next={time:$('#displayTime').checked,course:$('#displayCourse').checked,title:$('#displayTitle').checked};
+    if(!next.time&&!next.course&&!next.title)return toast('Choose at least one label item.');
+    calendarDisplay=next;
+    try{localStorage.setItem(CAL_DISPLAY_KEY,JSON.stringify(calendarDisplay))}catch{}
+    closeModal();renderCalendar();toast('Calendar display updated.');
+  };
 }
 
 function getTodoGroups(pending,now=new Date()){
@@ -250,31 +293,107 @@ function openEmergency(task,diff){
   showModal(`<div class="section-label">URGENT DEADLINE</div><h3 style="font-size:30px;margin-top:6px">${escapeHtml(countdown(diff))}</h3><div style="font-size:18px;font-weight:800">${escapeHtml(task.course?task.course+' · ':'')}${escapeHtml(task.title)}</div><div class="next-meta" style="margin-top:7px">${escapeHtml(formatDue(task))}</div><div class="modal-actions"><button id="emClose" class="soft-btn">Keep working</button><button id="emDone" class="primary-btn">Mark as done</button></div>`);
   $('#emClose').onclick=closeModal;$('#emDone').onclick=()=>{closeModal();completeTask(task.id)}
 }
-async function completeTask(id){const t=tasks.find(x=>x.id===id);if(!t)return;t.done=true;t.completedAt=Date.now();await idbPut(t);confetti();await refresh();toast('Done. Nicely handled.')}
+async function completeTask(id){
+  const t=tasks.find(x=>x.id===id);if(!t)return;
+  const previous=JSON.parse(JSON.stringify(t));
+  t.done=true;t.completedAt=Date.now();
+  await idbPut(t);confetti();await refresh();
+  toastAction('Marked as done.','Undo',async()=>{
+    const restored={...previous,done:false};
+    delete restored.completedAt;
+    await idbPut(restored);await refresh();toast('Task restored.');
+  },6500);
+}
 
+function normalizeBatchLine(line){
+  return line.replace(/[，]/g,',').replace(/[；]/g,';').replace(/[｜]/g,'|').replace(/\s+/g,' ').trim();
+}
+function parseDateLoose(s){
+  if(!s)return'';
+  s=s.trim();
+  let m=s.match(/\b(20\d{2})[-\/](\d{1,2})[-\/](\d{1,2})\b/);
+  if(m)return `${m[1]}-${pad(+m[2])}-${pad(+m[3])}`;
+  m=s.match(/\b(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})\b/);
+  if(m){let y=+m[3];if(y<100)y+=2000;return `${y}-${pad(+m[1])}-${pad(+m[2])}`}
+  const mm=s.match(/\b(Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+(\d{1,2})(?:st|nd|rd|th)?(?:,\s*|\s+)?(20\d{2})?\b/i);
+  if(mm){
+    const names={jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,sept:9,oct:10,nov:11,dec:12};
+    const mon=names[mm[1].slice(0,4).toLowerCase()]||names[mm[1].slice(0,3).toLowerCase()];
+    const year=+(mm[3]||new Date().getFullYear());
+    return `${year}-${pad(mon)}-${pad(+mm[2])}`;
+  }
+  return'';
+}
+function dateTokenMatch(line){
+  return line.match(/\b20\d{2}[-\/]\d{1,2}[-\/]\d{1,2}\b|\b\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}\b|\b(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+\d{1,2}(?:st|nd|rd|th)?(?:,\s*|\s+)?20\d{2}\b/i)
+    || line.match(/\b(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+\d{1,2}(?:st|nd|rd|th)?\b/i);
+}
+function parseTimeLoose(s){
+  if(!s)return'';
+  s=s.trim();
+  let m=s.match(/^(\d{1,2}):(\d{2})\s*(am|pm)?$/i);
+  if(m){let h=+m[1],min=+m[2],ap=(m[3]||'').toLowerCase();if(ap==='pm'&&h<12)h+=12;if(ap==='am'&&h===12)h=0;if(h<=23&&min<=59)return `${pad(h)}:${pad(min)}`}
+  m=s.match(/^(\d{1,2})\s*(am|pm)$/i);
+  if(m){let h=+m[1];if(m[2].toLowerCase()==='pm'&&h<12)h+=12;if(m[2].toLowerCase()==='am'&&h===12)h=0;return `${pad(h)}:00`}
+  return'';
+}
+function timeTokenMatch(line){
+  return line.match(/\b\d{1,2}:\d{2}\s*(?:AM|PM)\b/i)||line.match(/\b\d{1,2}\s*(?:AM|PM)\b/i)||line.match(/\b(?:[01]?\d|2[0-3]):[0-5]\d\b/);
+}
+function courseTokenMatch(line){
+  return line.match(/\b[A-Z]{2,6}\s*[- ]?\s*\d{3,4}[A-Z]?\b/i);
+}
+function cleanBatchTitle(s){
+  return s.replace(/\b(?:due|deadline|at|on|by)\b/gi,' ')
+    .replace(/^[\s|,;:—–\-]+|[\s|,;:—–\-]+$/g,'')
+    .replace(/[\s|,;:—–\-]{2,}/g,' ')
+    .replace(/\s+/g,' ').trim();
+}
+function parseFlexibleLine(raw){
+  const line=normalizeBatchLine(raw);
+  const dm=dateTokenMatch(line),tm=timeTokenMatch(line),cm=courseTokenMatch(line);
+  const date=dm?parseDateLoose(dm[0]):'',time=tm?parseTimeLoose(tm[0]):'',course=cm?cm[0].replace(/\s*-\s*/,' ').replace(/\s+/g,' ').toUpperCase():'';
+  let title=line;
+  for(const token of [dm?.[0],tm?.[0],cm?.[0]])if(token)title=title.replace(token,' ');
+  title=cleanBatchTitle(title);
+  return{course,date,time,title,raw,ok:!!(date&&title)};
+}
 function parseBatch(text){
   const lines=text.split(/\r?\n/).map(s=>s.trim()).filter(Boolean),out=[];
-  for(const line of lines){
-    if(line.startsWith('#'))continue;
-    const parts=line.split('|').map(s=>s.trim());
-    if(parts.length>=4){const [course,dateRaw,timeRaw,...titleParts]=parts,date=parseDateLoose(dateRaw),time=parseTimeLoose(timeRaw),title=titleParts.join(' | ').trim();out.push({course,date,time,title,raw:line,ok:!!(date&&title)});continue}
-    out.push(parseLooseLine(line))
+  for(const raw of lines){
+    if(raw.startsWith('#'))continue;
+    const line=normalizeBatchLine(raw);
+    // Explicit separators are welcome, but no longer required.
+    // Flexible extraction still handles commas inside dates such as "Sep 8, 2026".
+    out.push(parseFlexibleLine(line));
   }
-  return out
+  return out;
 }
-function parseDateLoose(s){if(!s)return'';let d=new Date(s);if(!isNaN(d))return fmtDateInput(d);const m=s.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);if(m){let y=+m[3];if(y<100)y+=2000;return `${y}-${pad(+m[1])}-${pad(+m[2])}`}return''}
-function parseTimeLoose(s){if(!s)return'';s=s.trim();let m=s.match(/^(\d{1,2}):(\d{2})\s*(am|pm)?$/i);if(m){let h=+m[1],min=+m[2],ap=(m[3]||'').toLowerCase();if(ap==='pm'&&h<12)h+=12;if(ap==='am'&&h===12)h=0;return `${pad(h)}:${pad(min)}`}m=s.match(/^(\d{1,2})\s*(am|pm)$/i);if(m){let h=+m[1];if(m[2].toLowerCase()==='pm'&&h<12)h+=12;if(m[2].toLowerCase()==='am'&&h===12)h=0;return `${pad(h)}:00`}return''}
-function parseLooseLine(line){const dateMatch=line.match(/(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+\d{1,2}(?:,\s*\d{4})?/i),timeMatch=line.match(/\b\d{1,2}(?::\d{2})?\s*(?:AM|PM)\b/i);const date=dateMatch?parseDateLoose(dateMatch[0]+(/,\s*\d{4}/.test(dateMatch[0])?'':`, ${new Date().getFullYear()}`)):'',time=timeMatch?parseTimeLoose(timeMatch[0]):'';let title=line;if(dateMatch)title=title.replace(dateMatch[0],'');if(timeMatch)title=title.replace(timeMatch[0],'');title=title.replace(/^[\s—–\-:]+|[\s—–\-:]+$/g,'').trim();return{course:'',date,time,title,raw:line,ok:!!(date&&title)}}
-
 function openBatch(){
-  showModal(`<h3>Batch Paste</h3><div class="field"><label>Recommended format</label><textarea id="batchText" placeholder="PSYC 3500 | Sep 8, 2026 | 11:59 PM | Reflection Paper&#10;HDFS 2300 | Sep 18, 2026 | | Discussion Post"></textarea></div><div class="next-meta" style="margin-top:10px">One task per line. Exact time may be left blank. Nothing is imported until you review it.</div><div class="modal-actions"><button id="backupBtn" class="soft-btn" style="margin-right:auto">Backup / Restore</button><button id="cancelModal" class="soft-btn">Cancel</button><button id="previewBatch" class="primary-btn">Preview</button></div>`);
-  $('#cancelModal').onclick=closeModal;$('#previewBatch').onclick=()=>previewBatch($('#batchText').value);$('#backupBtn').onclick=openBackup
+  const example=`PSYC 3500 | Sep 8, 2026 | 11:59 PM | Reflection Paper
+HDFS 2300, Sep 18 2026, 2:30 PM, Chapter 1 Reading Quiz
+Final Paper due Dec 16, 2026 at 11:59 PM PSYC 3105`;
+  showModal(`<h3>Batch Paste</h3>
+    <div class="batch-example">
+      <div class="batch-example-head"><div><strong>Format example</strong><span>You can use |, commas, semicolons, tabs, or natural wording.</span></div><button id="copyBatchExample" class="soft-btn small">Copy example</button></div>
+      <pre>${escapeHtml(example)}</pre>
+    </div>
+    <div class="field"><label>Paste or type your deadlines</label><textarea id="batchText" placeholder="Type one task per line…"></textarea></div>
+    <div class="next-meta batch-help">The parser looks for a date, optional time, optional course code, and the remaining text as the task name. You will always review the results before import.</div>
+    <div class="modal-actions"><button id="backupBtn" class="soft-btn" style="margin-right:auto">Backup / Restore</button><button id="cancelModal" class="soft-btn">Cancel</button><button id="previewBatch" class="primary-btn">Preview</button></div>`);
+  $('#cancelModal').onclick=closeModal;
+  $('#previewBatch').onclick=()=>previewBatch($('#batchText').value);
+  $('#backupBtn').onclick=openBackup;
+  $('#copyBatchExample').onclick=async()=>{
+    try{await navigator.clipboard.writeText(example);toast('Example copied.')}
+    catch{$('#batchText').value=example;$('#batchText').focus();toast('Example placed in the text box.')}
+  };
 }
 function previewBatch(text){
   const parsed=parseBatch(text);if(!parsed.length)return toast('Paste at least one line.');
   const existingKey=new Set(tasks.map(t=>`${(t.course||'').toLowerCase()}|${t.date}|${t.time||''}|${t.title.toLowerCase()}`));
   parsed.forEach((p,i)=>{p.duplicate=existingKey.has(`${(p.course||'').toLowerCase()}|${p.date}|${p.time||''}|${p.title.toLowerCase()}`);p.idx=i});
-  showModal(`<h3>${parsed.length} line${parsed.length===1?'':'s'} detected</h3><div class="preview-list">${parsed.map(p=>`<label class="preview-row ${!p.ok||p.duplicate?'bad':''}"><input type="checkbox" data-import="${p.idx}" ${p.ok&&!p.duplicate?'checked':''} ${!p.ok?'disabled':''}><div><strong>${escapeHtml(p.title||'Could not identify task')}</strong><div class="tiny">${escapeHtml(p.course||'No course')} · ${escapeHtml(p.date||'Date not recognized')} · ${escapeHtml(p.time||'No specific time')}${p.duplicate?' · Possible duplicate':''}</div></div></label>`).join('')}</div><div class="modal-actions"><button id="backBatch" class="soft-btn">Back</button><button id="doImport" class="primary-btn">Import selected</button></div>`);
+  showModal(`<h3>${parsed.length} line${parsed.length===1?'':'s'} detected</h3><div class="preview-list">${parsed.map(p=>`<label class="preview-row ${!p.ok||p.duplicate?'bad':''}"><input type="checkbox" data-import="${p.idx}" ${p.ok&&!p.duplicate?'checked':''} ${!p.ok?'disabled':''}><div><strong>${escapeHtml(p.title||'Could not identify task')}</strong><div class="tiny">${escapeHtml(p.course||'No course')} · ${escapeHtml(p.date||'Date not recognized')} · ${escapeHtml(p.time||'No specific time')}${p.duplicate?' · Possible duplicate':''}</div><div class="preview-raw">${escapeHtml(p.raw)}</div></div></label>`).join('')}</div><div class="modal-actions"><button id="backBatch" class="soft-btn">Back</button><button id="doImport" class="primary-btn">Import selected</button></div>`);
   $('#backBatch').onclick=openBatch;
   $('#doImport').onclick=async()=>{const selected=[...document.querySelectorAll('[data-import]:checked')].map(x=>parsed[+x.dataset.import]);for(const p of selected)await idbPut({id:crypto.randomUUID(),title:p.title,course:p.course,date:p.date,time:p.time,notes:'',done:false,createdAt:Date.now()});closeModal();await refresh();toast(`Imported ${selected.length} task${selected.length===1?'':'s'}.`)}
 }
@@ -284,7 +403,16 @@ function openBackup(){
   $('#exportJson').onclick=()=>{const blob=new Blob([JSON.stringify({version:2,exportedAt:new Date().toISOString(),tasks},null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`deadline-garden-backup-${fmtDateInput(new Date())}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)};
   $('#restoreFile').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const data=JSON.parse(await f.text()),arr=Array.isArray(data)?data:data.tasks;if(!Array.isArray(arr))throw Error();for(const t of arr)if(t.id&&t.title&&t.date)await idbPut(t);closeModal();await refresh();toast(`Restored ${arr.length} tasks.`)}catch{toast('That backup file could not be read.')}}
 }
-function toast(msg){const t=$('#toast');t.textContent=msg;t.classList.add('show');clearTimeout(toast._t);toast._t=setTimeout(()=>t.classList.remove('show'),2300)}
+function hideToast(){const t=$('#toast');t.classList.remove('show','actionable');t.innerHTML=''}
+function toast(msg,duration=2300){
+  const t=$('#toast');t.classList.remove('actionable');t.innerHTML=`<span>${escapeHtml(msg)}</span>`;t.classList.add('show');
+  clearTimeout(toast._t);toast._t=setTimeout(hideToast,duration);
+}
+function toastAction(msg,label,action,duration=6500){
+  const t=$('#toast');t.classList.add('actionable');t.innerHTML=`<span>${escapeHtml(msg)}</span><button id="toastActionBtn">${escapeHtml(label)}</button>`;t.classList.add('show');
+  clearTimeout(toast._t);toast._t=setTimeout(hideToast,duration);
+  $('#toastActionBtn').onclick=async()=>{clearTimeout(toast._t);hideToast();await action()}
+}
 function confetti(){const c=$('#confettiCanvas'),ctx=c.getContext('2d'),dpr=devicePixelRatio||1;c.width=innerWidth*dpr;c.height=innerHeight*dpr;ctx.scale(dpr,dpr);let ps=Array.from({length:60},()=>({x:innerWidth/2,y:innerHeight*.3,vx:(Math.random()-.5)*8,vy:Math.random()*-7-3,g:.18,s:Math.random()*5+3,a:1}));let frame=0;(function anim(){ctx.clearRect(0,0,innerWidth,innerHeight);ps.forEach((p,i)=>{p.x+=p.vx;p.y+=p.vy;p.vy+=p.g;p.a-=.012;ctx.globalAlpha=Math.max(0,p.a);ctx.fillStyle=['#5f9c71','#9bc3a5','#d5b85a','#f0c7c7'][i%4];ctx.fillRect(p.x,p.y,p.s,p.s)});ctx.globalAlpha=1;if(frame++<90)requestAnimationFrame(anim);else ctx.clearRect(0,0,innerWidth,innerHeight)})()}
 
 function applyTheme(theme){
@@ -312,6 +440,7 @@ $('#closeTodo').onclick=()=>{$('#todoPanel').classList.remove('open');$('#todoPa
 $('#prevMonth').onclick=()=>{currentMonth=new Date(currentMonth.getFullYear(),currentMonth.getMonth()-1,1);renderCalendar()};
 $('#nextMonth').onclick=()=>{currentMonth=new Date(currentMonth.getFullYear(),currentMonth.getMonth()+1,1);renderCalendar()};
 $('#todayBtn').onclick=()=>{currentMonth=new Date();renderCalendar()};
+$('#displayBtn').onclick=openCalendarDisplay;
 
 (async()=>{
   initTheme();initPetalRain();await openDB();await refresh();
