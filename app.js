@@ -43,8 +43,6 @@ function renderTodo(){
   const pending=tasks.filter(t=>!t.done),groups=getTodoGroups(pending),today=fmtDateInput(new Date());
   const overdue=groups.today.filter(t=>t.date<today).length;
   $('#todoSubtitle').textContent=groups.today.length?`${groups.today.length} for today${overdue?' · includes overdue':''}`:'Nothing due today';
-  // Only rebuild when task data or the calendar day changes. Timers update in place,
-  // so one-second refreshes preserve focus, scrolling and collapsed sections.
   const signature=JSON.stringify([today,pending]);
   if(signature!==todoSignature){
     todoSignature=signature;
@@ -80,7 +78,69 @@ function renderWarnings(){const active=tasks.filter(t=>!t.done).sort((a,b)=>dueM
 function showModal(html){$('#modalCard').innerHTML=html;$('#modalRoot').classList.remove('hidden')}
 function closeModal(){$('#modalRoot').classList.add('hidden')}
 $('#modalRoot').onclick=e=>{if(e.target===$('#modalRoot'))closeModal()}
-function openTaskModal(task=null,prefillDate=''){const now=new Date(),t=task||{title:'',course:'',date:prefillDate||fmtDateInput(now),time:'',notes:'',done:false};showModal(`<h3>${task?'Edit task':'Add task'}</h3><div class="form-grid"><div class="field full"><label>Task name</label><input id="fTitle" value="${escapeHtml(t.title)}" placeholder="Reflection Paper"></div><div class="field"><label>Course (optional)</label><input id="fCourse" value="${escapeHtml(t.course||'')}" placeholder="PSYC 3500"></div><div class="field"><label>Date</label><input id="fDate" type="date" value="${t.date}"></div><div class="field"><label>Exact due time (optional)</label><input id="fTime" type="time" value="${t.time||''}"></div><div class="field full"><label>Notes</label><textarea id="fNotes">${escapeHtml(t.notes||'')}</textarea></div></div><div class="modal-actions">${task?'<button id="deleteTask" class="danger-btn">Delete</button>':''}<button id="cancelModal" class="soft-btn">Cancel</button><button id="saveTask" class="primary-btn">Save</button></div>`);$('#cancelModal').onclick=closeModal;$('#saveTask').onclick=async()=>{const title=$('#fTitle').value.trim(),date=$('#fDate').value;if(!title||!date)return toast('Task name and date are required.');const obj={...t,id:t.id||crypto.randomUUID(),title,course:$('#fCourse').value.trim(),date,time:$('#fTime').value,notes:$('#fNotes').value.trim(),done:t.done||false,updatedAt:Date.now()};await idbPut(obj);closeModal();await refresh();toast(task?'Task updated.':'Task added.');};if(task)$('#deleteTask').onclick=async()=>{await idbDelete(task.id);closeModal();await refresh();toast('Task deleted.')}}
+function addDays(date,n){const d=new Date(date);d.setDate(d.getDate()+n);return d}
+function addMonthsSafe(date,n,desiredDay){const d=new Date(date.getFullYear(),date.getMonth()+n,1);const last=new Date(d.getFullYear(),d.getMonth()+1,0).getDate();if(desiredDay>last)return null;d.setDate(desiredDay);return d}
+function weekdayChecks(selected,startDate){const labels=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];const picked=new Set(selected?.length?selected:[new Date(`${startDate}T12:00:00`).getDay()]);return labels.map((label,i)=>`<label class="weekday-chip"><input type="checkbox" data-weekday="${i}" ${picked.has(i)?'checked':''}><span>${label}</span></label>`).join('')}
+function recurrenceDates(startDate,repeat){
+  if(!repeat?.enabled)return[startDate];
+  const start=new Date(`${startDate}T12:00:00`),end=new Date(`${repeat.until}T23:59:59`),out=[];
+  if(isNaN(end)||end<start)return[];
+  const interval=Math.max(1,Number(repeat.interval)||1),limit=1000;
+  if(repeat.unit==='day'){
+    for(let d=new Date(start);d<=end&&out.length<limit;d=addDays(d,interval))out.push(fmtDateInput(d));
+  }else if(repeat.unit==='week'){
+    const days=(repeat.weekdays?.length?repeat.weekdays:[start.getDay()]).map(Number).sort((a,b)=>a-b);
+    const anchor=new Date(start);anchor.setDate(anchor.getDate()-anchor.getDay());
+    for(let week=0;out.length<limit;week+=interval){
+      const base=addDays(anchor,week*7);if(base>end)break;
+      for(const wd of days){const d=addDays(base,wd);if(d>=start&&d<=end)out.push(fmtDateInput(d));}
+    }
+  }else{
+    const desired=start.getDate();
+    for(let m=0;out.length<limit;m+=interval){const d=addMonthsSafe(start,m,desired);if(!d)continue;if(d>end)break;if(d>=start)out.push(fmtDateInput(d));}
+  }
+  return [...new Set(out)].sort();
+}
+function openTaskModal(task=null,prefillDate=''){
+  const now=new Date(),t=task||{title:'',course:'',date:prefillDate||fmtDateInput(now),time:'',notes:'',done:false};
+  const existingRepeat=t.repeat||{enabled:false,unit:'week',interval:1,until:'',weekdays:[]};
+  showModal(`<h3>${task?'Edit task':'Add task'}</h3><div class="form-grid">
+    <div class="field full"><label>Task name</label><input id="fTitle" value="${escapeHtml(t.title)}" placeholder="Your task name"></div>
+    <div class="field"><label>Course (optional)</label><input id="fCourse" value="${escapeHtml(t.course||'')}" placeholder="Your course name (if applicable)"></div>
+    <div class="field"><label>Date</label><input id="fDate" type="date" value="${t.date}"></div>
+    <div class="field"><label>Exact due time (optional)</label><input id="fTime" type="time" value="${t.time||''}"></div>
+    <div class="field full repeat-field">
+      <label class="repeat-toggle"><input id="fRepeat" type="checkbox" ${existingRepeat.enabled?'checked':''}><span>Repeat</span></label>
+      <div id="repeatOptions" class="repeat-options ${existingRepeat.enabled?'':'hidden'}">
+        <div class="repeat-row"><span>Repeat every</span><input id="fRepeatInterval" type="number" min="1" max="99" value="${existingRepeat.interval||1}"><select id="fRepeatUnit"><option value="day" ${existingRepeat.unit==='day'?'selected':''}>day(s)</option><option value="week" ${existingRepeat.unit==='week'?'selected':''}>week(s)</option><option value="month" ${existingRepeat.unit==='month'?'selected':''}>month(s)</option></select></div>
+        <div id="weekdayPicker" class="weekday-picker ${existingRepeat.unit==='week'?'':'hidden'}">${weekdayChecks(existingRepeat.weekdays,t.date)}</div>
+        <div class="repeat-until"><label>Repeat until</label><input id="fRepeatUntil" type="date" value="${existingRepeat.until||''}"><div class="field-hint">The last occurrence will be on or before this date.</div></div>
+      </div>
+    </div>
+    <div class="field full"><label>Notes</label><textarea id="fNotes">${escapeHtml(t.notes||'')}</textarea></div>
+  </div><div class="modal-actions">${task?'<button id="deleteTask" class="danger-btn">Delete</button>':''}<button id="cancelModal" class="soft-btn">Cancel</button><button id="saveTask" class="primary-btn">Save</button></div>`);
+  $('#cancelModal').onclick=closeModal;
+  $('#fRepeat').onchange=()=>$('#repeatOptions').classList.toggle('hidden',!$('#fRepeat').checked);
+  $('#fRepeatUnit').onchange=()=>$('#weekdayPicker').classList.toggle('hidden',$('#fRepeatUnit').value!=='week');
+  $('#fDate').onchange=()=>{if($('#fRepeatUnit').value==='week'&&!document.querySelector('[data-weekday]:checked')){$('#weekdayPicker').innerHTML=weekdayChecks([], $('#fDate').value)}};
+  $('#saveTask').onclick=async()=>{
+    const title=$('#fTitle').value.trim(),date=$('#fDate').value;if(!title||!date)return toast('Task name and date are required.');
+    const repeatEnabled=$('#fRepeat').checked;
+    const repeat=repeatEnabled?{enabled:true,unit:$('#fRepeatUnit').value,interval:Math.max(1,Number($('#fRepeatInterval').value)||1),until:$('#fRepeatUntil').value,weekdays:[...document.querySelectorAll('[data-weekday]:checked')].map(x=>Number(x.dataset.weekday))}:null;
+    if(repeatEnabled&&!repeat.until)return toast('Choose a Repeat until date.');
+    if(repeatEnabled&&repeat.unit==='week'&&!repeat.weekdays.length)return toast('Choose at least one weekday.');
+    if(task){
+      const obj={...t,title,course:$('#fCourse').value.trim(),date,time:$('#fTime').value,notes:$('#fNotes').value.trim(),repeat:repeat||null,updatedAt:Date.now()};
+      await idbPut(obj);closeModal();await refresh();toast('Task updated.');return;
+    }
+    const dates=recurrenceDates(date,repeat);
+    if(!dates.length)return toast('Repeat end date must be on or after the start date.');
+    const seriesId=repeatEnabled?crypto.randomUUID():null;
+    for(const occurrenceDate of dates){await idbPut({id:crypto.randomUUID(),seriesId,title,course:$('#fCourse').value.trim(),date:occurrenceDate,time:$('#fTime').value,notes:$('#fNotes').value.trim(),repeat:repeat||null,done:false,createdAt:Date.now()})}
+    closeModal();await refresh();toast(repeatEnabled?`Added ${dates.length} repeated tasks.`:'Task added.');
+  };
+  if(task)$('#deleteTask').onclick=async()=>{await idbDelete(task.id);closeModal();await refresh();toast('Task deleted.')};
+}
 function openEmergency(task,diff){showModal(`<div class="section-label">URGENT DEADLINE</div><h3 style="font-size:30px;margin-top:6px">${escapeHtml(countdown(diff))}</h3><div style="font-size:18px;font-weight:800">${escapeHtml(task.course?task.course+' · ':'')}${escapeHtml(task.title)}</div><div class="next-meta" style="margin-top:7px">${escapeHtml(formatDue(task))}</div><div class="modal-actions"><button id="emClose" class="soft-btn">Keep working</button><button id="emDone" class="primary-btn">Mark as done</button></div>`);$('#emClose').onclick=closeModal;$('#emDone').onclick=()=>{closeModal();completeTask(task.id)}}
 async function completeTask(id){const t=tasks.find(x=>x.id===id);if(!t)return;t.done=true;t.completedAt=Date.now();await idbPut(t);confetti();await refresh();toast('Done. Nicely handled.')}
 
@@ -96,5 +156,6 @@ function confetti(){const c=$('#confettiCanvas'),ctx=c.getContext('2d'),dpr=devi
 
 $('#addBtn').onclick=()=>openTaskModal();$('#importBtn').onclick=openBatch;$('#todoToggle').onclick=()=>{$('#todoPanel').classList.toggle('open');$('#todoPanel').setAttribute('aria-hidden',!$('#todoPanel').classList.contains('open'))};$('#closeTodo').onclick=()=>{$('#todoPanel').classList.remove('open');$('#todoPanel').setAttribute('aria-hidden','true')};$('#prevMonth').onclick=()=>{currentMonth=new Date(currentMonth.getFullYear(),currentMonth.getMonth()-1,1);renderCalendar()};$('#nextMonth').onclick=()=>{currentMonth=new Date(currentMonth.getFullYear(),currentMonth.getMonth()+1,1);renderCalendar()};$('#todayBtn').onclick=()=>{currentMonth=new Date();renderCalendar()};
 
-(async()=>{await openDB();await refresh();setInterval(()=>{renderHeader();renderTodo();renderWarnings()},1000);if('serviceWorker'in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{})})();
+function initPetalRain(){const root=$('#petalRain');if(!root)return;const glyphs=['✿','❀','✾','·'];for(let i=0;i<22;i++){const p=document.createElement('span');p.className='petal';p.textContent=glyphs[i%glyphs.length];p.style.left=`${Math.random()*100}%`;p.style.animationDuration=`${12+Math.random()*14}s`;p.style.animationDelay=`${-Math.random()*24}s`;p.style.fontSize=`${8+Math.random()*9}px`;p.style.opacity=`${.16+Math.random()*.24}`;root.appendChild(p)}}
 
+(async()=>{initPetalRain();await openDB();await refresh();setInterval(()=>{renderHeader();renderTodo();renderWarnings()},1000);if('serviceWorker'in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{})})();

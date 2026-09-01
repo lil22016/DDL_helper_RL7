@@ -4,9 +4,10 @@
   --shadow:0 20px 55px rgba(64,99,76,.10);
 }
 *{box-sizing:border-box}html,body{margin:0;min-height:100%;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--text)}
-body{background:linear-gradient(180deg,#f9fcfa 0%,#edf7ef 100%);min-height:100vh;padding:24px;transition:background .5s ease}
+body{background:linear-gradient(180deg,#cfdccc 0%,#e8f0e6 43%,#f8faf7 100%);min-height:100vh;padding:26px;transition:background .5s ease;overflow-x:hidden}
 button,input,textarea{font:inherit}.glass{background:var(--paper);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border:1px solid var(--border);box-shadow:var(--shadow)}
-.topbar{max-width:1240px;margin:0 auto 20px;padding:22px 24px;border-radius:26px;display:flex;justify-content:space-between;align-items:center;gap:20px;position:sticky;top:12px;z-index:30}
+.garden-frame{position:relative;z-index:3;max-width:1320px;margin:0 auto;background:rgba(255,255,255,.90);border:1px solid rgba(76,104,82,.13);border-radius:42px;padding:24px;box-shadow:0 28px 85px rgba(63,89,68,.16);backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px)}
+.topbar{max-width:1240px;margin:0 auto 20px;padding:22px 24px;border-radius:26px;display:flex;justify-content:space-between;align-items:center;gap:20px;position:sticky;top:12px;z-index:30;background:rgba(255,255,255,.64);border:1px solid var(--border)}
 .eyebrow,.section-label{font-size:11px;font-weight:800;letter-spacing:.16em;color:#6f8e78}.topbar h1{margin:4px 0 2px;font-size:28px}.summary-line,.next-meta,.todo-subtitle{color:var(--muted);font-size:14px}.top-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
 button{border:0;cursor:pointer}.primary-btn,.soft-btn,.todo-pill{padding:11px 15px;border-radius:14px;font-weight:750}.primary-btn{background:#5f9c71;color:white}.soft-btn{background:#edf6ef;color:#41664c}.soft-btn.small{padding:8px 12px}.todo-pill{background:#213129;color:white}.todo-pill span{display:inline-grid;place-items:center;min-width:22px;height:22px;border-radius:99px;background:#91c5a0;margin-left:5px;font-size:12px;color:#193021}
 .page-shell{max-width:1240px;margin:0 auto;display:grid;gap:20px}.hero-card,.calendar-card{border-radius:26px;padding:24px}.hero-card{min-height:142px;display:flex;flex-direction:column;justify-content:center}.next-title{font-size:28px;font-weight:850;margin-top:8px}.next-meta{margin-top:6px}.next-countdown{font-size:18px;font-weight:800;margin-top:12px;color:#9d5c34}
@@ -20,24 +21,18 @@ button{border:0;cursor:pointer}.primary-btn,.soft-btn,.todo-pill{padding:11px 15
 @media(max-width:760px){body{padding:12px}.topbar{padding:16px;border-radius:20px;align-items:flex-start}.topbar h1{font-size:22px}.top-actions{gap:7px}.primary-btn,.soft-btn,.todo-pill{padding:9px 11px;font-size:12px}.hero-card,.calendar-card{padding:16px;border-radius:20px}.next-title{font-size:22px}.day-cell{min-height:100px;padding:6px}.weekday-row{font-size:10px}.event-chip{font-size:9px;padding:5px}.todo-panel{right:12px;top:96px}.form-grid{grid-template-columns:1fr}.field.full{grid-column:auto}.warning-copy{bottom:10px;font-size:11px}}
 
 
-/* Focused to-do groups: comfortable rows with a stable two-column layout. */
-.todo-panel{width:min(520px,calc(100vw - 32px));padding:22px;max-height:calc(100dvh - 136px)}
-.todo-header .section-label{font-size:13px}.todo-subtitle{margin-top:6px;color:#52675a}
-.todo-list{display:block;padding-top:4px}
-.todo-section + .todo-section{border-top:1px solid var(--border);margin-top:16px;padding-top:8px}
-.todo-section summary{display:flex;align-items:center;gap:10px;cursor:pointer;list-style:none;min-height:52px;font-size:16px;font-weight:800;padding:10px 2px}
-.todo-section summary::-webkit-details-marker{display:none}
-.todo-section-count{font-size:14px;font-weight:600;color:#52675a;background:#e7f1e9;border-radius:20px;padding:3px 9px}
-.todo-chevron{margin-left:auto;font-size:24px;transition:transform .15s}
-.todo-section[open] > summary .todo-chevron{transform:rotate(90deg)}
-.todo-section-items{display:grid;gap:12px}
-.todo-item{grid-template-columns:44px minmax(0,1fr);gap:8px;padding:18px 16px;min-height:112px;border:1px solid var(--border);background:#f7fbf8}
-.todo-check{display:grid;place-items:start center;min-width:44px;min-height:44px;padding-top:2px;cursor:pointer}
-.todo-item input{width:24px;height:24px;margin:0;cursor:pointer}
-.todo-content{min-width:0}.todo-title{font-size:16px;line-height:1.5;overflow-wrap:anywhere}
-.todo-course{font-size:14px;font-weight:700;color:#41664c;margin-top:8px;overflow-wrap:anywhere}
-.todo-meta{font-size:14px;line-height:1.5;color:#52675a;margin-top:4px}
-.todo-timer{font-size:14px;line-height:1.5;white-space:normal;margin-top:8px;color:#993c2c}
-.todo-timer[hidden]{display:none}.todo-empty{font-size:14px;color:#52675a;padding:10px 2px 18px}
-.todo-section summary:focus-visible,.todo-item input:focus-visible{outline:3px solid #4e8c62;outline-offset:3px}
-@media(max-width:760px){.todo-panel{right:12px;width:calc(100vw - 24px);padding:18px;max-height:calc(100dvh - 112px)}.todo-item{padding:16px 12px}}
+/* Deadline Garden v3: moss frame, drifting petals, recurrence controls */
+.petal-rain{position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden}
+.petal{position:absolute;top:-8vh;color:#728f73;animation:petalFall linear infinite;filter:blur(.05px);user-select:none}
+@keyframes petalFall{0%{transform:translate3d(-12px,-10vh,0) rotate(0deg)}50%{transform:translate3d(22px,48vh,0) rotate(170deg)}100%{transform:translate3d(-18px,110vh,0) rotate(350deg)}}
+.repeat-field{margin-top:3px;border:1px solid #dbe8de;border-radius:16px;padding:13px;background:#f7fbf8}
+.repeat-toggle{display:flex!important;align-items:center;gap:9px;color:#375b43!important;font-size:14px!important;cursor:pointer}
+.repeat-toggle input{width:19px;height:19px;accent-color:#5f9c71}
+.repeat-options{margin-top:13px;padding-top:13px;border-top:1px solid #dbe8de;display:grid;gap:13px}
+.repeat-options.hidden,.weekday-picker.hidden{display:none}
+.repeat-row{display:flex;align-items:center;gap:9px;flex-wrap:wrap;font-size:13px;color:#52675a}
+.repeat-row input{width:72px}.repeat-row select{border:1px solid #dbe8de;border-radius:12px;padding:10px 11px;background:#fff;color:#243128}
+.weekday-picker{display:flex;gap:6px;flex-wrap:wrap}.weekday-chip input{position:absolute;opacity:0;pointer-events:none}.weekday-chip span{display:grid;place-items:center;min-width:42px;height:36px;padding:0 9px;border:1px solid #dbe8de;border-radius:12px;background:white;color:#52675a;font-size:12px;font-weight:750;cursor:pointer}.weekday-chip input:checked+span{background:#dceede;color:#31563d;border-color:#a9c8af}
+.repeat-until{display:grid;gap:6px}.repeat-until>label{font-size:12px;font-weight:750;color:#63736a}.field-hint{font-size:11px;color:#7c8b81}
+@media(max-width:760px){body{padding:10px}.garden-frame{padding:10px;border-radius:28px}.topbar{position:relative;top:auto}.petal{opacity:.16!important}.repeat-row{align-items:flex-start}.weekday-chip span{min-width:38px}}
+@media(prefers-reduced-motion:reduce){.petal{animation:none;display:none}}
