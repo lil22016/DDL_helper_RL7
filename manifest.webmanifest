@@ -1,0 +1,9 @@
+{
+  "name":"Deadline Garden",
+  "short_name":"Deadlines",
+  "start_url":"./",
+  "display":"standalone",
+  "background_color":"#f6fbf7",
+  "theme_color":"#edf7ef",
+  "icons":[]
+}

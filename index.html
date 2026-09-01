@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#edf7ef" />
+  <title>Deadline Garden</title>
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="warningBackdrop" class="warning-backdrop" aria-hidden="true">
+    <div class="warning-copy">
+      <div id="warningKicker" class="warning-kicker"></div>
+      <div id="warningText" class="warning-text"></div>
+    </div>
+  </div>
+
+  <header class="topbar glass">
+    <div>
+      <div class="eyebrow">DEADLINE GARDEN</div>
+      <h1 id="todayHeading">Today</h1>
+      <div id="summaryLine" class="summary-line">0 tasks remaining</div>
+    </div>
+    <div class="top-actions">
+      <button id="importBtn" class="soft-btn">Batch Paste</button>
+      <button id="addBtn" class="primary-btn">+ Add task</button>
+      <button id="todoToggle" class="todo-pill">Todo <span id="todoCount">0</span></button>
+    </div>
+  </header>
+
+  <main class="page-shell">
+    <section class="hero-card glass">
+      <div class="section-label">NEXT DEADLINE</div>
+      <div id="nextTitle" class="next-title">Nothing due soon</div>
+      <div id="nextMeta" class="next-meta">Your calendar is clear.</div>
+      <div id="nextCountdown" class="next-countdown"></div>
+    </section>
+
+    <section class="calendar-card glass">
+      <div class="calendar-toolbar">
+        <div class="month-nav">
+          <button id="prevMonth" class="icon-btn" aria-label="Previous month">‹</button>
+          <h2 id="monthLabel"></h2>
+          <button id="nextMonth" class="icon-btn" aria-label="Next month">›</button>
+        </div>
+        <button id="todayBtn" class="soft-btn small">Today</button>
+      </div>
+      <div class="weekday-row">
+        <div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div>
+      </div>
+      <div id="calendarGrid" class="calendar-grid"></div>
+    </section>
+  </main>
+
+  <aside id="todoPanel" class="todo-panel glass" aria-hidden="true">
+    <div class="todo-header">
+      <div>
+        <div class="section-label">TO DO</div>
+        <div id="todoSubtitle" class="todo-subtitle">Nothing pending</div>
+      </div>
+      <button id="closeTodo" class="icon-btn">×</button>
+    </div>
+    <div id="todoList" class="todo-list"></div>
+  </aside>
+
+  <div id="modalRoot" class="modal-root hidden" role="dialog" aria-modal="true">
+    <div id="modalCard" class="modal-card glass"></div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+  <canvas id="confettiCanvas"></canvas>
+
+  <script src="app.js"></script>
+</body>
+</html>
