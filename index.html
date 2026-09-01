@@ -28,17 +28,17 @@
               <path d="M9.1 4.3c.4 1.5 1.4 2.3 2.9 2.3s2.5-.8 2.9-2.3"/>
             </svg>
           </button>
-          <div id="themeMenu" class="theme-menu hidden" role="menu" aria-label="Color themes">
-            <div class="theme-menu-title">Garden color</div>
-            <div class="theme-swatches">
-              <button class="theme-swatch red" data-theme-choice="red" aria-label="Red theme"></button>
-              <button class="theme-swatch orange" data-theme-choice="orange" aria-label="Orange theme"></button>
-              <button class="theme-swatch yellow" data-theme-choice="yellow" aria-label="Yellow theme"></button>
-              <button class="theme-swatch green" data-theme-choice="green" aria-label="Green theme"></button>
-              <button class="theme-swatch blue" data-theme-choice="blue" aria-label="Blue theme"></button>
-              <button class="theme-swatch indigo" data-theme-choice="indigo" aria-label="Indigo theme"></button>
-              <button class="theme-swatch purple" data-theme-choice="purple" aria-label="Purple theme"></button>
-            </div>
+          <div id="themeMenu" class="theme-menu hidden wardrobe-menu" role="menu" aria-label="Customize Deadline Garden">
+            <div class="wardrobe-title">Wardrobe</div>
+            <div class="wardrobe-section"><div class="theme-menu-title">Garden color</div><div class="theme-swatches">
+              <button class="theme-swatch red" data-theme-choice="red"></button><button class="theme-swatch orange" data-theme-choice="orange"></button><button class="theme-swatch yellow" data-theme-choice="yellow"></button><button class="theme-swatch green" data-theme-choice="green"></button><button class="theme-swatch blue" data-theme-choice="blue"></button><button class="theme-swatch indigo" data-theme-choice="indigo"></button><button class="theme-swatch purple" data-theme-choice="purple"></button>
+            </div></div>
+            <div class="wardrobe-section"><div class="theme-menu-title">Flowers · size</div><div class="mini-options"><button data-customize-key="flowerSize" data-customize-value="small">Small</button><button data-customize-key="flowerSize" data-customize-value="medium">Medium</button><button data-customize-key="flowerSize" data-customize-value="large">Large</button></div></div>
+            <div class="wardrobe-section"><div class="theme-menu-title">Flowers · opacity</div><div class="mini-options"><button data-customize-key="flowerOpacity" data-customize-value="low">Low</button><button data-customize-key="flowerOpacity" data-customize-value="medium">Medium</button><button data-customize-key="flowerOpacity" data-customize-value="high">High</button></div></div>
+            <div class="wardrobe-section"><div class="theme-menu-title">Confetti</div><div class="mini-options"><button data-customize-key="confetti" data-customize-value="low">Low</button><button data-customize-key="confetti" data-customize-value="medium">Medium</button><button data-customize-key="confetti" data-customize-value="high">High</button></div></div>
+            <div class="wardrobe-section"><div class="theme-menu-title">Checklist color</div><div class="mini-options"><button data-customize-key="checklistColor" data-customize-value="postit">Post-it</button><button data-customize-key="checklistColor" data-customize-value="white">White</button><button data-customize-key="checklistColor" data-customize-value="theme">Theme</button></div></div>
+            <div class="wardrobe-section"><div class="theme-menu-title">Checklist shape</div><div class="mini-options wrap"><button data-customize-key="checklistShape" data-customize-value="postit">Post-it</button><button data-customize-key="checklistShape" data-customize-value="heart">Heart</button><button data-customize-key="checklistShape" data-customize-value="portrait">Tall</button><button data-customize-key="checklistShape" data-customize-value="landscape">Wide</button><button data-customize-key="checklistShape" data-customize-value="circle">Circle</button></div></div>
+            <div class="wardrobe-section"><div class="theme-menu-title">Todo badge number</div><div class="mini-options"><button data-customize-key="todoCount" data-customize-value="today">Today</button><button data-customize-key="todoCount" data-customize-value="week">This week</button><button data-customize-key="todoCount" data-customize-value="all">All</button></div></div>
           </div>
         </div>
         <div>
@@ -76,6 +76,7 @@
             <button data-cal-view="week" class="view-btn">Week</button>
             <button data-cal-view="day" class="view-btn">Day</button>
           </div>
+          <button id="holidayBtn" class="soft-btn small">+ Holiday</button>
           <button id="displayBtn" class="soft-btn small">Display</button>
           <button id="todayBtn" class="soft-btn small">Today</button>
         </div>
@@ -102,8 +103,8 @@
   <aside class="quick-note" aria-label="Quick to-do note">
     <div class="quick-note-pin"></div>
     <div class="quick-note-header">
-      <div><span>QUICK TO-DO</span><strong>Little things</strong></div>
-      <span id="quickTodoCount" class="quick-count">0</span>
+      <div><span>CHECKLIST</span><strong>Checklist</strong></div>
+      <div class="quick-header-actions"><span id="quickTodoCount" class="quick-count">0</span><button id="quickCollapse" class="quick-collapse" aria-label="Collapse checklist">−</button></div>
     </div>
     <div class="quick-add-row">
       <input id="quickTodoInput" type="text" maxlength="160" placeholder="e.g. Tidy the room" aria-label="New quick to-do">
@@ -111,6 +112,7 @@
     </div>
     <div id="quickTodoList" class="quick-todo-list"></div>
   </aside>
+  <button id="quickBubble" class="quick-bubble hidden" aria-label="Open checklist"><span class="quick-bubble-ring">CHECKLIST • CHECKLIST •</span><span class="quick-bubble-face">☺</span></button>
 
   <div id="modalRoot" class="modal-root hidden" role="dialog" aria-modal="true">
     <div id="modalCard" class="modal-card glass"></div>

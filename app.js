@@ -7,6 +7,12 @@ const THEME_KEY='deadline-garden-theme-v1';
 const THEMES=['red','orange','yellow','green','blue','indigo','purple'];
 const CAL_DISPLAY_KEY='deadline-garden-calendar-display-v1';
 const CAL_VIEW_KEY='deadline-garden-calendar-view-v1';
+const CUSTOMIZE_KEY='deadline-garden-customize-v1';
+const HOLIDAY_KEY='deadline-garden-holidays-v1';
+let customize={flowerSize:'medium',flowerOpacity:'medium',confetti:'medium',checklistColor:'postit',checklistShape:'postit',todoCount:'today'};
+let holidays=[];
+try{Object.assign(customize,JSON.parse(localStorage.getItem(CUSTOMIZE_KEY)||'{}')||{})}catch{}
+try{const h=JSON.parse(localStorage.getItem(HOLIDAY_KEY)||'[]');if(Array.isArray(h))holidays=h}catch{}
 let calendarDisplay={time:true,course:false,title:true,description:false};
 let calendarView='month';
 try{
@@ -33,21 +39,27 @@ function addDays(date,n){const d=new Date(date);d.setDate(d.getDate()+n);return 
 function addMonthsSafe(date,n,desiredDay){const d=new Date(date.getFullYear(),date.getMonth()+n,1);const last=new Date(d.getFullYear(),d.getMonth()+1,0).getDate();d.setDate(Math.min(desiredDay,last));return d}
 function deadlineTasks(){return tasks.filter(t=>!t.quick)}
 function quickTasks(){return tasks.filter(t=>t.quick)}
+const ICON_COLORS={red:'#c95f68',orange:'#d88a4f',yellow:'#c5aa47',green:'#5f9c71',blue:'#5f8fb5',indigo:'#6d73b8',purple:'#9870b4'};
+function taskIconHtml(t){const e=(t.emoji||'').trim();if(e)return `<span class="task-icon emoji">${escapeHtml(e)}</span>`;if(t.iconColor&&ICON_COLORS[t.iconColor])return `<span class="task-icon color" style="--task-icon-color:${ICON_COLORS[t.iconColor]}"></span>`;return''}
+function holidayForDate(ds){return holidays.find(h=>ds>=h.start&&ds<=h.end)||null}
+function saveCustomize(){try{localStorage.setItem(CUSTOMIZE_KEY,JSON.stringify(customize))}catch{}applyCustomize()}
+function saveHolidays(){try{localStorage.setItem(HOLIDAY_KEY,JSON.stringify(holidays))}catch{}}
+
 
 async function refresh(){tasks=await idbGetAll();tasks.sort((a,b)=>dueMs(a)-dueMs(b));todoSignature='';renderAll()}
 function renderAll(){renderHeader();renderCalendar();renderTodo();renderQuickTodo();renderWarnings()}
 
+function getTodoBadgeCount(pending){const g=getTodoGroups(pending);if(customize.todoCount==='all')return pending.length;if(customize.todoCount==='week')return g.today.length+g.week.length;return g.today.length}
 function renderHeader(){
   const now=new Date();
   $('#todayHeading').textContent=now.toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric'});
-  const pending=deadlineTasks().filter(t=>!t.done),focus=getTodoGroups(pending).today.length;
+  const pending=deadlineTasks().filter(t=>!t.done),focus=getTodoGroups(pending).today.length,badge=getTodoBadgeCount(pending);
   $('#summaryLine').textContent=focus?`${focus} task${focus===1?'':'s'} to focus on today`:'Nothing due today';
-  $('#todoCount').textContent=focus;
+  $('#todoCount').textContent=badge;
+  $('#todoToggle').setAttribute('aria-label',`Open to-do list: ${badge} shown in badge`);
   const next=pending[0];
   if(!next){$('#nextTitle').textContent='Nothing due soon';$('#nextMeta').textContent='Your calendar is clear.';$('#nextCountdown').textContent='';return}
-  $('#nextTitle').textContent=`${next.course?next.course+' · ':''}${next.title}`;
-  $('#nextMeta').textContent=formatDue(next);
-  const diff=dueMs(next)-Date.now();$('#nextCountdown').textContent=diff<=2*3600e3?countdown(diff):''
+  $('#nextTitle').textContent=`${next.course?next.course+' · ':''}${next.title}`;$('#nextMeta').textContent=formatDue(next);const diff=dueMs(next)-Date.now();$('#nextCountdown').textContent=diff<=2*3600e3?countdown(diff):''
 }
 
 function calendarChipContent(t){
@@ -78,58 +90,25 @@ function weekStartFor(date){
 }
 
 function renderCalendar(){
-  const all=deadlineTasks();
-  const grid=$('#calendarGrid'),weekdays=$('.weekday-row');
-  grid.className='calendar-grid';
-  weekdays.classList.remove('hidden');
-  document.querySelectorAll('[data-cal-view]').forEach(b=>b.classList.toggle('active',b.dataset.calView===calendarView));
-
+  const all=deadlineTasks(),grid=$('#calendarGrid'),weekdays=$('.weekday-row');grid.className='calendar-grid';weekdays.classList.remove('hidden');document.querySelectorAll('[data-cal-view]').forEach(b=>b.classList.toggle('active',b.dataset.calView===calendarView));
+  const chip=(t,extra='')=>`<button class="event-chip ${extra} size-${t.calendarSize||'medium'} ${t.done?'done':''} urgent${urgency(t)}" data-id="${t.id}" title="${escapeHtml([t.course,t.title,formatDue(t),t.notes].filter(Boolean).join(' · '))}">${taskIconHtml(t)}<span>${escapeHtml(calendarChipContent(t))}</span></button>`;
   if(calendarView==='month'){
-    const y=currentMonth.getFullYear(),m=currentMonth.getMonth();
-    $('#monthLabel').textContent=currentMonth.toLocaleDateString(undefined,{month:'long',year:'numeric'});
-    const first=new Date(y,m,1),start=new Date(y,m,1-first.getDay());let html='';
-    for(let i=0;i<42;i++){
-      const d=new Date(start);d.setDate(start.getDate()+i);const ds=fmtDateInput(d);
-      const dayTasks=all.filter(t=>t.date===ds),outside=d.getMonth()!==m,today=ds===fmtDateInput(new Date());
-      html+=`<div class="day-cell ${outside?'outside':''} ${today?'today':''}" data-date="${ds}">
-        <div class="day-number"><span>${d.getDate()}</span></div>
-        ${dayTasks.slice(0,5).map(t=>`<button class="event-chip ${t.done?'done':''} urgent${urgency(t)}" data-id="${t.id}" title="${escapeHtml([t.course,t.title,formatDue(t),t.notes].filter(Boolean).join(' · '))}">${escapeHtml(calendarChipContent(t))}</button>`).join('')}
-        ${dayTasks.length>5?`<div class="tiny">+${dayTasks.length-5} more</div>`:''}
-      </div>`
-    }
+    const y=currentMonth.getFullYear(),m=currentMonth.getMonth();$('#monthLabel').textContent=currentMonth.toLocaleDateString(undefined,{month:'long',year:'numeric'});const start=new Date(y,m,1-new Date(y,m,1).getDay());let html='';
+    for(let i=0;i<42;i++){const d=new Date(start);d.setDate(start.getDate()+i);const ds=fmtDateInput(d),dayTasks=all.filter(t=>t.date===ds),outside=d.getMonth()!==m,today=ds===fmtDateInput(new Date()),holiday=holidayForDate(ds);html+=`<div class="day-cell ${outside?'outside':''} ${today?'today':''} ${holiday?'holiday-day':''}" data-date="${ds}"><div class="day-number"><span>${d.getDate()}</span>${holiday?`<em class="holiday-mini">✦ ${escapeHtml(holiday.name||'Holiday')}</em>`:''}</div>${dayTasks.slice(0,5).map(t=>chip(t)).join('')}${dayTasks.length>5?`<div class="tiny">+${dayTasks.length-5} more</div>`:''}</div>`}
     grid.innerHTML=html;
   }else if(calendarView==='week'){
-    const start=weekStartFor(currentMonth),end=addDays(start,6);
-    $('#monthLabel').textContent=`${start.toLocaleDateString(undefined,{month:'short',day:'numeric'})} – ${end.toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'})}`;
-    grid.classList.add('calendar-grid-week');
-    let html='';
-    for(let i=0;i<7;i++){
-      const d=addDays(start,i),ds=fmtDateInput(d),dayTasks=all.filter(t=>t.date===ds),today=ds===fmtDateInput(new Date());
-      html+=`<div class="week-day ${today?'today':''}" data-date="${ds}">
-        <div class="week-date"><strong>${d.getDate()}</strong><span>${d.toLocaleDateString(undefined,{month:'short'})}</span></div>
-        <div class="week-events">${dayTasks.length?dayTasks.map(t=>`<button class="event-chip week-event ${t.done?'done':''} urgent${urgency(t)}" data-id="${t.id}">${escapeHtml(calendarChipContent(t))}</button>`).join(''):'<div class="calendar-empty">No tasks</div>'}</div>
-      </div>`
-    }
+    const start=weekStartFor(currentMonth),end=addDays(start,6);$('#monthLabel').textContent=`${start.toLocaleDateString(undefined,{month:'short',day:'numeric'})} – ${end.toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'})}`;grid.classList.add('calendar-grid-week');let html='';
+    for(let i=0;i<7;i++){const d=addDays(start,i),ds=fmtDateInput(d),dayTasks=all.filter(t=>t.date===ds),today=ds===fmtDateInput(new Date()),holiday=holidayForDate(ds);html+=`<div class="week-day ${today?'today':''} ${holiday?'holiday-day':''}" data-date="${ds}"><div class="week-date"><strong>${d.getDate()}</strong><span>${d.toLocaleDateString(undefined,{month:'short'})}</span>${holiday?`<em>✦ ${escapeHtml(holiday.name||'Holiday')}</em>`:''}</div><div class="week-events">${dayTasks.length?dayTasks.map(t=>chip(t,'week-event')).join(''):'<div class="calendar-empty">No tasks</div>'}</div></div>`}
     grid.innerHTML=html;
   }else{
-    weekdays.classList.add('hidden');
-    const d=new Date(currentMonth.getFullYear(),currentMonth.getMonth(),currentMonth.getDate()),ds=fmtDateInput(d);
-    $('#monthLabel').textContent=d.toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric',year:'numeric'});
-    const dayTasks=all.filter(t=>t.date===ds);
-    grid.classList.add('calendar-grid-day');
-    grid.innerHTML=`<div class="daily-view" data-date="${ds}">
-      <div class="daily-date"><div>${d.toLocaleDateString(undefined,{weekday:'long'})}</div><strong>${d.getDate()}</strong><span>${d.toLocaleDateString(undefined,{month:'long',year:'numeric'})}</span></div>
-      <div class="daily-events">${dayTasks.length?dayTasks.map(t=>`<button class="daily-task-card ${t.done?'done':''} urgent${urgency(t)}" data-id="${t.id}">
-        <span class="daily-task-time">${t.time?new Date(`${t.date}T${t.time}:00`).toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'}):'Any time'}</span>
-        <span class="daily-task-main">${escapeHtml(calendarChipContent(t))}</span>
-      </button>`).join(''):'<div class="daily-empty">Nothing scheduled for this day.<button class="soft-btn small" id="dailyAdd">+ Add task</button></div>'}</div>
-    </div>`;
-    if($('#dailyAdd'))$('#dailyAdd').onclick=e=>{e.stopPropagation();openTaskModal(null,ds)};
+    weekdays.classList.add('hidden');const d=new Date(currentMonth.getFullYear(),currentMonth.getMonth(),currentMonth.getDate()),ds=fmtDateInput(d),dayTasks=all.filter(t=>t.date===ds),holiday=holidayForDate(ds);$('#monthLabel').textContent=d.toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric',year:'numeric'});grid.classList.add('calendar-grid-day');grid.innerHTML=`<div class="daily-view ${holiday?'holiday-day':''}" data-date="${ds}"><div class="daily-date"><div>${d.toLocaleDateString(undefined,{weekday:'long'})}</div><strong>${d.getDate()}</strong><span>${d.toLocaleDateString(undefined,{month:'long',year:'numeric'})}</span>${holiday?`<em>✦ ${escapeHtml(holiday.name||'Holiday')}</em>`:''}</div><div class="daily-events">${dayTasks.length?dayTasks.map(t=>`<button class="daily-task-card size-${t.calendarSize||'medium'} ${t.done?'done':''} urgent${urgency(t)}" data-id="${t.id}"><span class="daily-task-time">${t.time?new Date(`${t.date}T${t.time}:00`).toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'}):'Any time'}</span><span class="daily-task-main">${taskIconHtml(t)}<span>${escapeHtml(calendarChipContent(t))}</span></span></button>`).join(''):'<div class="daily-empty">Nothing scheduled for this day.<button class="soft-btn small" id="dailyAdd">+ Add task</button></div>'}</div></div>`;if($('#dailyAdd'))$('#dailyAdd').onclick=e=>{e.stopPropagation();openTaskModal(null,ds)};
   }
-
-  document.querySelectorAll('.event-chip,[data-id].daily-task-card').forEach(el=>el.onclick=e=>{e.stopPropagation();openTaskDetails(tasks.find(t=>t.id===el.dataset.id))});
-  document.querySelectorAll('.day-cell,.week-day,.daily-view').forEach(el=>el.onclick=()=>{el.classList.remove('calendar-click');void el.offsetWidth;el.classList.add('calendar-click');setTimeout(()=>openTaskModal(null,el.dataset.date),90)})
+  document.querySelectorAll('.event-chip,[data-id].daily-task-card').forEach(el=>el.onclick=e=>{e.stopPropagation();openTaskDetails(tasks.find(t=>t.id===el.dataset.id))});document.querySelectorAll('.day-cell,.week-day,.daily-view').forEach(el=>el.onclick=()=>{el.classList.remove('calendar-click');void el.offsetWidth;el.classList.add('calendar-click');setTimeout(()=>openTaskModal(null,el.dataset.date),90)})
 }
+
+function openHolidayModal(){const today=fmtDateInput(new Date());showModal(`<div class="section-label">HOLIDAY</div><h3>Add time off</h3><div class="form-grid"><div class="field full"><label>Name</label><input id="holidayName" placeholder="Fall Break"></div><div class="field"><label>Starts</label><input id="holidayStart" type="date" value="${today}"></div><div class="field"><label>Ends</label><input id="holidayEnd" type="date" value="${today}"></div></div><div class="next-meta" style="margin-top:10px">Holiday dates stay visible and softly highlighted. Existing tasks are kept unless you choose to clear them.</div><div class="modal-actions"><button id="holidayCancel" class="soft-btn">Cancel</button><button id="holidaySave" class="primary-btn">Save holiday</button></div>`);$('#holidayCancel').onclick=closeModal;$('#holidaySave').onclick=()=>{const name=$('#holidayName').value.trim()||'Holiday',start=$('#holidayStart').value,end=$('#holidayEnd').value;if(!start||!end||end<start)return toast('Choose a valid holiday date range.');const h={id:crypto.randomUUID(),name,start,end};holidays.push(h);saveHolidays();closeModal();renderCalendar();holidayCelebration();setTimeout(()=>askHolidayClear(h),350)}}
+function askHolidayClear(h){const inRange=deadlineTasks().filter(t=>t.date>=h.start&&t.date<=h.end);showModal(`<div class="holiday-celebrate-mark">✦</div><div class="section-label">HOLIDAY SAVED</div><h3>${escapeHtml(h.name)} is on the calendar!</h3><div class="next-meta">${inRange.length?`${inRange.length} task${inRange.length===1?'':'s'} currently fall inside this break.`:'No tasks currently fall inside this break.'}</div>${inRange.length?'<div class="holiday-question">Clear tasks during this holiday?</div>':''}<div class="modal-actions">${inRange.length?'<button id="holidayClearTasks" class="danger-btn">Clear holiday tasks</button>':''}<button id="holidayKeepTasks" class="primary-btn">${inRange.length?'Keep tasks':'Nice!'}</button></div>`);$('#holidayKeepTasks').onclick=closeModal;if(inRange.length)$('#holidayClearTasks').onclick=async()=>{for(const t of inRange)await idbDelete(t.id);closeModal();await refresh();toast(`Cleared ${inRange.length} holiday task${inRange.length===1?'':'s'}.`)}}
+function holidayCelebration(){confetti();document.body.classList.remove('holiday-party');void document.body.offsetWidth;document.body.classList.add('holiday-party');setTimeout(()=>document.body.classList.remove('holiday-party'),1800)}
 
 function openCalendarDisplay(){
   showModal(`<div class="section-label">CALENDAR</div><h3>Choose what task labels show</h3>
@@ -254,6 +233,8 @@ function closeModal(){
 }
 $('#modalRoot').onclick=e=>{if(e.target===$('#modalRoot'))closeModal()}
 
+function openTaskSizePicker(task){const current=task.calendarSize||'medium';showModal(`<div class="section-label">CALENDAR APPEARANCE</div><h3>Task display size</h3><div class="size-picker">${['small','medium','large'].map(s=>`<button class="size-choice ${current===s?'active':''}" data-size-choice="${s}"><span class="size-demo ${s}">${taskIconHtml(task)}${escapeHtml(task.title)}</span><strong>${s[0].toUpperCase()+s.slice(1)}</strong></button>`).join('')}</div><div class="modal-actions"><button id="sizeBack" class="soft-btn">Back</button></div>`);$('#sizeBack').onclick=()=>openTaskDetails(task);document.querySelectorAll('[data-size-choice]').forEach(b=>b.onclick=async()=>{task.calendarSize=b.dataset.sizeChoice;await idbPut(task);await refresh();openTaskDetails(task);toast('Calendar size updated.')})}
+
 function normalizeTaskLink(value){
   let s=(value||'').trim();if(!s)return'';
   if(!/^[a-z][a-z0-9+.-]*:\/\//i.test(s))s='https://'+s;
@@ -272,7 +253,7 @@ function openTaskDetails(task){
     <div class="task-detail-top">
       <div>
         <div class="section-label">${task.done?'COMPLETED TASK':'TASK DETAILS'}</div>
-        <h3>${escapeHtml(task.title)}</h3>
+        <h3>${taskIconHtml(task)}${escapeHtml(task.title)}</h3>
       </div>
       ${task.done?'<span class="completed-badge">Completed</span>':''}
     </div>
@@ -301,11 +282,12 @@ function openTaskDetails(task){
         }
       </div>
       <button id="detailClose" class="soft-btn">Close</button>
+      <button id="detailSize" class="soft-btn">Size: ${(task.calendarSize||'medium')[0].toUpperCase()+(task.calendarSize||'medium').slice(1)}</button>
       <button id="detailEdit" class="detail-edit-btn">Edit</button>
     </div>
   </div>`);
   $('#detailClose').onclick=closeModal;
-  $('#detailEdit').onclick=()=>openTaskModal(task);
+  $('#detailEdit').onclick=()=>openTaskModal(task);$('#detailSize').onclick=()=>openTaskSizePicker(task);
   if(task.done)$('#detailRestore').onclick=async()=>{closeModal();await restoreTask(task.id)}
   else $('#detailDone').onclick=async()=>{closeModal();await completeTask(task.id)}
 }
@@ -342,7 +324,7 @@ function readTaskForm(){
   if(enabled&&dateFromInput(repeat.until)<dateFromInput(date)){toast('Repeat until must be on or after the start date.');return null}
   const rawLink=$('#fLink').value.trim(),link=normalizeTaskLink(rawLink);
   if(rawLink&&!link){toast('Enter a valid http(s) link.');return null}
-  return{title,course:$('#fCourse').value.trim(),date,time:$('#fTime').value,link,notes:$('#fNotes').value.trim(),repeat}
+  return{title,course:$('#fCourse').value.trim(),date,time:$('#fTime').value,emoji:$('#fEmoji').value.trim(),iconColor:$('#fIconColor').value,link,notes:$('#fNotes').value.trim(),repeat}
 }
 function bindRepeatPreview(){
   const update=()=>{
@@ -365,6 +347,8 @@ function openTaskModal(task=null,prefillDate=''){
     <div class="field"><label>Course (optional)</label><input id="fCourse" value="${escapeHtml(t.course||'')}" placeholder="Your course name (if applicable)"></div>
     <div class="field"><label>Date</label><input id="fDate" type="date" value="${t.date}"></div>
     <div class="field"><label>Exact due time (optional)</label><input id="fTime" type="time" value="${t.time||''}"></div>
+    <div class="field"><label>Emoji icon (optional)</label><input id="fEmoji" maxlength="8" value="${escapeHtml(t.emoji||'')}" placeholder="📘"></div>
+    <div class="field"><label>Icon color (if no emoji)</label><select id="fIconColor"><option value="">None</option>${['red','orange','yellow','green','blue','indigo','purple'].map(c=>`<option value="${c}" ${t.iconColor===c?'selected':''}>${c[0].toUpperCase()+c.slice(1)}</option>`).join('')}</select></div>
     <div class="field full repeat-field">
       <label class="repeat-toggle"><input id="fRepeat" type="checkbox" ${existingRepeat.enabled?'checked':''}><span>Repeat</span></label>
       <div id="repeatOptions" class="repeat-options ${existingRepeat.enabled?'':'hidden'}">
@@ -396,7 +380,7 @@ async function createFromForm(form,seriesId=null){
   const dates=recurrenceDates(form.date,form.repeat);
   if(!dates.length){toast('Could not create repeated dates.');return}
   const sid=form.repeat?.enabled?(seriesId||crypto.randomUUID()):null,now=Date.now();
-  for(const occurrenceDate of dates)await idbPut({id:crypto.randomUUID(),seriesId:sid,title:form.title,course:form.course,date:occurrenceDate,time:form.time,link:form.link,notes:form.notes,repeat:form.repeat||null,done:false,createdAt:now});
+  for(const occurrenceDate of dates)await idbPut({id:crypto.randomUUID(),seriesId:sid,title:form.title,course:form.course,date:occurrenceDate,time:form.time,emoji:form.emoji,iconColor:form.iconColor,calendarSize:'medium',link:form.link,notes:form.notes,repeat:form.repeat||null,done:false,createdAt:now});
   toast(form.repeat?.enabled?`Added ${dates.length} repeated tasks.`:'Task added.')
 }
 
@@ -409,7 +393,7 @@ function chooseSeriesSaveScope(task,form){
     <div class="modal-actions"><button id="scopeCancel" class="soft-btn">Cancel</button></div>`);
   $('#scopeCancel').onclick=()=>openTaskModal(task);
   $('#scopeOne').onclick=async()=>{
-    await idbPut({...task,title:form.title,course:form.course,date:form.date,time:form.time,link:form.link,notes:form.notes,updatedAt:Date.now()});
+    await idbPut({...task,title:form.title,course:form.course,date:form.date,time:form.time,emoji:form.emoji,iconColor:form.iconColor,link:form.link,notes:form.notes,updatedAt:Date.now()});
     closeModal();await refresh();toast('Only this occurrence was updated.')
   };
   $('#scopeFuture').onclick=async()=>applySeriesFromHere(task,form)
@@ -422,7 +406,7 @@ async function applySeriesFromHere(task,form){
   if(form.repeat?.enabled){
     await createFromForm(form,task.seriesId)
   }else{
-    await idbPut({id:crypto.randomUUID(),seriesId:null,title:form.title,course:form.course,date:form.date,time:form.time,link:form.link,notes:form.notes,repeat:null,done:false,createdAt:Date.now()});
+    await idbPut({id:crypto.randomUUID(),seriesId:null,title:form.title,course:form.course,date:form.date,time:form.time,emoji:form.emoji,iconColor:form.iconColor,calendarSize:'medium',link:form.link,notes:form.notes,repeat:null,done:false,createdAt:Date.now()});
     toast('Future repeats removed; this occurrence is now one-time.')
   }
   closeModal();await refresh()
@@ -550,9 +534,9 @@ function previewBatch(text){
   const parsed=parseBatch(text);if(!parsed.length)return toast('Paste at least one line.');
   const existingKey=new Set(tasks.map(t=>`${(t.course||'').toLowerCase()}|${t.date}|${t.time||''}|${t.title.toLowerCase()}`));
   parsed.forEach((p,i)=>{p.duplicate=existingKey.has(`${(p.course||'').toLowerCase()}|${p.date}|${p.time||''}|${p.title.toLowerCase()}`);p.idx=i});
-  showModal(`<h3>${parsed.length} line${parsed.length===1?'':'s'} detected</h3><div class="preview-list">${parsed.map(p=>`<label class="preview-row ${!p.ok||p.duplicate?'bad':''}"><input type="checkbox" data-import="${p.idx}" ${p.ok&&!p.duplicate?'checked':''} ${!p.ok?'disabled':''}><div><strong>${escapeHtml(p.title||'Could not identify task')}</strong><div class="tiny">${escapeHtml(p.course||'No course')} · ${escapeHtml(p.date||'Date not recognized')} · ${escapeHtml(p.time||'No specific time')}${p.duplicate?' · Possible duplicate':''}</div><div class="preview-raw">${escapeHtml(p.raw)}</div></div></label>`).join('')}</div><div class="modal-actions"><button id="backBatch" class="soft-btn">Back</button><button id="doImport" class="primary-btn">Import selected</button></div>`);
+  showModal(`<h3>${parsed.length} line${parsed.length===1?'':'s'} detected</h3><div class="batch-icon-options"><div><strong>Optional calendar icon for this import</strong><span>Emoji takes priority over color.</span></div><input id="batchEmoji" maxlength="8" placeholder="📚"><select id="batchIconColor"><option value="">No color</option>${['red','orange','yellow','green','blue','indigo','purple'].map(c=>`<option value="${c}">${c[0].toUpperCase()+c.slice(1)}</option>`).join('')}</select></div><div class="preview-list">${parsed.map(p=>`<label class="preview-row ${!p.ok||p.duplicate?'bad':''}"><input type="checkbox" data-import="${p.idx}" ${p.ok&&!p.duplicate?'checked':''} ${!p.ok?'disabled':''}><div><strong>${escapeHtml(p.title||'Could not identify task')}</strong><div class="tiny">${escapeHtml(p.course||'No course')} · ${escapeHtml(p.date||'Date not recognized')} · ${escapeHtml(p.time||'No specific time')}${p.duplicate?' · Possible duplicate':''}</div><div class="preview-raw">${escapeHtml(p.raw)}</div></div></label>`).join('')}</div><div class="modal-actions"><button id="backBatch" class="soft-btn">Back</button><button id="doImport" class="primary-btn">Import selected</button></div>`);
   $('#backBatch').onclick=openBatch;
-  $('#doImport').onclick=async()=>{const selected=[...document.querySelectorAll('[data-import]:checked')].map(x=>parsed[+x.dataset.import]);for(const p of selected)await idbPut({id:crypto.randomUUID(),title:p.title,course:p.course,date:p.date,time:p.time,notes:'',done:false,createdAt:Date.now()});closeModal();await refresh();toast(`Imported ${selected.length} task${selected.length===1?'':'s'}.`)}
+  $('#doImport').onclick=async()=>{const selected=[...document.querySelectorAll('[data-import]:checked')].map(x=>parsed[+x.dataset.import]);const batchEmoji=$('#batchEmoji')?.value.trim()||'',batchIconColor=$('#batchIconColor')?.value||'';for(const p of selected)await idbPut({id:crypto.randomUUID(),title:p.title,course:p.course,date:p.date,time:p.time,emoji:batchEmoji,iconColor:batchEmoji?'':batchIconColor,calendarSize:'medium',notes:'',done:false,createdAt:Date.now()});closeModal();await refresh();toast(`Imported ${selected.length} task${selected.length===1?'':'s'}.`)}
 }
 function openBackup(){
   showModal(`<h3>Backup / Restore</h3><div class="next-meta">Export creates a JSON backup of every task, repeat series, and completion state. Restore merges the backup and keeps task IDs intact.</div><div class="modal-actions" style="justify-content:flex-start;flex-wrap:wrap"><button id="exportJson" class="primary-btn">Export JSON</button><label class="soft-btn" style="cursor:pointer">Restore JSON<input id="restoreFile" type="file" accept="application/json" hidden></label><button id="cancelModal" class="soft-btn">Close</button></div>`);
@@ -570,8 +554,11 @@ function toastAction(msg,label,action,duration=6500){
   clearTimeout(toast._t);toast._t=setTimeout(hideToast,duration);
   $('#toastActionBtn').onclick=async()=>{clearTimeout(toast._t);hideToast();await action()}
 }
-function confetti(){const c=$('#confettiCanvas'),ctx=c.getContext('2d'),dpr=devicePixelRatio||1;c.width=innerWidth*dpr;c.height=innerHeight*dpr;ctx.scale(dpr,dpr);let ps=Array.from({length:60},()=>({x:innerWidth/2,y:innerHeight*.3,vx:(Math.random()-.5)*8,vy:Math.random()*-7-3,g:.18,s:Math.random()*5+3,a:1}));let frame=0;(function anim(){ctx.clearRect(0,0,innerWidth,innerHeight);ps.forEach((p,i)=>{p.x+=p.vx;p.y+=p.vy;p.vy+=p.g;p.a-=.012;ctx.globalAlpha=Math.max(0,p.a);ctx.fillStyle=['#5f9c71','#9bc3a5','#d5b85a','#f0c7c7'][i%4];ctx.fillRect(p.x,p.y,p.s,p.s)});ctx.globalAlpha=1;if(frame++<90)requestAnimationFrame(anim);else ctx.clearRect(0,0,innerWidth,innerHeight)})()}
+function confetti(){const c=$('#confettiCanvas'),ctx=c.getContext('2d'),dpr=devicePixelRatio||1;c.width=innerWidth*dpr;c.height=innerHeight*dpr;ctx.scale(dpr,dpr);const amount=customize.confetti==='low'?28:customize.confetti==='high'?100:60;let ps=Array.from({length:amount},()=>({x:innerWidth/2,y:innerHeight*.3,vx:(Math.random()-.5)*8,vy:Math.random()*-7-3,g:.18,s:Math.random()*5+3,a:1}));let frame=0;(function anim(){ctx.clearRect(0,0,innerWidth,innerHeight);ps.forEach((p,i)=>{p.x+=p.vx;p.y+=p.vy;p.vy+=p.g;p.a-=.012;ctx.globalAlpha=Math.max(0,p.a);ctx.fillStyle=['#5f9c71','#9bc3a5','#d5b85a','#f0c7c7'][i%4];ctx.fillRect(p.x,p.y,p.s,p.s)});ctx.globalAlpha=1;if(frame++<90)requestAnimationFrame(anim);else ctx.clearRect(0,0,innerWidth,innerHeight)})()}
 
+function applyCustomize(){document.body.dataset.flowerSize=customize.flowerSize||'medium';document.body.dataset.flowerOpacity=customize.flowerOpacity||'medium';document.body.dataset.confetti=customize.confetti||'medium';const note=$('.quick-note');if(note){note.dataset.color=customize.checklistColor||'postit';note.dataset.shape=customize.checklistShape||'postit'}renderHeader()}
+function setCustomizeField(key,value){customize[key]=value;saveCustomize();document.querySelectorAll(`[data-customize-key="${key}"]`).forEach(b=>b.classList.toggle('active',b.dataset.customizeValue===value))}
+function openWardrobe(){$('#themeMenu').classList.remove('hidden');document.querySelectorAll('[data-customize-key]').forEach(b=>b.classList.toggle('active',customize[b.dataset.customizeKey]===b.dataset.customizeValue))}
 function applyTheme(theme){
   if(!THEMES.includes(theme))theme='green';
   document.documentElement.dataset.theme=theme;
@@ -580,9 +567,9 @@ function applyTheme(theme){
 }
 function initTheme(){
   let saved='green';try{saved=localStorage.getItem(THEME_KEY)||'green'}catch{}
-  applyTheme(saved);
-  $('#themeBtn').onclick=e=>{e.stopPropagation();$('#themeMenu').classList.toggle('hidden')};
-  document.querySelectorAll('[data-theme-choice]').forEach(b=>b.onclick=e=>{e.stopPropagation();applyTheme(b.dataset.themeChoice);$('#themeMenu').classList.add('hidden')});
+  applyTheme(saved);applyCustomize();
+  $('#themeBtn').onclick=e=>{e.stopPropagation();if($('#themeMenu').classList.contains('hidden'))openWardrobe();else $('#themeMenu').classList.add('hidden')};
+  document.querySelectorAll('[data-theme-choice]').forEach(b=>b.onclick=e=>{e.stopPropagation();applyTheme(b.dataset.themeChoice)});document.querySelectorAll('[data-customize-key]').forEach(b=>b.onclick=e=>{e.stopPropagation();setCustomizeField(b.dataset.customizeKey,b.dataset.customizeValue)});
   document.addEventListener('click',e=>{if(!e.target.closest('.theme-wrap'))$('#themeMenu').classList.add('hidden')})
 }
 function initPetalRain(){
@@ -607,10 +594,10 @@ $('#nextMonth').onclick=()=>{
   renderCalendar();
 };
 $('#todayBtn').onclick=()=>{currentMonth=new Date();renderCalendar()};
-$('#displayBtn').onclick=openCalendarDisplay;
+$('#displayBtn').onclick=openCalendarDisplay;$('#holidayBtn').onclick=openHolidayModal;
 document.querySelectorAll('[data-cal-view]').forEach(b=>b.onclick=()=>setCalendarView(b.dataset.calView));
 $('#quickTodoAdd').onclick=addQuickTodo;
-$('#quickTodoInput').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();addQuickTodo()}};
+$('#quickTodoInput').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();addQuickTodo()}};$('#quickCollapse').onclick=()=>{$('.quick-note').classList.add('collapsed-away');$('#quickBubble').classList.remove('hidden')};$('#quickBubble').onclick=()=>{$('#quickBubble').classList.add('hidden');$('.quick-note').classList.remove('collapsed-away')};
 
 (async()=>{
   initTheme();initPetalRain();await openDB();await refresh();
