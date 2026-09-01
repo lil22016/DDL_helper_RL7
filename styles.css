@@ -18,3 +18,26 @@ button{border:0;cursor:pointer}.primary-btn,.soft-btn,.todo-pill{padding:11px 15
 .warning-backdrop{position:fixed;inset:0;pointer-events:none;opacity:0;z-index:1;transition:.45s ease}.warning-backdrop.level1{opacity:1;background:radial-gradient(circle at 50% 45%,rgba(255,255,255,0) 0 28%,rgba(255,139,116,.20) 100%)}.warning-backdrop.level2{opacity:1;background:radial-gradient(circle at 50% 40%,rgba(255,255,255,0) 0 18%,rgba(226,65,65,.31) 100%);animation:bgPulse 1.8s infinite}.warning-copy{position:absolute;left:0;right:0;bottom:18px;text-align:center;color:#8f3030;text-transform:uppercase;font-weight:900;letter-spacing:.08em}.warning-kicker{font-size:11px}.warning-text{font-size:14px;margin-top:4px}@keyframes bgPulse{50%{filter:saturate(1.25)}}
 #confettiCanvas{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:200}
 @media(max-width:760px){body{padding:12px}.topbar{padding:16px;border-radius:20px;align-items:flex-start}.topbar h1{font-size:22px}.top-actions{gap:7px}.primary-btn,.soft-btn,.todo-pill{padding:9px 11px;font-size:12px}.hero-card,.calendar-card{padding:16px;border-radius:20px}.next-title{font-size:22px}.day-cell{min-height:100px;padding:6px}.weekday-row{font-size:10px}.event-chip{font-size:9px;padding:5px}.todo-panel{right:12px;top:96px}.form-grid{grid-template-columns:1fr}.field.full{grid-column:auto}.warning-copy{bottom:10px;font-size:11px}}
+
+
+/* Focused to-do groups: comfortable rows with a stable two-column layout. */
+.todo-panel{width:min(520px,calc(100vw - 32px));padding:22px;max-height:calc(100dvh - 136px)}
+.todo-header .section-label{font-size:13px}.todo-subtitle{margin-top:6px;color:#52675a}
+.todo-list{display:block;padding-top:4px}
+.todo-section + .todo-section{border-top:1px solid var(--border);margin-top:16px;padding-top:8px}
+.todo-section summary{display:flex;align-items:center;gap:10px;cursor:pointer;list-style:none;min-height:52px;font-size:16px;font-weight:800;padding:10px 2px}
+.todo-section summary::-webkit-details-marker{display:none}
+.todo-section-count{font-size:14px;font-weight:600;color:#52675a;background:#e7f1e9;border-radius:20px;padding:3px 9px}
+.todo-chevron{margin-left:auto;font-size:24px;transition:transform .15s}
+.todo-section[open] > summary .todo-chevron{transform:rotate(90deg)}
+.todo-section-items{display:grid;gap:12px}
+.todo-item{grid-template-columns:44px minmax(0,1fr);gap:8px;padding:18px 16px;min-height:112px;border:1px solid var(--border);background:#f7fbf8}
+.todo-check{display:grid;place-items:start center;min-width:44px;min-height:44px;padding-top:2px;cursor:pointer}
+.todo-item input{width:24px;height:24px;margin:0;cursor:pointer}
+.todo-content{min-width:0}.todo-title{font-size:16px;line-height:1.5;overflow-wrap:anywhere}
+.todo-course{font-size:14px;font-weight:700;color:#41664c;margin-top:8px;overflow-wrap:anywhere}
+.todo-meta{font-size:14px;line-height:1.5;color:#52675a;margin-top:4px}
+.todo-timer{font-size:14px;line-height:1.5;white-space:normal;margin-top:8px;color:#993c2c}
+.todo-timer[hidden]{display:none}.todo-empty{font-size:14px;color:#52675a;padding:10px 2px 18px}
+.todo-section summary:focus-visible,.todo-item input:focus-visible{outline:3px solid #4e8c62;outline-offset:3px}
+@media(max-width:760px){.todo-panel{right:12px;width:calc(100vw - 24px);padding:18px;max-height:calc(100dvh - 112px)}.todo-item{padding:16px 12px}}
