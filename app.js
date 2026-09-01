@@ -29,15 +29,19 @@ function idbGetAll(){return new Promise((resolve,reject)=>{const r=db.transactio
 function idbPut(t){return new Promise((resolve,reject)=>{const r=db.transaction(STORE,'readwrite').objectStore(STORE).put(t);r.onsuccess=()=>resolve();r.onerror=()=>reject(r.error)})}
 function idbDelete(id){return new Promise((resolve,reject)=>{const r=db.transaction(STORE,'readwrite').objectStore(STORE).delete(id);r.onsuccess=()=>resolve();r.onerror=()=>reject(r.error)})}
 
-function dueMs(t){if(!t.date)return Infinity;return new Date(`${t.date}T${t.time||'23:59'}:00`).getTime()}
-function urgency(t){if(t.done)return 0;const diff=dueMs(t)-Date.now();if(diff<0||diff<=15*60e3)return 5;if(diff<=2*3600e3)return 4;if(diff<=24*3600e3)return 3;if(diff<=3*86400e3)return 2;if(diff<=7*86400e3)return 1;return 0}
-function formatDue(t){const d=new Date(`${t.date}T${t.time||'12:00'}:00`);const date=d.toLocaleDateString(undefined,{month:'short',day:'numeric'});return `${date}${t.time?` · ${d.toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'})}`:' · No specific time'}`}
+function isDurationEvent(t){return t?.eventType==='duration'}
+function eventStartMs(t){if(!t.date)return Infinity;return new Date(`${t.date}T${isDurationEvent(t)?(t.startTime||'00:00'):(t.time||'23:59')}:00`).getTime()}
+function dueMs(t){if(!t.date)return Infinity;return new Date(`${t.date}T${isDurationEvent(t)?(t.endTime||t.startTime||'23:59'):(t.time||'23:59')}:00`).getTime()}
+function sortMs(t){return isDurationEvent(t)?eventStartMs(t):dueMs(t)}
+function urgency(t){if(t.done||isDurationEvent(t))return 0;const diff=dueMs(t)-Date.now();if(diff<0||diff<=15*60e3)return 5;if(diff<=2*3600e3)return 4;if(diff<=24*3600e3)return 3;if(diff<=3*86400e3)return 2;if(diff<=7*86400e3)return 1;return 0}
+function formatDue(t){const date=new Date(`${t.date}T12:00:00`).toLocaleDateString(undefined,{month:'short',day:'numeric'});if(isDurationEvent(t)){const s=t.startTime?new Date(`${t.date}T${t.startTime}:00`).toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'}):'Start';const e=t.endTime?new Date(`${t.date}T${t.endTime}:00`).toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'}):'End';return `${date} · ${s}–${e}`}return `${date}${t.time?` · ${new Date(`${t.date}T${t.time}:00`).toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'})}`:' · No specific time'}`}
 function countdown(ms){const neg=ms<0;ms=Math.abs(ms);const h=Math.floor(ms/3600000),m=Math.floor(ms%3600000/60000),s=Math.floor(ms%60000/1000);if(h>=24){const d=Math.floor(h/24);return `${neg?'Overdue ':'Due in '}${d}d ${h%24}h`;}return `${neg?'Overdue by ':'Due in '}${pad(h)}:${pad(m)}:${pad(s)}`}
 function escapeHtml(s=''){return String(s).replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]))}
 function dateFromInput(s){return new Date(`${s}T12:00:00`)}
 function addDays(date,n){const d=new Date(date);d.setDate(d.getDate()+n);return d}
 function addMonthsSafe(date,n,desiredDay){const d=new Date(date.getFullYear(),date.getMonth()+n,1);const last=new Date(d.getFullYear(),d.getMonth()+1,0).getDate();d.setDate(Math.min(desiredDay,last));return d}
 function deadlineTasks(){return tasks.filter(t=>!t.quick)}
+function actualDueTasks(){return deadlineTasks().filter(t=>!isDurationEvent(t))}
 function quickTasks(){return tasks.filter(t=>t.quick)}
 const ICON_COLORS={red:'#c95f68',orange:'#d88a4f',yellow:'#c5aa47',green:'#5f9c71',blue:'#5f8fb5',indigo:'#6d73b8',purple:'#9870b4'};
 function taskIconHtml(t){const e=(t.emoji||'').trim();if(e)return `<span class="task-icon emoji">${escapeHtml(e)}</span>`;if(t.iconColor&&ICON_COLORS[t.iconColor])return `<span class="task-icon color" style="--task-icon-color:${ICON_COLORS[t.iconColor]}"></span>`;return''}
@@ -46,26 +50,25 @@ function saveCustomize(){try{localStorage.setItem(CUSTOMIZE_KEY,JSON.stringify(c
 function saveHolidays(){try{localStorage.setItem(HOLIDAY_KEY,JSON.stringify(holidays))}catch{}}
 
 
-async function refresh(){tasks=await idbGetAll();tasks.sort((a,b)=>dueMs(a)-dueMs(b));todoSignature='';renderAll()}
+async function refresh(){tasks=await idbGetAll();tasks.sort((a,b)=>sortMs(a)-sortMs(b));todoSignature='';renderAll()}
 function renderAll(){renderHeader();renderCalendar();renderTodo();renderQuickTodo();renderWarnings()}
 
 function getTodoBadgeCount(pending){const g=getTodoGroups(pending);if(customize.todoCount==='all')return pending.length;if(customize.todoCount==='week')return g.today.length+g.week.length;return g.today.length}
 function renderHeader(){
-  const now=new Date();
-  $('#todayHeading').textContent=now.toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric'});
+  const now=new Date();$('#todayHeading').textContent=now.toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric'});
   const pending=deadlineTasks().filter(t=>!t.done),focus=getTodoGroups(pending).today.length,badge=getTodoBadgeCount(pending);
-  $('#summaryLine').textContent=focus?`${focus} task${focus===1?'':'s'} to focus on today`:'Nothing due today';
-  $('#todoCount').textContent=badge;
-  $('#todoToggle').setAttribute('aria-label',`Open to-do list: ${badge} shown in badge`);
-  const next=pending[0];
-  if(!next){$('#nextTitle').textContent='Nothing due soon';$('#nextMeta').textContent='Your calendar is clear.';$('#nextCountdown').textContent='';return}
-  $('#nextTitle').textContent=`${next.course?next.course+' · ':''}${next.title}`;$('#nextMeta').textContent=formatDue(next);const diff=dueMs(next)-Date.now();$('#nextCountdown').textContent=diff<=2*3600e3?countdown(diff):''
+  $('#summaryLine').textContent=focus?`${focus} task${focus===1?'':'s'} to focus on today`:'Nothing due today';$('#todoCount').textContent=badge;
+  const duePending=actualDueTasks().filter(t=>!t.done).sort((a,b)=>dueMs(a)-dueMs(b)),next=duePending[0],ce=$('#nextCountdown');
+  ce.textContent='';delete ce.dataset.finishTask;ce.classList.remove('clickable-countdown');
+  if(!next){$('#nextTitle').textContent='Nothing due soon';$('#nextMeta').textContent='Your deadline calendar is clear.';return}
+  $('#nextTitle').textContent=`${next.course?next.course+' · ':''}${next.title}`;$('#nextMeta').textContent=formatDue(next);
+  const diff=dueMs(next)-Date.now();if(diff<=2*3600e3){ce.textContent=countdown(diff);ce.dataset.finishTask=next.id;ce.classList.add('clickable-countdown')}
 }
 
 function calendarChipContent(t){
   const parts=[];
   if(calendarDisplay.title&&t.title)parts.push(t.title);
-  if(calendarDisplay.time&&t.time){const d=new Date(`${t.date}T${t.time}:00`);parts.push(d.toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'}));}
+  if(calendarDisplay.time){if(isDurationEvent(t)&&t.startTime){const s=new Date(`${t.date}T${t.startTime}:00`).toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'}),e=t.endTime?new Date(`${t.date}T${t.endTime}:00`).toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'}):'';parts.push(e?`${s}–${e}`:s)}else if(t.time){const d=new Date(`${t.date}T${t.time}:00`);parts.push(d.toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'}))}}
   if(calendarDisplay.course&&t.course)parts.push(t.course);
   if(calendarDisplay.description&&t.notes)parts.push(t.notes.replace(/\s+/g,' ').trim());
   if(!parts.length)parts.push(t.title||t.course||formatDue(t));
@@ -73,7 +76,7 @@ function calendarChipContent(t){
 }
 function calendarChipHtml(t){
   const meta=[];
-  if(calendarDisplay.time&&t.time){const d=new Date(`${t.date}T${t.time}:00`);meta.push(d.toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'}));}
+  if(calendarDisplay.time){if(isDurationEvent(t)&&t.startTime){const s=new Date(`${t.date}T${t.startTime}:00`).toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'}),e=t.endTime?new Date(`${t.date}T${t.endTime}:00`).toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'}):'';meta.push(e?`${s}–${e}`:s)}else if(t.time){const d=new Date(`${t.date}T${t.time}:00`);meta.push(d.toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'}))}}
   if(calendarDisplay.course&&t.course)meta.push(t.course);
   const title=calendarDisplay.title&&t.title?t.title:'';
   const desc=calendarDisplay.description&&t.notes?t.notes.replace(/\s+/g,' ').trim():'';
@@ -225,7 +228,7 @@ function renderQuickTodo(){
 }
 
 function renderWarnings(){
-  const active=deadlineTasks().filter(t=>!t.done).sort((a,b)=>dueMs(a)-dueMs(b))[0],wb=$('#warningBackdrop');
+  const active=actualDueTasks().filter(t=>!t.done).sort((a,b)=>dueMs(a)-dueMs(b))[0],wb=$('#warningBackdrop');
   wb.className='warning-backdrop';
   document.body.classList.remove('urgent-global','urgent-global-critical');
   $('#warningKicker').textContent='';$('#warningText').textContent='';
@@ -291,7 +294,7 @@ function openTaskDetails(task){
     <div class="task-detail-grid">
       ${task.course?`<div class="detail-block"><span>Course</span><strong>${escapeHtml(task.course)}</strong></div>`:''}
       <div class="detail-block"><span>Date</span><strong>${escapeHtml(dateFromInput(task.date).toLocaleDateString(undefined,{weekday:'short',month:'long',day:'numeric',year:'numeric'}))}</strong></div>
-      <div class="detail-block"><span>Due time</span><strong>${task.time?escapeHtml(new Date(`${task.date}T${task.time}:00`).toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'})):'No specific time'}</strong></div>
+      <div class="detail-block"><span>${isDurationEvent(task)?'Time':'Due time'}</span><strong>${isDurationEvent(task)?`${task.startTime?new Date(`${task.date}T${task.startTime}:00`).toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'}):'—'} – ${task.endTime?new Date(`${task.date}T${task.endTime}:00`).toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'}):'—'}`:(task.time?new Date(`${task.date}T${task.time}:00`).toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'}):'No specific time')}</strong></div>
       ${repeatText?`<div class="detail-block full"><span>Repeat</span><strong>${escapeHtml(repeatText)}</strong></div>`:''}
     </div>
 
@@ -346,16 +349,13 @@ function repeatDescription(date,repeat){
 }
 function isSeriesTask(task){return !!task?.seriesId && tasks.filter(t=>t.seriesId===task.seriesId).length>1}
 function readTaskForm(){
-  const title=$('#fTitle').value.trim(),date=$('#fDate').value;
-  if(!title||!date){toast('Task name and date are required.');return null}
-  const enabled=$('#fRepeat').checked;
-  const repeat=enabled?{enabled:true,unit:$('#fRepeatUnit').value,interval:Math.max(1,Number($('#fRepeatInterval').value)||1),until:$('#fRepeatUntil').value}:null;
-  if(enabled&&!repeat.until){toast('Choose a Repeat until date.');return null}
-  if(enabled&&dateFromInput(repeat.until)<dateFromInput(date)){toast('Repeat until must be on or after the start date.');return null}
-  const rawLink=$('#fLink').value.trim(),link=normalizeTaskLink(rawLink);
-  if(rawLink&&!link){toast('Enter a valid http(s) link.');return null}
-  return{title,course:$('#fCourse').value.trim(),date,time:$('#fTime').value,emoji:$('#fEmoji').value.trim(),iconColor:$('#fIconColor').value,link,notes:$('#fNotes').value.trim(),repeat}
+  const title=$('#fTitle').value.trim(),date=$('#fDate').value,eventType=$('#fEventType')?.value||'due';if(!title||!date){toast('Task name and date are required.');return null}
+  let time='',startTime='',endTime='';if(eventType==='duration'){startTime=$('#fStartTime').value;endTime=$('#fEndTime').value;if(!startTime||!endTime){toast('Choose both a start and end time.');return null}if(endTime<=startTime){toast('End time must be after start time.');return null}}else time=$('#fTime').value;
+  const enabled=$('#fRepeat').checked,repeat=enabled?{enabled:true,unit:$('#fRepeatUnit').value,interval:Math.max(1,Number($('#fRepeatInterval').value)||1),until:$('#fRepeatUntil').value}:null;if(enabled&&!repeat.until){toast('Choose a Repeat until date.');return null}if(enabled&&dateFromInput(repeat.until)<dateFromInput(date)){toast('Repeat until must be on or after the start date.');return null}
+  const rawLink=$('#fLink').value.trim(),link=normalizeTaskLink(rawLink);if(rawLink&&!link){toast('Enter a valid http(s) link.');return null}
+  return{title,course:$('#fCourse').value.trim(),date,eventType,time,startTime,endTime,emoji:$('#fEmoji').value.trim(),iconColor:$('#fIconColor').value,link,notes:$('#fNotes').value.trim(),repeat}
 }
+
 function bindRepeatPreview(){
   const update=()=>{
     const enabled=$('#fRepeat').checked;
@@ -402,14 +402,19 @@ function askApplyCourseIcon(task){
   return true;
 }
 
+function bindEventTypeSwitch(){const h=$('#fEventType');if(!h)return;const set=t=>{h.value=t;document.querySelectorAll('[data-event-type]').forEach(b=>b.classList.toggle('active',b.dataset.eventType===t));document.querySelectorAll('.due-time-field').forEach(x=>x.classList.toggle('hidden',t!=='due'));document.querySelectorAll('.duration-time-field').forEach(x=>x.classList.toggle('hidden',t!=='duration'))};document.querySelectorAll('[data-event-type]').forEach(b=>b.onclick=()=>set(b.dataset.eventType));set(h.value||'due')}
 function openTaskModal(task=null,prefillDate=''){
   const now=new Date(),t=task||{title:'',course:'',date:prefillDate||fmtDateInput(now),time:'',notes:'',done:false};
   const existingRepeat=t.repeat?.enabled?t.repeat:{enabled:false,unit:'week',interval:1,until:''};
   showModal(`<h3>${task?'Edit task':'Add task'}</h3><div class="form-grid">
     <div class="field full"><label>Task name</label><input id="fTitle" value="${escapeHtml(t.title)}" placeholder="Your task name"></div>
     <div class="field"><label>Course (optional)</label><input id="fCourse" value="${escapeHtml(t.course||'')}" placeholder="Your course name (if applicable)"></div>
+    <div class="field full"><label>Event type</label><div class="event-type-switch"><button type="button" data-event-type="due" class="event-type-btn ${(t.eventType||'due')==='due'?'active':''}">Due date</button><button type="button" data-event-type="duration" class="event-type-btn ${t.eventType==='duration'?'active':''}">Time block / event</button></div></div>
+    <input id="fEventType" type="hidden" value="${t.eventType||'due'}">
     <div class="field"><label>Date</label><input id="fDate" type="date" value="${t.date}"></div>
-    <div class="field"><label>Exact due time (optional)</label><input id="fTime" type="time" value="${t.time||''}"></div>
+    <div class="field due-time-field ${t.eventType==='duration'?'hidden':''}"><label>Exact due time (optional)</label><input id="fTime" type="time" value="${t.time||''}"></div>
+    <div class="field duration-time-field ${t.eventType==='duration'?'':'hidden'}"><label>Starts</label><input id="fStartTime" type="time" value="${t.startTime||''}"></div>
+    <div class="field duration-time-field ${t.eventType==='duration'?'':'hidden'}"><label>Ends</label><input id="fEndTime" type="time" value="${t.endTime||''}"></div>
     <div class="field"><label>Emoji icon (optional)</label><input id="fEmoji" maxlength="8" value="${escapeHtml(t.emoji||'')}" placeholder="📘"></div>
     <div class="field"><label>Icon color (if no emoji)</label><select id="fIconColor"><option value="">None</option>${['red','orange','yellow','green','blue','indigo','purple'].map(c=>`<option value="${c}" ${t.iconColor===c?'selected':''}>${c[0].toUpperCase()+c.slice(1)}</option>`).join('')}</select></div>
     <div class="field full repeat-field">
@@ -426,7 +431,7 @@ function openTaskModal(task=null,prefillDate=''){
     <div class="field full"><label>Description</label><textarea id="fNotes" placeholder="Add instructions, details, or anything useful…">${escapeHtml(t.notes||'')}</textarea></div>
   </div>
   <div class="modal-actions">${task?'<button id="deleteTask" class="danger-btn">Delete</button>':''}<button id="cancelModal" class="soft-btn">Cancel</button><button id="saveTask" class="primary-btn">Save</button></div>`);
-  $('#cancelModal').onclick=closeModal;bindRepeatPreview();
+  $('#cancelModal').onclick=closeModal;bindRepeatPreview();bindEventTypeSwitch();
 
   $('#saveTask').onclick=async()=>{
     const form=readTaskForm();if(!form)return;
@@ -446,7 +451,7 @@ async function createFromForm(form,seriesId=null){
   const dates=recurrenceDates(form.date,form.repeat);
   if(!dates.length){toast('Could not create repeated dates.');return}
   const sid=form.repeat?.enabled?(seriesId||crypto.randomUUID()):null,now=Date.now();
-  for(const occurrenceDate of dates)await idbPut({id:crypto.randomUUID(),seriesId:sid,title:form.title,course:form.course,date:occurrenceDate,time:form.time,emoji:form.emoji,iconColor:form.iconColor,calendarSize:'medium',link:form.link,notes:form.notes,repeat:form.repeat||null,done:false,createdAt:now});
+  for(const occurrenceDate of dates)await idbPut({id:crypto.randomUUID(),seriesId:sid,title:form.title,course:form.course,date:occurrenceDate,eventType:form.eventType,time:form.time,startTime:form.startTime,endTime:form.endTime,emoji:form.emoji,iconColor:form.iconColor,calendarSize:'medium',link:form.link,notes:form.notes,repeat:form.repeat||null,done:false,createdAt:now});
   toast(form.repeat?.enabled?`Added ${dates.length} repeated tasks.`:'Task added.')
 }
 
@@ -459,7 +464,7 @@ function chooseSeriesSaveScope(task,form){
     <div class="modal-actions"><button id="scopeCancel" class="soft-btn">Cancel</button></div>`);
   $('#scopeCancel').onclick=()=>openTaskModal(task);
   $('#scopeOne').onclick=async()=>{
-    const updated={...task,title:form.title,course:form.course,date:form.date,time:form.time,emoji:form.emoji,iconColor:form.iconColor,link:form.link,notes:form.notes,updatedAt:Date.now()};
+    const updated={...task,title:form.title,course:form.course,date:form.date,eventType:form.eventType,time:form.time,startTime:form.startTime,endTime:form.endTime,emoji:form.emoji,iconColor:form.iconColor,link:form.link,notes:form.notes,updatedAt:Date.now()};
     await idbPut(updated);
     closeModal();await refresh();
     if(!askApplyCourseIcon(updated))toast('Only this occurrence was updated.')
@@ -474,7 +479,7 @@ async function applySeriesFromHere(task,form){
   if(form.repeat?.enabled){
     await createFromForm(form,task.seriesId)
   }else{
-    await idbPut({id:crypto.randomUUID(),seriesId:null,title:form.title,course:form.course,date:form.date,time:form.time,emoji:form.emoji,iconColor:form.iconColor,calendarSize:'medium',link:form.link,notes:form.notes,repeat:null,done:false,createdAt:Date.now()});
+    await idbPut({id:crypto.randomUUID(),seriesId:null,title:form.title,course:form.course,date:form.date,eventType:form.eventType,time:form.time,startTime:form.startTime,endTime:form.endTime,emoji:form.emoji,iconColor:form.iconColor,calendarSize:'medium',link:form.link,notes:form.notes,repeat:null,done:false,createdAt:Date.now()});
     toast('Future repeats removed; this occurrence is now one-time.')
   }
   closeModal();await refresh()
@@ -493,6 +498,8 @@ function chooseSeriesDeleteScope(task){
 }
 async function deleteSingle(task){await idbDelete(task.id);closeModal();await refresh();toast('Task deleted.')}
 
+function askAlreadyFinished(task){if(!task||task.done)return;showModal(`<div class="section-label">DEADLINE</div><h3>Already finished?</h3><div class="finish-prompt-task"><strong>${escapeHtml(task.title)}</strong><small>${escapeHtml(formatDue(task))}</small></div><div class="next-meta" style="margin-top:10px">If you finished it but forgot to mark it done, mark it here.</div><div class="modal-actions"><button id="finishNo" class="soft-btn">Not yet</button><button id="finishYes" class="primary-btn">✓ Yes, it's done</button></div>`);$('#finishNo').onclick=closeModal;$('#finishYes').onclick=async()=>{closeModal();await completeTask(task.id)}}
+
 function openEmergency(task,diff){
   showModal(`<div class="section-label">URGENT DEADLINE</div><h3 style="font-size:30px;margin-top:6px">${escapeHtml(countdown(diff))}</h3><div style="font-size:18px;font-weight:800">${escapeHtml(task.course?task.course+' · ':'')}${escapeHtml(task.title)}</div><div class="next-meta" style="margin-top:7px">${escapeHtml(formatDue(task))}</div><div class="modal-actions"><button id="emClose" class="soft-btn">Keep working</button><button id="emDone" class="primary-btn">Mark as done</button></div>`);
   $('#emClose').onclick=closeModal;$('#emDone').onclick=()=>{closeModal();completeTask(task.id)}
@@ -503,11 +510,10 @@ async function restoreTask(id){
   await idbPut(t);await refresh();toast('Returned to To-do.');
 }
 async function completeTask(id){
-  const t=tasks.find(x=>x.id===id);if(!t)return;
-  const previous=JSON.parse(JSON.stringify(t)),today=fmtDateInput(new Date()),wasToday=t.date===today;
-  t.done=true;t.completedAt=Date.now();await idbPut(t);confetti();await refresh();
-  toastAction('Marked as done.','Undo',async()=>{const restored={...previous,done:false};delete restored.completedAt;await idbPut(restored);await refresh();toast('Task restored.');},6500);
-  if(wasToday){const todays=deadlineTasks().filter(x=>x.date===today);if(todays.length&&todays.every(x=>x.done))setTimeout(()=>celebrateAllDoneToday(todays.length),380)}
+  const t=tasks.find(x=>x.id===id);if(!t)return;const previous=JSON.parse(JSON.stringify(t)),today=fmtDateInput(new Date()),wasToday=t.date===today;
+  const todays=deadlineTasks().filter(x=>x.date===today),willFinishDay=wasToday&&todays.length>0&&todays.filter(x=>!x.done&&x.id!==t.id).length===0;
+  t.done=true;t.completedAt=Date.now();await idbPut(t);await refresh();if(willFinishDay)celebrateAllDoneToday(todays.length);else confetti();
+  toastAction('Marked as done.','Undo',async()=>{const restored={...previous,done:false};delete restored.completedAt;await idbPut(restored);await refresh();toast('Task restored.');},6500)
 }
 
 function normalizeBatchLine(line){
@@ -574,6 +580,14 @@ function parseBatch(text){
   }
   return out;
 }
+function searchableTaskText(t){return [t.title,t.course,t.notes,t.link,t.emoji,t.iconColor].filter(Boolean).join(' ').toLowerCase()}
+function openBulkEdit(){
+  showModal(`<div class="section-label">BULK EDIT</div><h3>Find and delete tasks</h3><div class="field"><label>Keyword</label><input id="bulkKeyword" placeholder="e.g. HDFS"></div><div class="bulk-toolbar"><label><input id="bulkSelectAll" type="checkbox"> Select all matches</label><span id="bulkMatchCount">Type a keyword.</span></div><div id="bulkResults" class="bulk-results"></div><div class="modal-actions"><button id="bulkCancel" class="soft-btn">Cancel</button><button id="bulkDelete" class="danger-btn" disabled>Delete selected</button></div>`);
+  const q=$('#bulkKeyword'),r=$('#bulkResults'),all=$('#bulkSelectAll'),del=$('#bulkDelete');const ids=()=>[...document.querySelectorAll('[data-bulk-task]:checked')].map(x=>x.dataset.bulkTask);const upd=()=>{const n=ids().length;del.disabled=!n;del.textContent=n?`Delete selected (${n})`:'Delete selected'};
+  q.oninput=()=>{const k=q.value.trim().toLowerCase(),m=k?deadlineTasks().filter(t=>searchableTaskText(t).includes(k)):[];$('#bulkMatchCount').textContent=k?`${m.length} match${m.length===1?'':'es'}`:'Type a keyword.';r.innerHTML=m.map(t=>`<label class="bulk-row"><input type="checkbox" data-bulk-task="${t.id}"><span><strong>${escapeHtml(t.title)}</strong><small>${escapeHtml([t.course,formatDue(t)].filter(Boolean).join(' · '))}</small></span></label>`).join('')||'<div class="bulk-empty">No matches.</div>';document.querySelectorAll('[data-bulk-task]').forEach(x=>x.onchange=upd);all.checked=false;upd()};
+  all.onchange=()=>{document.querySelectorAll('[data-bulk-task]').forEach(x=>x.checked=all.checked);upd()};$('#bulkCancel').onclick=closeModal;del.onclick=()=>{const chosen=ids().map(id=>tasks.find(t=>t.id===id)).filter(Boolean);showModal(`<div class="section-label">CONFIRM DELETE</div><h3>Delete ${chosen.length} task${chosen.length===1?'':'s'}?</h3><div class="modal-actions"><button id="bulkBack" class="soft-btn">Back</button><button id="bulkConfirm" class="danger-btn">Delete</button></div>`);$('#bulkBack').onclick=openBulkEdit;$('#bulkConfirm').onclick=async()=>{for(const t of chosen)await idbDelete(t.id);closeModal();await refresh();toast(`Deleted ${chosen.length} tasks.`)}};q.focus()
+}
+
 function openBatch(){
   const example=`PSYC 3500 | Sep 8, 2026 | 11:59 PM | Reflection Paper
 HDFS 2300, Sep 18 2026, 2:30 PM, Chapter 1 Reading Quiz
@@ -648,6 +662,7 @@ function initPetalRain(){
 }
 
 $('#addBtn').onclick=()=>openTaskModal();
+$('#bulkEditBtn').onclick=openBulkEdit;
 $('#importBtn').onclick=openBatch;
 $('#todoToggle').onclick=()=>{$('#todoPanel').classList.toggle('open');$('#todoPanel').setAttribute('aria-hidden',!$('#todoPanel').classList.contains('open'));document.querySelectorAll('[data-todo-badge]').forEach(r=>r.checked=r.value===customize.todoCount)};
 $('#closeTodo').onclick=()=>{$('#todoPanel').classList.remove('open');$('#todoPanel').setAttribute('aria-hidden','true')};document.querySelectorAll('[data-todo-badge]').forEach(r=>r.onchange=()=>{if(r.checked){customize.todoCount=r.value;saveCustomize();renderHeader()}});
@@ -664,7 +679,8 @@ $('#nextMonth').onclick=()=>{
   renderCalendar();
 };
 $('#todayBtn').onclick=()=>{currentMonth=new Date();renderCalendar()};
-$('#displayBtn').onclick=openCalendarDisplay;$('#holidayBtn').onclick=openHolidayModal;
+$('#displayBtn').onclick=openCalendarDisplay;
+$('#nextCountdown').onclick=()=>{const id=$('#nextCountdown').dataset.finishTask;if(id)askAlreadyFinished(tasks.find(t=>t.id===id))};$('#holidayBtn').onclick=openHolidayModal;
 document.querySelectorAll('[data-cal-view]').forEach(b=>b.onclick=()=>setCalendarView(b.dataset.calView));
 $('#quickTodoAdd').onclick=addQuickTodo;
 $('#quickTodoInput').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();addQuickTodo()}};$('#quickCollapse').onclick=()=>{$('.quick-note').classList.add('collapsed-away');$('#quickBubble').classList.remove('hidden')};$('#quickBubble').onclick=()=>{const note=$('.quick-note');$('#quickBubble').classList.add('hidden');note.classList.remove('collapsed-away');note.classList.remove('quick-note-pop');void note.offsetWidth;note.classList.add('quick-note-pop');setTimeout(()=>note.classList.remove('quick-note-pop'),420)};
