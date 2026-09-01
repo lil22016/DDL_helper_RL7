@@ -6,7 +6,13 @@ const fmtDateInput=d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate
 const THEME_KEY='deadline-garden-theme-v1';
 const THEMES=['red','orange','yellow','green','blue','indigo','purple'];
 const CAL_DISPLAY_KEY='deadline-garden-calendar-display-v1';
-let calendarDisplay={time:true,course:false,title:true};
+const CAL_VIEW_KEY='deadline-garden-calendar-view-v1';
+let calendarDisplay={time:true,course:false,title:true,description:false};
+let calendarView='month';
+try{
+  const savedView=localStorage.getItem(CAL_VIEW_KEY);
+  if(['month','week','day'].includes(savedView))calendarView=savedView;
+}catch{}
 try{
   const savedDisplay=JSON.parse(localStorage.getItem(CAL_DISPLAY_KEY)||'{}');
   for(const key of Object.keys(calendarDisplay))if(typeof savedDisplay[key]==='boolean')calendarDisplay[key]=savedDisplay[key];
@@ -25,14 +31,16 @@ function escapeHtml(s=''){return String(s).replace(/[&<>'"]/g,c=>({'&':'&amp;','
 function dateFromInput(s){return new Date(`${s}T12:00:00`)}
 function addDays(date,n){const d=new Date(date);d.setDate(d.getDate()+n);return d}
 function addMonthsSafe(date,n,desiredDay){const d=new Date(date.getFullYear(),date.getMonth()+n,1);const last=new Date(d.getFullYear(),d.getMonth()+1,0).getDate();d.setDate(Math.min(desiredDay,last));return d}
+function deadlineTasks(){return tasks.filter(t=>!t.quick)}
+function quickTasks(){return tasks.filter(t=>t.quick)}
 
 async function refresh(){tasks=await idbGetAll();tasks.sort((a,b)=>dueMs(a)-dueMs(b));todoSignature='';renderAll()}
-function renderAll(){renderHeader();renderCalendar();renderTodo();renderWarnings()}
+function renderAll(){renderHeader();renderCalendar();renderTodo();renderQuickTodo();renderWarnings()}
 
 function renderHeader(){
   const now=new Date();
   $('#todayHeading').textContent=now.toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric'});
-  const pending=tasks.filter(t=>!t.done),focus=getTodoGroups(pending).today.length;
+  const pending=deadlineTasks().filter(t=>!t.done),focus=getTodoGroups(pending).today.length;
   $('#summaryLine').textContent=focus?`${focus} task${focus===1?'':'s'} to focus on today`:'Nothing due today';
   $('#todoCount').textContent=focus;
   const next=pending[0];
@@ -50,26 +58,77 @@ function calendarChipContent(t){
   }
   if(calendarDisplay.course&&t.course)parts.push(t.course);
   if(calendarDisplay.title)parts.push(t.title);
+  if(calendarDisplay.description&&t.notes)parts.push(t.notes.replace(/\s+/g,' ').trim());
   if(!parts.length)parts.push(t.title||t.course||formatDue(t));
   return parts.join(' · ');
 }
 
+function setCalendarView(view){
+  if(!['month','week','day'].includes(view))return;
+  calendarView=view;
+  try{localStorage.setItem(CAL_VIEW_KEY,view)}catch{}
+  document.querySelectorAll('[data-cal-view]').forEach(b=>b.classList.toggle('active',b.dataset.calView===view));
+  renderCalendar();
+}
+
+function weekStartFor(date){
+  const d=new Date(date.getFullYear(),date.getMonth(),date.getDate());
+  d.setDate(d.getDate()-d.getDay());
+  return d;
+}
+
 function renderCalendar(){
-  const y=currentMonth.getFullYear(),m=currentMonth.getMonth();
-  $('#monthLabel').textContent=currentMonth.toLocaleDateString(undefined,{month:'long',year:'numeric'});
-  const first=new Date(y,m,1),start=new Date(y,m,1-first.getDay());let html='';
-  for(let i=0;i<42;i++){
-    const d=new Date(start);d.setDate(start.getDate()+i);const ds=fmtDateInput(d);
-    const dayTasks=tasks.filter(t=>t.date===ds),outside=d.getMonth()!==m,today=ds===fmtDateInput(new Date());
-    html+=`<div class="day-cell ${outside?'outside':''} ${today?'today':''}" data-date="${ds}">
-      <div class="day-number"><span>${d.getDate()}</span></div>
-      ${dayTasks.slice(0,5).map(t=>`<button class="event-chip ${t.done?'done':''} urgent${urgency(t)}" data-id="${t.id}" title="${escapeHtml([t.course,t.title,formatDue(t)].filter(Boolean).join(' · '))}">${escapeHtml(calendarChipContent(t))}</button>`).join('')}
-      ${dayTasks.length>5?`<div class="tiny">+${dayTasks.length-5} more</div>`:''}
-    </div>`
+  const all=deadlineTasks();
+  const grid=$('#calendarGrid'),weekdays=$('.weekday-row');
+  grid.className='calendar-grid';
+  weekdays.classList.remove('hidden');
+  document.querySelectorAll('[data-cal-view]').forEach(b=>b.classList.toggle('active',b.dataset.calView===calendarView));
+
+  if(calendarView==='month'){
+    const y=currentMonth.getFullYear(),m=currentMonth.getMonth();
+    $('#monthLabel').textContent=currentMonth.toLocaleDateString(undefined,{month:'long',year:'numeric'});
+    const first=new Date(y,m,1),start=new Date(y,m,1-first.getDay());let html='';
+    for(let i=0;i<42;i++){
+      const d=new Date(start);d.setDate(start.getDate()+i);const ds=fmtDateInput(d);
+      const dayTasks=all.filter(t=>t.date===ds),outside=d.getMonth()!==m,today=ds===fmtDateInput(new Date());
+      html+=`<div class="day-cell ${outside?'outside':''} ${today?'today':''}" data-date="${ds}">
+        <div class="day-number"><span>${d.getDate()}</span></div>
+        ${dayTasks.slice(0,5).map(t=>`<button class="event-chip ${t.done?'done':''} urgent${urgency(t)}" data-id="${t.id}" title="${escapeHtml([t.course,t.title,formatDue(t),t.notes].filter(Boolean).join(' · '))}">${escapeHtml(calendarChipContent(t))}</button>`).join('')}
+        ${dayTasks.length>5?`<div class="tiny">+${dayTasks.length-5} more</div>`:''}
+      </div>`
+    }
+    grid.innerHTML=html;
+  }else if(calendarView==='week'){
+    const start=weekStartFor(currentMonth),end=addDays(start,6);
+    $('#monthLabel').textContent=`${start.toLocaleDateString(undefined,{month:'short',day:'numeric'})} – ${end.toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'})}`;
+    grid.classList.add('calendar-grid-week');
+    let html='';
+    for(let i=0;i<7;i++){
+      const d=addDays(start,i),ds=fmtDateInput(d),dayTasks=all.filter(t=>t.date===ds),today=ds===fmtDateInput(new Date());
+      html+=`<div class="week-day ${today?'today':''}" data-date="${ds}">
+        <div class="week-date"><strong>${d.getDate()}</strong><span>${d.toLocaleDateString(undefined,{month:'short'})}</span></div>
+        <div class="week-events">${dayTasks.length?dayTasks.map(t=>`<button class="event-chip week-event ${t.done?'done':''} urgent${urgency(t)}" data-id="${t.id}">${escapeHtml(calendarChipContent(t))}</button>`).join(''):'<div class="calendar-empty">No tasks</div>'}</div>
+      </div>`
+    }
+    grid.innerHTML=html;
+  }else{
+    weekdays.classList.add('hidden');
+    const d=new Date(currentMonth.getFullYear(),currentMonth.getMonth(),currentMonth.getDate()),ds=fmtDateInput(d);
+    $('#monthLabel').textContent=d.toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric',year:'numeric'});
+    const dayTasks=all.filter(t=>t.date===ds);
+    grid.classList.add('calendar-grid-day');
+    grid.innerHTML=`<div class="daily-view" data-date="${ds}">
+      <div class="daily-date"><div>${d.toLocaleDateString(undefined,{weekday:'long'})}</div><strong>${d.getDate()}</strong><span>${d.toLocaleDateString(undefined,{month:'long',year:'numeric'})}</span></div>
+      <div class="daily-events">${dayTasks.length?dayTasks.map(t=>`<button class="daily-task-card ${t.done?'done':''} urgent${urgency(t)}" data-id="${t.id}">
+        <span class="daily-task-time">${t.time?new Date(`${t.date}T${t.time}:00`).toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'}):'Any time'}</span>
+        <span class="daily-task-main">${escapeHtml(calendarChipContent(t))}</span>
+      </button>`).join(''):'<div class="daily-empty">Nothing scheduled for this day.<button class="soft-btn small" id="dailyAdd">+ Add task</button></div>'}</div>
+    </div>`;
+    if($('#dailyAdd'))$('#dailyAdd').onclick=e=>{e.stopPropagation();openTaskModal(null,ds)};
   }
-  $('#calendarGrid').innerHTML=html;
-  document.querySelectorAll('.event-chip').forEach(el=>el.onclick=e=>{e.stopPropagation();openTaskDetails(tasks.find(t=>t.id===el.dataset.id))});
-  document.querySelectorAll('.day-cell').forEach(el=>el.onclick=()=>{el.classList.remove('calendar-click');void el.offsetWidth;el.classList.add('calendar-click');setTimeout(()=>openTaskModal(null,el.dataset.date),90)})
+
+  document.querySelectorAll('.event-chip,[data-id].daily-task-card').forEach(el=>el.onclick=e=>{e.stopPropagation();openTaskDetails(tasks.find(t=>t.id===el.dataset.id))});
+  document.querySelectorAll('.day-cell,.week-day,.daily-view').forEach(el=>el.onclick=()=>{el.classList.remove('calendar-click');void el.offsetWidth;el.classList.add('calendar-click');setTimeout(()=>openTaskModal(null,el.dataset.date),90)})
 }
 
 function openCalendarDisplay(){
@@ -78,19 +137,20 @@ function openCalendarDisplay(){
       <label class="display-choice"><input id="displayTime" type="checkbox" ${calendarDisplay.time?'checked':''}><span><strong>Deadline time</strong><small>Example: 2:30 PM</small></span></label>
       <label class="display-choice"><input id="displayCourse" type="checkbox" ${calendarDisplay.course?'checked':''}><span><strong>Course</strong><small>Example: HDFS 2300</small></span></label>
       <label class="display-choice"><input id="displayTitle" type="checkbox" ${calendarDisplay.title?'checked':''}><span><strong>Task name</strong><small>Example: Chapter 1 Reading Quiz</small></span></label>
+      <label class="display-choice"><input id="displayDescription" type="checkbox" ${calendarDisplay.description?'checked':''}><span><strong>Description</strong><small>Show the task description in calendar labels</small></span></label>
     </div>
     <div class="display-preview"><span>Preview</span><strong id="displayPreviewText"></strong></div>
     <div class="modal-actions"><button id="displayCancel" class="soft-btn">Cancel</button><button id="displaySave" class="primary-btn">Save display</button></div>`);
   const updatePreview=()=>{
-    const demo={date:fmtDateInput(new Date()),time:'14:30',course:'HDFS 2300',title:'Reading Quiz'};
-    const draft={time:$('#displayTime').checked,course:$('#displayCourse').checked,title:$('#displayTitle').checked};
+    const demo={date:fmtDateInput(new Date()),time:'14:30',course:'HDFS 2300',title:'Reading Quiz',notes:'Complete Chapter 1 questions'};
+    const draft={time:$('#displayTime').checked,course:$('#displayCourse').checked,title:$('#displayTitle').checked,description:$('#displayDescription').checked};
     const old=calendarDisplay;calendarDisplay=draft;$('#displayPreviewText').textContent=calendarChipContent(demo);calendarDisplay=old;
   };
-  ['#displayTime','#displayCourse','#displayTitle'].forEach(s=>$(s).onchange=updatePreview);updatePreview();
+  ['#displayTime','#displayCourse','#displayTitle','#displayDescription'].forEach(s=>$(s).onchange=updatePreview);updatePreview();
   $('#displayCancel').onclick=closeModal;
   $('#displaySave').onclick=()=>{
-    const next={time:$('#displayTime').checked,course:$('#displayCourse').checked,title:$('#displayTitle').checked};
-    if(!next.time&&!next.course&&!next.title)return toast('Choose at least one label item.');
+    const next={time:$('#displayTime').checked,course:$('#displayCourse').checked,title:$('#displayTitle').checked,description:$('#displayDescription').checked};
+    if(!next.time&&!next.course&&!next.title&&!next.description)return toast('Choose at least one label item.');
     calendarDisplay=next;
     try{localStorage.setItem(CAL_DISPLAY_KEY,JSON.stringify(calendarDisplay))}catch{}
     closeModal();renderCalendar();toast('Calendar display updated.');
@@ -118,7 +178,7 @@ let todoOpen={today:true,week:true,next:true,later:false,completed:false},todoSi
 try{const saved=JSON.parse(localStorage.getItem(TODO_PREF_KEY)||'{}');for(const k of Object.keys(todoOpen))if(typeof saved[k]==='boolean')todoOpen[k]=saved[k]}catch{}
 
 function renderTodo(){
-  const pending=tasks.filter(t=>!t.done),completed=tasks.filter(t=>t.done).sort((a,b)=>(b.completedAt||0)-(a.completedAt||0)),groups=getTodoGroups(pending),today=fmtDateInput(new Date());
+  const deadlines=deadlineTasks(),pending=deadlines.filter(t=>!t.done),completed=deadlines.filter(t=>t.done).sort((a,b)=>(b.completedAt||0)-(a.completedAt||0)),groups=getTodoGroups(pending),today=fmtDateInput(new Date());
   const overdue=groups.today.filter(t=>t.date<today).length;
   $('#todoSubtitle').textContent=groups.today.length?`${groups.today.length} for today${overdue?' · includes overdue':''}`:'Nothing due today';
   const signature=JSON.stringify([today,pending,completed.map(t=>[t.id,t.completedAt,t.title,t.date,t.time,t.course])]);
@@ -152,8 +212,35 @@ function renderTodo(){
   document.querySelectorAll('[data-timer]').forEach(el=>{const t=byId.get(el.dataset.timer);if(!t)return;const diff=dueMs(t)-Date.now();el.textContent=diff<=2*3600e3?countdown(diff):'';el.hidden=!el.textContent})
 }
 
+async function addQuickTodo(){
+  const input=$('#quickTodoInput'),title=input.value.trim();
+  if(!title)return;
+  await idbPut({id:crypto.randomUUID(),quick:true,title,done:false,createdAt:Date.now()});
+  input.value='';await refresh();
+}
+async function toggleQuickTodo(id,done){
+  const t=tasks.find(x=>x.id===id&&x.quick);if(!t)return;
+  t.done=done;t.updatedAt=Date.now();
+  await idbPut(t);await refresh();
+}
+async function deleteQuickTodo(id){
+  await idbDelete(id);await refresh();toast('Quick to-do deleted.');
+}
+function renderQuickTodo(){
+  const root=$('#quickTodoList');if(!root)return;
+  const items=quickTasks().sort((a,b)=>(a.done-b.done)||((a.createdAt||0)-(b.createdAt||0)));
+  $('#quickTodoCount').textContent=items.filter(t=>!t.done).length;
+  root.innerHTML=items.length?items.map(t=>`<div class="quick-todo-item ${t.done?'done':''}">
+    <input type="checkbox" data-quick-check="${escapeHtml(t.id)}" ${t.done?'checked':''} aria-label="Toggle ${escapeHtml(t.title)}">
+    <span>${escapeHtml(t.title)}</span>
+    <button class="quick-delete" data-quick-delete="${escapeHtml(t.id)}" aria-label="Delete ${escapeHtml(t.title)}" title="Delete">⌫</button>
+  </div>`).join(''):'<div class="quick-empty">Tiny things live here.</div>';
+  document.querySelectorAll('[data-quick-check]').forEach(c=>c.onchange=()=>toggleQuickTodo(c.dataset.quickCheck,c.checked));
+  document.querySelectorAll('[data-quick-delete]').forEach(b=>b.onclick=()=>deleteQuickTodo(b.dataset.quickDelete));
+}
+
 function renderWarnings(){
-  const active=tasks.filter(t=>!t.done).sort((a,b)=>dueMs(a)-dueMs(b))[0],wb=$('#warningBackdrop');
+  const active=deadlineTasks().filter(t=>!t.done).sort((a,b)=>dueMs(a)-dueMs(b))[0],wb=$('#warningBackdrop');
   wb.className='warning-backdrop';$('#warningKicker').textContent='';$('#warningText').textContent='';
   if(!active)return;const diff=dueMs(active)-Date.now();
   if(diff>0&&diff<=30*60e3){const level=diff<=15*60e3?2:1;wb.classList.add(`level${level}`);$('#warningKicker').textContent=level===2?'URGENT DEADLINE':'DEADLINE APPROACHING';$('#warningText').textContent=`${active.title} · ${countdown(diff)}`;if(level===2&&lastEmergencyTaskId!==active.id){lastEmergencyTaskId=active.id;openEmergency(active,diff)}}
@@ -507,10 +594,23 @@ $('#addBtn').onclick=()=>openTaskModal();
 $('#importBtn').onclick=openBatch;
 $('#todoToggle').onclick=()=>{$('#todoPanel').classList.toggle('open');$('#todoPanel').setAttribute('aria-hidden',!$('#todoPanel').classList.contains('open'))};
 $('#closeTodo').onclick=()=>{$('#todoPanel').classList.remove('open');$('#todoPanel').setAttribute('aria-hidden','true')};
-$('#prevMonth').onclick=()=>{currentMonth=new Date(currentMonth.getFullYear(),currentMonth.getMonth()-1,1);renderCalendar()};
-$('#nextMonth').onclick=()=>{currentMonth=new Date(currentMonth.getFullYear(),currentMonth.getMonth()+1,1);renderCalendar()};
+$('#prevMonth').onclick=()=>{
+  if(calendarView==='month')currentMonth=new Date(currentMonth.getFullYear(),currentMonth.getMonth()-1,1);
+  else if(calendarView==='week')currentMonth=addDays(currentMonth,-7);
+  else currentMonth=addDays(currentMonth,-1);
+  renderCalendar();
+};
+$('#nextMonth').onclick=()=>{
+  if(calendarView==='month')currentMonth=new Date(currentMonth.getFullYear(),currentMonth.getMonth()+1,1);
+  else if(calendarView==='week')currentMonth=addDays(currentMonth,7);
+  else currentMonth=addDays(currentMonth,1);
+  renderCalendar();
+};
 $('#todayBtn').onclick=()=>{currentMonth=new Date();renderCalendar()};
 $('#displayBtn').onclick=openCalendarDisplay;
+document.querySelectorAll('[data-cal-view]').forEach(b=>b.onclick=()=>setCalendarView(b.dataset.calView));
+$('#quickTodoAdd').onclick=addQuickTodo;
+$('#quickTodoInput').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();addQuickTodo()}};
 
 (async()=>{
   initTheme();initPetalRain();await openDB();await refresh();

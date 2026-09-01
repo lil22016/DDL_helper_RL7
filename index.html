@@ -71,6 +71,11 @@
             <button id="nextMonth" class="icon-btn" aria-label="Next month">›</button>
           </div>
           <div class="calendar-tools">
+          <div class="view-switch" aria-label="Calendar view">
+            <button data-cal-view="month" class="view-btn active">Month</button>
+            <button data-cal-view="week" class="view-btn">Week</button>
+            <button data-cal-view="day" class="view-btn">Day</button>
+          </div>
           <button id="displayBtn" class="soft-btn small">Display</button>
           <button id="todayBtn" class="soft-btn small">Today</button>
         </div>
@@ -92,6 +97,19 @@
       <button id="closeTodo" class="icon-btn" aria-label="Close to-do list">×</button>
     </div>
     <div id="todoList" class="todo-list"></div>
+  </aside>
+
+  <aside class="quick-note" aria-label="Quick to-do note">
+    <div class="quick-note-pin"></div>
+    <div class="quick-note-header">
+      <div><span>QUICK TO-DO</span><strong>Little things</strong></div>
+      <span id="quickTodoCount" class="quick-count">0</span>
+    </div>
+    <div class="quick-add-row">
+      <input id="quickTodoInput" type="text" maxlength="160" placeholder="e.g. Tidy the room" aria-label="New quick to-do">
+      <button id="quickTodoAdd" aria-label="Add quick to-do">+</button>
+    </div>
+    <div id="quickTodoList" class="quick-todo-list"></div>
   </aside>
 
   <div id="modalRoot" class="modal-root hidden" role="dialog" aria-modal="true">
