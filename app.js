@@ -226,9 +226,23 @@ function renderQuickTodo(){
 
 function renderWarnings(){
   const active=deadlineTasks().filter(t=>!t.done).sort((a,b)=>dueMs(a)-dueMs(b))[0],wb=$('#warningBackdrop');
-  wb.className='warning-backdrop';$('#warningKicker').textContent='';$('#warningText').textContent='';
-  if(!active)return;const diff=dueMs(active)-Date.now();
-  if(diff>0&&diff<=30*60e3){const level=diff<=15*60e3?2:1;wb.classList.add(`level${level}`);$('#warningKicker').textContent=level===2?'URGENT DEADLINE':'DEADLINE APPROACHING';$('#warningText').textContent=`${active.title} · ${countdown(diff)}`;if(level===2&&lastEmergencyTaskId!==active.id){lastEmergencyTaskId=active.id;openEmergency(active,diff)}}
+  wb.className='warning-backdrop';
+  document.body.classList.remove('urgent-global','urgent-global-critical');
+  $('#warningKicker').textContent='';$('#warningText').textContent='';
+  if(!active)return;
+  const diff=dueMs(active)-Date.now();
+  if(diff>0&&diff<=30*60e3){
+    const level=diff<=15*60e3?2:1;
+    wb.classList.add(`level${level}`);
+    document.body.classList.add('urgent-global');
+    if(level===2)document.body.classList.add('urgent-global-critical');
+    $('#warningKicker').textContent=level===2?'URGENT DEADLINE':'DEADLINE APPROACHING';
+    $('#warningText').textContent=`${active.title} · ${countdown(diff)}`;
+    if(level===2&&lastEmergencyTaskId!==active.id){
+      lastEmergencyTaskId=active.id;
+      openEmergency(active,diff)
+    }
+  }
 }
 
 function showModal(html){
@@ -345,6 +359,36 @@ function bindRepeatPreview(){
   update()
 }
 
+function normalizedCourse(s){return (s||'').trim().toLowerCase()}
+function sameCourseTasks(course){
+  const c=normalizedCourse(course);
+  return c?deadlineTasks().filter(t=>normalizedCourse(t.course)===c):[];
+}
+function askApplyCourseColor(task,color){
+  const matching=sameCourseTasks(task.course);
+  if(!task.course||!color||matching.length<2)return;
+  showModal(`<div class="section-label">COURSE COLOR</div><h3>Use this color for all ${escapeHtml(task.course)} tasks?</h3>
+    <div class="course-color-preview">
+      <span class="task-icon color" style="--task-icon-color:${ICON_COLORS[color]}"></span>
+      <span>${matching.length} ${escapeHtml(task.course)} task${matching.length===1?'':'s'} found.</span>
+    </div>
+    <div class="next-meta" style="margin-top:10px">This will apply the same calendar color dot to every task in this course. Existing emoji icons will be replaced so the course stays visually consistent.</div>
+    <div class="modal-actions">
+      <button id="courseColorNo" class="soft-btn">Only this task</button>
+      <button id="courseColorYes" class="primary-btn">Apply to all ${escapeHtml(task.course)}</button>
+    </div>`);
+  $('#courseColorNo').onclick=closeModal;
+  $('#courseColorYes').onclick=async()=>{
+    for(const t of matching){
+      t.iconColor=color;
+      t.emoji='';
+      t.updatedAt=Date.now();
+      await idbPut(t);
+    }
+    closeModal();await refresh();toast(`Applied ${color} to all ${task.course} tasks.`);
+  };
+}
+
 function openTaskModal(task=null,prefillDate=''){
   const now=new Date(),t=task||{title:'',course:'',date:prefillDate||fmtDateInput(now),time:'',notes:'',done:false};
   const existingRepeat=t.repeat?.enabled?t.repeat:{enabled:false,unit:'week',interval:1,until:''};
@@ -375,7 +419,11 @@ function openTaskModal(task=null,prefillDate=''){
     const form=readTaskForm();if(!form)return;
     if(task&&isSeriesTask(task))return chooseSeriesSaveScope(task,form);
     if(task){
-      await idbPut({...t,...form,repeat:form.repeat||null,updatedAt:Date.now()});closeModal();await refresh();toast('Task updated.');return
+      const updated={...t,...form,repeat:form.repeat||null,updatedAt:Date.now()};
+      await idbPut(updated);closeModal();await refresh();
+      if(form.iconColor&&!form.emoji&&updated.course){askApplyCourseColor(updated,form.iconColor)}
+      else toast('Task updated.');
+      return
     }
     await createFromForm(form);closeModal();await refresh()
   };
@@ -399,8 +447,11 @@ function chooseSeriesSaveScope(task,form){
     <div class="modal-actions"><button id="scopeCancel" class="soft-btn">Cancel</button></div>`);
   $('#scopeCancel').onclick=()=>openTaskModal(task);
   $('#scopeOne').onclick=async()=>{
-    await idbPut({...task,title:form.title,course:form.course,date:form.date,time:form.time,emoji:form.emoji,iconColor:form.iconColor,link:form.link,notes:form.notes,updatedAt:Date.now()});
-    closeModal();await refresh();toast('Only this occurrence was updated.')
+    const updated={...task,title:form.title,course:form.course,date:form.date,time:form.time,emoji:form.emoji,iconColor:form.iconColor,link:form.link,notes:form.notes,updatedAt:Date.now()};
+    await idbPut(updated);
+    closeModal();await refresh();
+    if(form.iconColor&&!form.emoji&&updated.course)askApplyCourseColor(updated,form.iconColor);
+    else toast('Only this occurrence was updated.')
   };
   $('#scopeFuture').onclick=async()=>applySeriesFromHere(task,form)
 }
