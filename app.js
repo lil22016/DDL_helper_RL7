@@ -64,15 +64,24 @@ function renderHeader(){
 
 function calendarChipContent(t){
   const parts=[];
-  if(calendarDisplay.time&&t.time){
-    const d=new Date(`${t.date}T${t.time}:00`);
-    parts.push(d.toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'}));
-  }
+  if(calendarDisplay.title&&t.title)parts.push(t.title);
+  if(calendarDisplay.time&&t.time){const d=new Date(`${t.date}T${t.time}:00`);parts.push(d.toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'}));}
   if(calendarDisplay.course&&t.course)parts.push(t.course);
-  if(calendarDisplay.title)parts.push(t.title);
   if(calendarDisplay.description&&t.notes)parts.push(t.notes.replace(/\s+/g,' ').trim());
   if(!parts.length)parts.push(t.title||t.course||formatDue(t));
   return parts.join(' · ');
+}
+function calendarChipHtml(t){
+  const meta=[];
+  if(calendarDisplay.time&&t.time){const d=new Date(`${t.date}T${t.time}:00`);meta.push(d.toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'}));}
+  if(calendarDisplay.course&&t.course)meta.push(t.course);
+  const title=calendarDisplay.title&&t.title?t.title:'';
+  const desc=calendarDisplay.description&&t.notes?t.notes.replace(/\s+/g,' ').trim():'';
+  if(title){
+    return `<span class="event-main-line">${taskIconHtml(t)}<span>${escapeHtml(title)}</span></span>${meta.length?`<span class="event-meta-line">${escapeHtml(meta.join(' · '))}</span>`:''}${desc?`<span class="event-desc-line">${escapeHtml(desc)}</span>`:''}`;
+  }
+  const fallback=meta.length?meta.join(' · '):(desc||t.title||t.course||formatDue(t));
+  return `<span class="event-main-line">${taskIconHtml(t)}<span>${escapeHtml(fallback)}</span></span>${desc&&fallback!==desc?`<span class="event-desc-line">${escapeHtml(desc)}</span>`:''}`;
 }
 
 function setCalendarView(view){
@@ -91,24 +100,37 @@ function weekStartFor(date){
 
 function renderCalendar(){
   const all=deadlineTasks(),grid=$('#calendarGrid'),weekdays=$('.weekday-row');grid.className='calendar-grid';weekdays.classList.remove('hidden');document.querySelectorAll('[data-cal-view]').forEach(b=>b.classList.toggle('active',b.dataset.calView===calendarView));
-  const chip=(t,extra='')=>`<button class="event-chip ${extra} size-${t.calendarSize||'medium'} ${t.done?'done':''} urgent${urgency(t)}" data-id="${t.id}" title="${escapeHtml([t.course,t.title,formatDue(t),t.notes].filter(Boolean).join(' · '))}">${taskIconHtml(t)}<span>${escapeHtml(calendarChipContent(t))}</span></button>`;
+  const chip=(t,extra='')=>`<button class="event-chip ${extra} size-${t.calendarSize||'medium'} ${t.done?'done':''} urgent${urgency(t)}" data-id="${t.id}" title="${escapeHtml([t.course,t.title,formatDue(t),t.notes].filter(Boolean).join(' · '))}">${calendarChipHtml(t)}</button>`;
+  const holidayTag=h=>h?`<button class="holiday-mini holiday-edit-tag" data-holiday-id="${h.id}" title="Edit holiday">✦ ${escapeHtml(h.name||'Holiday')}</button>`:'';
   if(calendarView==='month'){
     const y=currentMonth.getFullYear(),m=currentMonth.getMonth();$('#monthLabel').textContent=currentMonth.toLocaleDateString(undefined,{month:'long',year:'numeric'});const start=new Date(y,m,1-new Date(y,m,1).getDay());let html='';
-    for(let i=0;i<42;i++){const d=new Date(start);d.setDate(start.getDate()+i);const ds=fmtDateInput(d),dayTasks=all.filter(t=>t.date===ds),outside=d.getMonth()!==m,today=ds===fmtDateInput(new Date()),holiday=holidayForDate(ds);html+=`<div class="day-cell ${outside?'outside':''} ${today?'today':''} ${holiday?'holiday-day':''}" data-date="${ds}"><div class="day-number"><span>${d.getDate()}</span>${holiday?`<em class="holiday-mini">✦ ${escapeHtml(holiday.name||'Holiday')}</em>`:''}</div>${dayTasks.slice(0,5).map(t=>chip(t)).join('')}${dayTasks.length>5?`<div class="tiny">+${dayTasks.length-5} more</div>`:''}</div>`}
+    for(let i=0;i<42;i++){const d=new Date(start);d.setDate(start.getDate()+i);const ds=fmtDateInput(d),dayTasks=all.filter(t=>t.date===ds),outside=d.getMonth()!==m,today=ds===fmtDateInput(new Date()),holiday=holidayForDate(ds);html+=`<div class="day-cell ${outside?'outside':''} ${today?'today':''} ${holiday?'holiday-day':''}" data-date="${ds}"><div class="day-number"><span>${d.getDate()}</span>${holidayTag(holiday)}</div>${dayTasks.slice(0,5).map(t=>chip(t)).join('')}${dayTasks.length>5?`<div class="tiny">+${dayTasks.length-5} more</div>`:''}</div>`}
     grid.innerHTML=html;
   }else if(calendarView==='week'){
     const start=weekStartFor(currentMonth),end=addDays(start,6);$('#monthLabel').textContent=`${start.toLocaleDateString(undefined,{month:'short',day:'numeric'})} – ${end.toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'})}`;grid.classList.add('calendar-grid-week');let html='';
-    for(let i=0;i<7;i++){const d=addDays(start,i),ds=fmtDateInput(d),dayTasks=all.filter(t=>t.date===ds),today=ds===fmtDateInput(new Date()),holiday=holidayForDate(ds);html+=`<div class="week-day ${today?'today':''} ${holiday?'holiday-day':''}" data-date="${ds}"><div class="week-date"><strong>${d.getDate()}</strong><span>${d.toLocaleDateString(undefined,{month:'short'})}</span>${holiday?`<em>✦ ${escapeHtml(holiday.name||'Holiday')}</em>`:''}</div><div class="week-events">${dayTasks.length?dayTasks.map(t=>chip(t,'week-event')).join(''):'<div class="calendar-empty">No tasks</div>'}</div></div>`}
+    for(let i=0;i<7;i++){const d=addDays(start,i),ds=fmtDateInput(d),dayTasks=all.filter(t=>t.date===ds),today=ds===fmtDateInput(new Date()),holiday=holidayForDate(ds);html+=`<div class="week-day ${today?'today':''} ${holiday?'holiday-day':''}" data-date="${ds}"><div class="week-date"><strong>${d.getDate()}</strong><span>${d.toLocaleDateString(undefined,{month:'short'})}</span>${holidayTag(holiday)}</div><div class="week-events">${dayTasks.length?dayTasks.map(t=>chip(t,'week-event')).join(''):'<div class="calendar-empty">No tasks</div>'}</div></div>`}
     grid.innerHTML=html;
   }else{
-    weekdays.classList.add('hidden');const d=new Date(currentMonth.getFullYear(),currentMonth.getMonth(),currentMonth.getDate()),ds=fmtDateInput(d),dayTasks=all.filter(t=>t.date===ds),holiday=holidayForDate(ds);$('#monthLabel').textContent=d.toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric',year:'numeric'});grid.classList.add('calendar-grid-day');grid.innerHTML=`<div class="daily-view ${holiday?'holiday-day':''}" data-date="${ds}"><div class="daily-date"><div>${d.toLocaleDateString(undefined,{weekday:'long'})}</div><strong>${d.getDate()}</strong><span>${d.toLocaleDateString(undefined,{month:'long',year:'numeric'})}</span>${holiday?`<em>✦ ${escapeHtml(holiday.name||'Holiday')}</em>`:''}</div><div class="daily-events">${dayTasks.length?dayTasks.map(t=>`<button class="daily-task-card size-${t.calendarSize||'medium'} ${t.done?'done':''} urgent${urgency(t)}" data-id="${t.id}"><span class="daily-task-time">${t.time?new Date(`${t.date}T${t.time}:00`).toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'}):'Any time'}</span><span class="daily-task-main">${taskIconHtml(t)}<span>${escapeHtml(calendarChipContent(t))}</span></span></button>`).join(''):'<div class="daily-empty">Nothing scheduled for this day.<button class="soft-btn small" id="dailyAdd">+ Add task</button></div>'}</div></div>`;if($('#dailyAdd'))$('#dailyAdd').onclick=e=>{e.stopPropagation();openTaskModal(null,ds)};
+    weekdays.classList.add('hidden');const d=new Date(currentMonth.getFullYear(),currentMonth.getMonth(),currentMonth.getDate()),ds=fmtDateInput(d),dayTasks=all.filter(t=>t.date===ds),holiday=holidayForDate(ds);$('#monthLabel').textContent=d.toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric',year:'numeric'});grid.classList.add('calendar-grid-day');grid.innerHTML=`<div class="daily-view ${holiday?'holiday-day':''}" data-date="${ds}"><div class="daily-date"><div>${d.toLocaleDateString(undefined,{weekday:'long'})}</div><strong>${d.getDate()}</strong><span>${d.toLocaleDateString(undefined,{month:'long',year:'numeric'})}</span>${holidayTag(holiday)}</div><div class="daily-events">${dayTasks.length?dayTasks.map(t=>`<button class="daily-task-card size-${t.calendarSize||'medium'} ${t.done?'done':''} urgent${urgency(t)}" data-id="${t.id}"><span class="daily-task-time">${t.time?new Date(`${t.date}T${t.time}:00`).toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'}):'Any time'}</span><span class="daily-task-main">${calendarChipHtml(t)}</span></button>`).join(''):'<div class="daily-empty">Nothing scheduled for this day.<button class="soft-btn small" id="dailyAdd">+ Add task</button></div>'}</div></div>`;if($('#dailyAdd'))$('#dailyAdd').onclick=e=>{e.stopPropagation();openTaskModal(null,ds)};
   }
-  document.querySelectorAll('.event-chip,[data-id].daily-task-card').forEach(el=>el.onclick=e=>{e.stopPropagation();openTaskDetails(tasks.find(t=>t.id===el.dataset.id))});document.querySelectorAll('.day-cell,.week-day,.daily-view').forEach(el=>el.onclick=()=>{el.classList.remove('calendar-click');void el.offsetWidth;el.classList.add('calendar-click');setTimeout(()=>openTaskModal(null,el.dataset.date),90)})
+  document.querySelectorAll('.event-chip,[data-id].daily-task-card').forEach(el=>el.onclick=e=>{e.stopPropagation();openTaskDetails(tasks.find(t=>t.id===el.dataset.id))});
+  document.querySelectorAll('[data-holiday-id]').forEach(el=>el.onclick=e=>{e.stopPropagation();openHolidayModal(holidays.find(h=>h.id===el.dataset.holidayId))});
+  document.querySelectorAll('.day-cell,.week-day,.daily-view').forEach(el=>el.onclick=()=>{el.classList.remove('calendar-click');void el.offsetWidth;el.classList.add('calendar-click');setTimeout(()=>openTaskModal(null,el.dataset.date),90)})
 }
 
-function openHolidayModal(){const today=fmtDateInput(new Date());showModal(`<div class="section-label">HOLIDAY</div><h3>Add time off</h3><div class="form-grid"><div class="field full"><label>Name</label><input id="holidayName" placeholder="Fall Break"></div><div class="field"><label>Starts</label><input id="holidayStart" type="date" value="${today}"></div><div class="field"><label>Ends</label><input id="holidayEnd" type="date" value="${today}"></div></div><div class="next-meta" style="margin-top:10px">Holiday dates stay visible and softly highlighted. Existing tasks are kept unless you choose to clear them.</div><div class="modal-actions"><button id="holidayCancel" class="soft-btn">Cancel</button><button id="holidaySave" class="primary-btn">Save holiday</button></div>`);$('#holidayCancel').onclick=closeModal;$('#holidaySave').onclick=()=>{const name=$('#holidayName').value.trim()||'Holiday',start=$('#holidayStart').value,end=$('#holidayEnd').value;if(!start||!end||end<start)return toast('Choose a valid holiday date range.');const h={id:crypto.randomUUID(),name,start,end};holidays.push(h);saveHolidays();closeModal();renderCalendar();holidayCelebration();setTimeout(()=>askHolidayClear(h),350)}}
+function openHolidayModal(existing=null){
+  const today=fmtDateInput(new Date()),h=existing||{name:'',start:today,end:today};
+  showModal(`<div class="section-label">HOLIDAY</div><h3>${existing?'Edit holiday':'Add time off'}</h3><div class="form-grid"><div class="field full"><label>Name</label><input id="holidayName" value="${escapeHtml(h.name||'')}" placeholder="Fall Break"></div><div class="field"><label>Starts</label><input id="holidayStart" type="date" value="${h.start}"></div><div class="field"><label>Ends</label><input id="holidayEnd" type="date" value="${h.end}"></div></div><div class="next-meta" style="margin-top:10px">Holiday dates stay visible and softly highlighted. Existing tasks are kept unless you choose to clear them.</div><div class="modal-actions">${existing?'<button id="holidayDelete" class="danger-btn">Delete holiday</button>':''}<button id="holidayCancel" class="soft-btn">Cancel</button><button id="holidaySave" class="primary-btn">${existing?'Save changes':'Save holiday'}</button></div>`);
+  $('#holidayCancel').onclick=closeModal;
+  if(existing)$('#holidayDelete').onclick=()=>{holidays=holidays.filter(x=>x.id!==existing.id);saveHolidays();closeModal();renderCalendar();toast('Holiday deleted.')};
+  $('#holidaySave').onclick=()=>{
+    const name=$('#holidayName').value.trim()||'Holiday',start=$('#holidayStart').value,end=$('#holidayEnd').value;if(!start||!end||end<start)return toast('Choose a valid holiday date range.');
+    if(existing){Object.assign(existing,{name,start,end});saveHolidays();closeModal();renderCalendar();toast('Holiday updated.');return}
+    const created={id:crypto.randomUUID(),name,start,end};holidays.push(created);saveHolidays();closeModal();renderCalendar();holidayCelebration();setTimeout(()=>askHolidayClear(created),1950)
+  }
+}
 function askHolidayClear(h){const inRange=deadlineTasks().filter(t=>t.date>=h.start&&t.date<=h.end);showModal(`<div class="holiday-celebrate-mark">✦</div><div class="section-label">HOLIDAY SAVED</div><h3>${escapeHtml(h.name)} is on the calendar!</h3><div class="next-meta">${inRange.length?`${inRange.length} task${inRange.length===1?'':'s'} currently fall inside this break.`:'No tasks currently fall inside this break.'}</div>${inRange.length?'<div class="holiday-question">Clear tasks during this holiday?</div>':''}<div class="modal-actions">${inRange.length?'<button id="holidayClearTasks" class="danger-btn">Clear holiday tasks</button>':''}<button id="holidayKeepTasks" class="primary-btn">${inRange.length?'Keep tasks':'Nice!'}</button></div>`);$('#holidayKeepTasks').onclick=closeModal;if(inRange.length)$('#holidayClearTasks').onclick=async()=>{for(const t of inRange)await idbDelete(t.id);closeModal();await refresh();toast(`Cleared ${inRange.length} holiday task${inRange.length===1?'':'s'}.`)}}
-function holidayCelebration(){confetti();document.body.classList.remove('holiday-party');void document.body.offsetWidth;document.body.classList.add('holiday-party');setTimeout(()=>document.body.classList.remove('holiday-party'),1800)}
+function holidayCelebration(){confetti(true);document.body.classList.remove('holiday-party');void document.body.offsetWidth;document.body.classList.add('holiday-party');setTimeout(()=>document.body.classList.remove('holiday-party'),1800)}
 
 function openCalendarDisplay(){
   showModal(`<div class="section-label">CALENDAR</div><h3>Choose what task labels show</h3>
@@ -157,38 +179,22 @@ let todoOpen={today:true,week:true,next:true,later:false,completed:false},todoSi
 try{const saved=JSON.parse(localStorage.getItem(TODO_PREF_KEY)||'{}');for(const k of Object.keys(todoOpen))if(typeof saved[k]==='boolean')todoOpen[k]=saved[k]}catch{}
 
 function renderTodo(){
-  const deadlines=deadlineTasks(),pending=deadlines.filter(t=>!t.done),completed=deadlines.filter(t=>t.done).sort((a,b)=>(b.completedAt||0)-(a.completedAt||0)),groups=getTodoGroups(pending),today=fmtDateInput(new Date());
+  const deadlines=deadlineTasks(),pending=deadlines.filter(t=>!t.done),groups=getTodoGroups(pending),today=fmtDateInput(new Date());
   const overdue=groups.today.filter(t=>t.date<today).length;
   $('#todoSubtitle').textContent=groups.today.length?`${groups.today.length} for today${overdue?' · includes overdue':''}`:'Nothing due today';
-  const signature=JSON.stringify([today,pending,completed.map(t=>[t.id,t.completedAt,t.title,t.date,t.time,t.course])]);
+  document.querySelectorAll('[data-todo-badge]').forEach(r=>r.checked=r.value===customize.todoCount);
+  const signature=JSON.stringify([today,pending,customize.todoCount]);
   if(signature!==todoSignature){
     todoSignature=signature;
     const sections=[['today','Today',groups.today],['week','This week',groups.week]];
     if(groups.weekend)sections.push(['next','Next week',groups.next]);
     sections.push(['later','All later deadlines',groups.later]);
-    sections.push(['completed','Completed',completed.slice(0,40)]);
-    $('#todoList').innerHTML=sections.map(([key,label,items])=>`<details class="todo-section ${key==='completed'?'completed-section':''}" data-section="${key}" ${todoOpen[key]?'open':''}>
-      <summary><span class="todo-arrow">›</span><span class="todo-section-label">${label}</span><span class="todo-section-count">${items.length}</span></summary>
-      <div class="todo-section-items">${items.length?items.map(t=>`<div class="todo-item ${t.done?'is-completed':''}">
-        <label class="todo-check">${t.done
-          ?`<button class="restore-check" data-restore="${escapeHtml(t.id)}" aria-label="Return ${escapeHtml(t.title)} to to-do">↶</button>`
-          :`<input type="checkbox" data-check="${escapeHtml(t.id)}" aria-label="Mark ${escapeHtml(t.title)} as done">`
-        }</label>
-        <button class="todo-content todo-content-button" data-view-task="${escapeHtml(t.id)}">
-          <div class="todo-title">${escapeHtml(t.title)}</div>
-          ${t.course?`<div class="todo-course">${escapeHtml(t.course)}</div>`:''}
-          <div class="todo-meta">${escapeHtml(formatDue(t))}</div>
-          ${t.done?`<div class="todo-completed-note">Completed${t.completedAt?` · ${new Date(t.completedAt).toLocaleDateString(undefined,{month:'short',day:'numeric'})}`:''}</div>`:`<div class="todo-timer" data-timer="${escapeHtml(t.id)}"></div>`}
-        </button>
-      </div>`).join(''):`<div class="todo-empty">${key==='today'?'All clear for today.':key==='week'?'No other tasks due this week.':key==='next'?'Nothing due next week.':key==='completed'?'Nothing completed yet.':'No later deadlines.'}</div>`}</div>
-    </details>`).join('');
+    $('#todoList').innerHTML=sections.map(([key,label,items])=>`<details class="todo-section" data-section="${key}" ${todoOpen[key]?'open':''}><summary><span class="todo-arrow">›</span><span class="todo-section-label">${label}</span><span class="todo-section-count">${items.length}</span></summary><div class="todo-section-items">${items.length?items.map(t=>`<div class="todo-item"><label class="todo-check"><input type="checkbox" data-check="${escapeHtml(t.id)}" aria-label="Mark ${escapeHtml(t.title)} as done"></label><button class="todo-content todo-content-button" data-view-task="${escapeHtml(t.id)}"><div class="todo-title">${escapeHtml(t.title)}</div>${t.course?`<div class="todo-course">${escapeHtml(t.course)}</div>`:''}<div class="todo-meta">${escapeHtml(formatDue(t))}</div><div class="todo-timer" data-timer="${escapeHtml(t.id)}"></div></button></div>`).join(''):`<div class="todo-empty">${key==='today'?'All clear for today.':key==='week'?'No other tasks due this week.':key==='next'?'Nothing due next week.':'No later deadlines.'}</div>`}</div></details>`).join('');
     document.querySelectorAll('[data-check]').forEach(c=>c.onchange=()=>completeTask(c.dataset.check));
-    document.querySelectorAll('[data-restore]').forEach(b=>b.onclick=e=>{e.stopPropagation();restoreTask(b.dataset.restore)});
     document.querySelectorAll('[data-view-task]').forEach(b=>b.onclick=()=>openTaskDetails(tasks.find(t=>t.id===b.dataset.viewTask)));
     document.querySelectorAll('[data-section]').forEach(el=>el.ontoggle=()=>{todoOpen[el.dataset.section]=el.open;try{localStorage.setItem(TODO_PREF_KEY,JSON.stringify(todoOpen))}catch{}})
   }
-  const byId=new Map(pending.map(t=>[t.id,t]));
-  document.querySelectorAll('[data-timer]').forEach(el=>{const t=byId.get(el.dataset.timer);if(!t)return;const diff=dueMs(t)-Date.now();el.textContent=diff<=2*3600e3?countdown(diff):'';el.hidden=!el.textContent})
+  const byId=new Map(pending.map(t=>[t.id,t]));document.querySelectorAll('[data-timer]').forEach(el=>{const t=byId.get(el.dataset.timer);if(!t)return;const diff=dueMs(t)-Date.now();el.textContent=diff<=2*3600e3?countdown(diff):'';el.hidden=!el.textContent})
 }
 
 async function addQuickTodo(){
@@ -200,7 +206,7 @@ async function addQuickTodo(){
 async function toggleQuickTodo(id,done){
   const t=tasks.find(x=>x.id===id&&x.quick);if(!t)return;
   t.done=done;t.updatedAt=Date.now();
-  await idbPut(t);await refresh();
+  await idbPut(t);await refresh();if(done)confetti();
 }
 async function deleteQuickTodo(id){
   await idbDelete(id);await refresh();toast('Quick to-do deleted.');
@@ -436,14 +442,10 @@ async function restoreTask(id){
 }
 async function completeTask(id){
   const t=tasks.find(x=>x.id===id);if(!t)return;
-  const previous=JSON.parse(JSON.stringify(t));
-  t.done=true;t.completedAt=Date.now();
-  await idbPut(t);confetti();await refresh();
-  toastAction('Marked as done.','Undo',async()=>{
-    const restored={...previous,done:false};
-    delete restored.completedAt;
-    await idbPut(restored);await refresh();toast('Task restored.');
-  },6500);
+  const previous=JSON.parse(JSON.stringify(t)),today=fmtDateInput(new Date()),wasToday=t.date===today;
+  t.done=true;t.completedAt=Date.now();await idbPut(t);confetti();await refresh();
+  toastAction('Marked as done.','Undo',async()=>{const restored={...previous,done:false};delete restored.completedAt;await idbPut(restored);await refresh();toast('Task restored.');},6500);
+  if(wasToday){const todays=deadlineTasks().filter(x=>x.date===today);if(todays.length&&todays.every(x=>x.done))setTimeout(()=>celebrateAllDoneToday(todays.length),380)}
 }
 
 function normalizeBatchLine(line){
@@ -554,7 +556,13 @@ function toastAction(msg,label,action,duration=6500){
   clearTimeout(toast._t);toast._t=setTimeout(hideToast,duration);
   $('#toastActionBtn').onclick=async()=>{clearTimeout(toast._t);hideToast();await action()}
 }
-function confetti(){const c=$('#confettiCanvas'),ctx=c.getContext('2d'),dpr=devicePixelRatio||1;c.width=innerWidth*dpr;c.height=innerHeight*dpr;ctx.scale(dpr,dpr);const amount=customize.confetti==='low'?28:customize.confetti==='high'?100:60;let ps=Array.from({length:amount},()=>({x:innerWidth/2,y:innerHeight*.3,vx:(Math.random()-.5)*8,vy:Math.random()*-7-3,g:.18,s:Math.random()*5+3,a:1}));let frame=0;(function anim(){ctx.clearRect(0,0,innerWidth,innerHeight);ps.forEach((p,i)=>{p.x+=p.vx;p.y+=p.vy;p.vy+=p.g;p.a-=.012;ctx.globalAlpha=Math.max(0,p.a);ctx.fillStyle=['#5f9c71','#9bc3a5','#d5b85a','#f0c7c7'][i%4];ctx.fillRect(p.x,p.y,p.s,p.s)});ctx.globalAlpha=1;if(frame++<90)requestAnimationFrame(anim);else ctx.clearRect(0,0,innerWidth,innerHeight)})()}
+function confetti(forceBig=false){const c=$('#confettiCanvas'),ctx=c.getContext('2d'),dpr=devicePixelRatio||1;c.width=innerWidth*dpr;c.height=innerHeight*dpr;ctx.scale(dpr,dpr);const amount=forceBig?150:(customize.confetti==='low'?28:customize.confetti==='high'?100:60);let ps=Array.from({length:amount},()=>({x:innerWidth/2,y:innerHeight*.3,vx:(Math.random()-.5)*8,vy:Math.random()*-7-3,g:.18,s:Math.random()*5+3,a:1}));let frame=0;(function anim(){ctx.clearRect(0,0,innerWidth,innerHeight);ps.forEach((p,i)=>{p.x+=p.vx;p.y+=p.vy;p.vy+=p.g;p.a-=.012;ctx.globalAlpha=Math.max(0,p.a);ctx.fillStyle=['#5f9c71','#9bc3a5','#d5b85a','#f0c7c7'][i%4];ctx.fillRect(p.x,p.y,p.s,p.s)});ctx.globalAlpha=1;if(frame++<90)requestAnimationFrame(anim);else ctx.clearRect(0,0,innerWidth,innerHeight)})()}
+
+function celebrateAllDoneToday(count){
+  confetti(true);
+  const old=document.querySelector('.all-done-overlay');if(old)old.remove();
+  const el=document.createElement('div');el.className='all-done-overlay';el.innerHTML=`<div><span>✦</span><strong>All done for today!</strong><small>${count} task${count===1?'':'s'} complete · enjoy the rest of your day</small></div>`;document.body.appendChild(el);setTimeout(()=>el.remove(),2600)
+}
 
 function applyCustomize(){document.body.dataset.flowerSize=customize.flowerSize||'medium';document.body.dataset.flowerOpacity=customize.flowerOpacity||'medium';document.body.dataset.confetti=customize.confetti||'medium';const note=$('.quick-note');if(note){note.dataset.color=customize.checklistColor||'postit';note.dataset.shape=customize.checklistShape||'postit'}renderHeader()}
 function setCustomizeField(key,value){customize[key]=value;saveCustomize();document.querySelectorAll(`[data-customize-key="${key}"]`).forEach(b=>b.classList.toggle('active',b.dataset.customizeValue===value))}
@@ -579,8 +587,8 @@ function initPetalRain(){
 
 $('#addBtn').onclick=()=>openTaskModal();
 $('#importBtn').onclick=openBatch;
-$('#todoToggle').onclick=()=>{$('#todoPanel').classList.toggle('open');$('#todoPanel').setAttribute('aria-hidden',!$('#todoPanel').classList.contains('open'))};
-$('#closeTodo').onclick=()=>{$('#todoPanel').classList.remove('open');$('#todoPanel').setAttribute('aria-hidden','true')};
+$('#todoToggle').onclick=()=>{$('#todoPanel').classList.toggle('open');$('#todoPanel').setAttribute('aria-hidden',!$('#todoPanel').classList.contains('open'));document.querySelectorAll('[data-todo-badge]').forEach(r=>r.checked=r.value===customize.todoCount)};
+$('#closeTodo').onclick=()=>{$('#todoPanel').classList.remove('open');$('#todoPanel').setAttribute('aria-hidden','true')};document.querySelectorAll('[data-todo-badge]').forEach(r=>r.onchange=()=>{if(r.checked){customize.todoCount=r.value;saveCustomize();renderHeader()}});
 $('#prevMonth').onclick=()=>{
   if(calendarView==='month')currentMonth=new Date(currentMonth.getFullYear(),currentMonth.getMonth()-1,1);
   else if(calendarView==='week')currentMonth=addDays(currentMonth,-7);
@@ -597,7 +605,7 @@ $('#todayBtn').onclick=()=>{currentMonth=new Date();renderCalendar()};
 $('#displayBtn').onclick=openCalendarDisplay;$('#holidayBtn').onclick=openHolidayModal;
 document.querySelectorAll('[data-cal-view]').forEach(b=>b.onclick=()=>setCalendarView(b.dataset.calView));
 $('#quickTodoAdd').onclick=addQuickTodo;
-$('#quickTodoInput').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();addQuickTodo()}};$('#quickCollapse').onclick=()=>{$('.quick-note').classList.add('collapsed-away');$('#quickBubble').classList.remove('hidden')};$('#quickBubble').onclick=()=>{$('#quickBubble').classList.add('hidden');$('.quick-note').classList.remove('collapsed-away')};
+$('#quickTodoInput').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();addQuickTodo()}};$('#quickCollapse').onclick=()=>{$('.quick-note').classList.add('collapsed-away');$('#quickBubble').classList.remove('hidden')};$('#quickBubble').onclick=()=>{const note=$('.quick-note');$('#quickBubble').classList.add('hidden');note.classList.remove('collapsed-away');note.classList.remove('quick-note-pop');void note.offsetWidth;note.classList.add('quick-note-pop');setTimeout(()=>note.classList.remove('quick-note-pop'),420)};
 
 (async()=>{
   initTheme();initPetalRain();await openDB();await refresh();

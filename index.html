@@ -37,8 +37,7 @@
             <div class="wardrobe-section"><div class="theme-menu-title">Flowers · opacity</div><div class="mini-options"><button data-customize-key="flowerOpacity" data-customize-value="low">Low</button><button data-customize-key="flowerOpacity" data-customize-value="medium">Medium</button><button data-customize-key="flowerOpacity" data-customize-value="high">High</button></div></div>
             <div class="wardrobe-section"><div class="theme-menu-title">Confetti</div><div class="mini-options"><button data-customize-key="confetti" data-customize-value="low">Low</button><button data-customize-key="confetti" data-customize-value="medium">Medium</button><button data-customize-key="confetti" data-customize-value="high">High</button></div></div>
             <div class="wardrobe-section"><div class="theme-menu-title">Checklist color</div><div class="mini-options"><button data-customize-key="checklistColor" data-customize-value="postit">Post-it</button><button data-customize-key="checklistColor" data-customize-value="white">White</button><button data-customize-key="checklistColor" data-customize-value="theme">Theme</button></div></div>
-            <div class="wardrobe-section"><div class="theme-menu-title">Checklist shape</div><div class="mini-options wrap"><button data-customize-key="checklistShape" data-customize-value="postit">Post-it</button><button data-customize-key="checklistShape" data-customize-value="heart">Heart</button><button data-customize-key="checklistShape" data-customize-value="portrait">Tall</button><button data-customize-key="checklistShape" data-customize-value="landscape">Wide</button><button data-customize-key="checklistShape" data-customize-value="circle">Circle</button></div></div>
-            <div class="wardrobe-section"><div class="theme-menu-title">Todo badge number</div><div class="mini-options"><button data-customize-key="todoCount" data-customize-value="today">Today</button><button data-customize-key="todoCount" data-customize-value="week">This week</button><button data-customize-key="todoCount" data-customize-value="all">All</button></div></div>
+            <div class="wardrobe-section"><div class="theme-menu-title">Checklist shape</div><div class="mini-options wrap"><button data-customize-key="checklistShape" data-customize-value="postit">Post-it</button><button data-customize-key="checklistShape" data-customize-value="portrait">Tall</button><button data-customize-key="checklistShape" data-customize-value="landscape">Wide</button><button data-customize-key="checklistShape" data-customize-value="circle">Circle</button></div></div>
           </div>
         </div>
         <div>
@@ -71,15 +70,17 @@
             <button id="nextMonth" class="icon-btn" aria-label="Next month">›</button>
           </div>
           <div class="calendar-tools">
-          <div class="view-switch" aria-label="Calendar view">
-            <button data-cal-view="month" class="view-btn active">Month</button>
-            <button data-cal-view="week" class="view-btn">Week</button>
-            <button data-cal-view="day" class="view-btn">Day</button>
+            <button id="holidayBtn" class="soft-btn small holiday-toolbar-btn">+ Holiday</button>
+            <div class="view-switch" aria-label="Calendar view">
+              <button data-cal-view="month" class="view-btn active">Month</button>
+              <button data-cal-view="week" class="view-btn">Week</button>
+              <button data-cal-view="day" class="view-btn">Day</button>
+            </div>
+            <div class="calendar-tool-right">
+              <button id="displayBtn" class="soft-btn small">Display</button>
+              <button id="todayBtn" class="soft-btn small">Today</button>
+            </div>
           </div>
-          <button id="holidayBtn" class="soft-btn small">+ Holiday</button>
-          <button id="displayBtn" class="soft-btn small">Display</button>
-          <button id="todayBtn" class="soft-btn small">Today</button>
-        </div>
         </div>
         <div class="weekday-row">
           <div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div>
@@ -97,14 +98,20 @@
       </div>
       <button id="closeTodo" class="icon-btn" aria-label="Close to-do list">×</button>
     </div>
+    <div class="todo-badge-control">
+      <span>Todo badge shows</span>
+      <label><input type="radio" name="todoBadge" data-todo-badge value="today"> Today</label>
+      <label><input type="radio" name="todoBadge" data-todo-badge value="week"> This week</label>
+      <label><input type="radio" name="todoBadge" data-todo-badge value="all"> All</label>
+    </div>
     <div id="todoList" class="todo-list"></div>
   </aside>
 
   <aside class="quick-note" aria-label="Quick to-do note">
     <div class="quick-note-pin"></div>
     <div class="quick-note-header">
-      <div><span>CHECKLIST</span><strong>Checklist</strong></div>
-      <div class="quick-header-actions"><span id="quickTodoCount" class="quick-count">0</span><button id="quickCollapse" class="quick-collapse" aria-label="Collapse checklist">−</button></div>
+      <div><span>CHECKLIST</span><strong>Checklist <span id="quickTodoCount" class="quick-count inline">0</span></strong></div>
+      <div class="quick-header-actions"><button id="quickCollapse" class="quick-collapse" aria-label="Collapse checklist">−</button></div>
     </div>
     <div class="quick-add-row">
       <input id="quickTodoInput" type="text" maxlength="160" placeholder="e.g. Tidy the room" aria-label="New quick to-do">
