@@ -374,29 +374,32 @@ function sameCourseTasks(course){
   const c=normalizedCourse(course);
   return c?deadlineTasks().filter(t=>normalizedCourse(t.course)===c):[];
 }
-function askApplyCourseColor(task,color){
+function askApplyCourseIcon(task){
   const matching=sameCourseTasks(task.course);
-  if(!task.course||!color||matching.length<2)return;
-  showModal(`<div class="section-label">COURSE COLOR</div><h3>Use this color for all ${escapeHtml(task.course)} tasks?</h3>
-    <div class="course-color-preview">
-      <span class="task-icon color" style="--task-icon-color:${ICON_COLORS[color]}"></span>
-      <span>${matching.length} ${escapeHtml(task.course)} task${matching.length===1?'':'s'} found.</span>
-    </div>
-    <div class="next-meta" style="margin-top:10px">This will apply the same calendar color dot to every task in this course. Existing emoji icons will be replaced so the course stays visually consistent.</div>
+  const emoji=(task.emoji||'').trim(),color=task.iconColor||'';
+  if(!task.course||matching.length<2||(!emoji&&!color))return false;
+  const iconPreview=emoji
+    ? `<span class="task-icon emoji">${escapeHtml(emoji)}</span>`
+    : `<span class="task-icon color" style="--task-icon-color:${ICON_COLORS[color]}"></span>`;
+  const label=emoji?`emoji ${escapeHtml(emoji)}`:`${escapeHtml(color)} color`;
+  showModal(`<div class="section-label">COURSE ICON</div><h3>Use this ${label} for all ${escapeHtml(task.course)} tasks?</h3>
+    <div class="course-color-preview">${iconPreview}<span>${matching.length} ${escapeHtml(task.course)} task${matching.length===1?'':'s'} found.</span></div>
+    <div class="next-meta" style="margin-top:10px">This will give every task in this course the same calendar icon. Emoji and color are mutually exclusive so the course stays visually consistent.</div>
     <div class="modal-actions">
       <button id="courseColorNo" class="soft-btn">Only this task</button>
       <button id="courseColorYes" class="primary-btn">Apply to all ${escapeHtml(task.course)}</button>
     </div>`);
-  $('#courseColorNo').onclick=()=>{closeModal();toast('Color kept for this task only.')} ;
+  $('#courseColorNo').onclick=()=>{closeModal();toast('Icon kept for this task only.')};
   $('#courseColorYes').onclick=async()=>{
     for(const t of matching){
-      t.iconColor=color;
-      t.emoji='';
+      if(emoji){t.emoji=emoji;t.iconColor=''}
+      else{t.iconColor=color;t.emoji=''}
       t.updatedAt=Date.now();
       await idbPut(t);
     }
-    closeModal();await refresh();toast(`Applied ${color} to all ${task.course} tasks.`);
+    closeModal();await refresh();toast(`Applied course icon to all ${task.course} tasks.`);
   };
+  return true;
 }
 
 function openTaskModal(task=null,prefillDate=''){
@@ -431,8 +434,7 @@ function openTaskModal(task=null,prefillDate=''){
     if(task){
       const updated={...t,...form,repeat:form.repeat||null,updatedAt:Date.now()};
       await idbPut(updated);closeModal();await refresh();
-      if(form.iconColor&&!form.emoji&&updated.course){askApplyCourseColor(updated,form.iconColor)}
-      else toast('Task updated.');
+      if(!askApplyCourseIcon(updated))toast('Task updated.');
       return
     }
     await createFromForm(form);closeModal();await refresh()
@@ -460,8 +462,7 @@ function chooseSeriesSaveScope(task,form){
     const updated={...task,title:form.title,course:form.course,date:form.date,time:form.time,emoji:form.emoji,iconColor:form.iconColor,link:form.link,notes:form.notes,updatedAt:Date.now()};
     await idbPut(updated);
     closeModal();await refresh();
-    if(form.iconColor&&!form.emoji&&updated.course)askApplyCourseColor(updated,form.iconColor);
-    else toast('Only this occurrence was updated.')
+    if(!askApplyCourseIcon(updated))toast('Only this occurrence was updated.')
   };
   $('#scopeFuture').onclick=async()=>applySeriesFromHere(task,form)
 }
