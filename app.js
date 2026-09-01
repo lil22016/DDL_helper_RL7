@@ -1,5 +1,5 @@
 const DB_NAME='deadline-garden-db', DB_VERSION=1, STORE='tasks';
-let db, currentMonth=new Date(), tasks=[], lastEmergencyTaskId=null;
+let db, currentMonth=new Date(), tasks=[], lastEmergencyTaskId=null, modalCloseTimer=null;
 const $=s=>document.querySelector(s);
 const pad=n=>String(n).padStart(2,'0');
 const fmtDateInput=d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
@@ -246,10 +246,20 @@ function renderWarnings(){
 }
 
 function showModal(html){
-  const root=$('#modalRoot');$('#modalCard').innerHTML=html;root.classList.remove('hidden');requestAnimationFrame(()=>root.classList.add('visible'))
+  if(modalCloseTimer){clearTimeout(modalCloseTimer);modalCloseTimer=null}
+  const root=$('#modalRoot');
+  $('#modalCard').innerHTML=html;
+  root.classList.remove('hidden');
+  requestAnimationFrame(()=>root.classList.add('visible'))
 }
 function closeModal(){
-  const root=$('#modalRoot');root.classList.remove('visible');setTimeout(()=>root.classList.add('hidden'),190)
+  const root=$('#modalRoot');
+  root.classList.remove('visible');
+  if(modalCloseTimer)clearTimeout(modalCloseTimer);
+  modalCloseTimer=setTimeout(()=>{
+    root.classList.add('hidden');
+    modalCloseTimer=null;
+  },190)
 }
 $('#modalRoot').onclick=e=>{if(e.target===$('#modalRoot'))closeModal()}
 
@@ -377,7 +387,7 @@ function askApplyCourseColor(task,color){
       <button id="courseColorNo" class="soft-btn">Only this task</button>
       <button id="courseColorYes" class="primary-btn">Apply to all ${escapeHtml(task.course)}</button>
     </div>`);
-  $('#courseColorNo').onclick=closeModal;
+  $('#courseColorNo').onclick=()=>{closeModal();toast('Color kept for this task only.')} ;
   $('#courseColorYes').onclick=async()=>{
     for(const t of matching){
       t.iconColor=color;
