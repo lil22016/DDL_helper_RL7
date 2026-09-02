@@ -599,3 +599,66 @@ body.urgent-global-critical .warning-backdrop{
 .event-type-switch{display:flex;gap:5px;padding:4px;border-radius:14px;background:#f2f5f2;border:1px solid var(--border)}.event-type-btn{flex:1;padding:9px;border-radius:10px;background:transparent;color:var(--muted);font-size:12px;font-weight:850}.event-type-btn.active{background:white;color:var(--accent-strong);box-shadow:0 3px 12px rgba(35,55,40,.08)}.field.hidden{display:none!important}
 .bulk-toolbar{display:flex;justify-content:space-between;gap:12px;align-items:center;margin:12px 0;font-size:11px;color:var(--muted)}.bulk-results{display:grid;gap:7px;max-height:350px;overflow:auto}.bulk-row{display:grid!important;grid-template-columns:24px 1fr;gap:9px;padding:11px;border:1px solid var(--border);border-radius:14px;background:#fbfdfb}.bulk-row span{display:grid;gap:3px}.bulk-row strong{font-size:13px}.bulk-row small{font-size:10px;color:var(--muted)}.bulk-empty{padding:22px;text-align:center;color:var(--muted)}
 .clickable-countdown{cursor:pointer}.clickable-countdown:hover{filter:brightness(.9)}.finish-prompt-task{display:grid;gap:5px;padding:14px;border-radius:15px;background:var(--accent-pale)}
+
+
+/* v14 details & time-block layout */
+.task-detail-top{
+  align-items:flex-start;
+}
+.task-detail-top-actions{
+  display:flex;
+  align-items:center;
+  gap:9px;
+  margin-left:auto;
+}
+.top-edit-btn{
+  flex:none;
+  padding:9px 15px;
+}
+.detail-actions-split{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:16px;
+  margin-top:4px;
+}
+.detail-actions-left{
+  display:flex;
+  align-items:center;
+}
+.detail-actions-right{
+  display:flex;
+  align-items:center;
+  gap:9px;
+  margin-left:auto;
+}
+.detail-actions-right .primary-btn{
+  box-shadow:0 7px 18px var(--focus);
+}
+.task-state-actions{display:none!important}
+
+@media(max-width:760px){
+  .task-detail-top-actions{
+    flex-direction:column;
+    align-items:flex-end;
+    gap:6px;
+  }
+  .detail-actions-split{
+    align-items:stretch;
+    flex-direction:column;
+  }
+  .detail-actions-left,
+  .detail-actions-right{
+    width:100%;
+  }
+  .detail-actions-left .soft-btn{
+    width:100%;
+  }
+  .detail-actions-right{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+  }
+  .detail-actions-right button{
+    width:100%;
+  }
+}

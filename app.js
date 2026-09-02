@@ -288,7 +288,10 @@ function openTaskDetails(task){
         <div class="section-label">${task.done?'COMPLETED TASK':'TASK DETAILS'}</div>
         <h3>${taskIconHtml(task)}${escapeHtml(task.title)}</h3>
       </div>
-      ${task.done?'<span class="completed-badge">Completed</span>':''}
+      <div class="task-detail-top-actions">
+        ${task.done?'<span class="completed-badge">Completed</span>':''}
+        <button id="detailEdit" class="detail-edit-btn top-edit-btn">Edit</button>
+      </div>
     </div>
 
     <div class="task-detail-grid">
@@ -307,16 +310,17 @@ function openTaskDetails(task){
       <span class="link-icon">↗</span><span><strong>Open task link</strong><small>${escapeHtml(link.replace(/^https?:\/\//,'').replace(/\/$/,''))}</small></span>
     </a>`:''}
 
-    <div class="task-detail-actions">
-      <div class="task-state-actions">
+    <div class="task-detail-actions detail-actions-split">
+      <div class="detail-actions-left">
+        <button id="detailClose" class="soft-btn">Close</button>
+      </div>
+      <div class="detail-actions-right">
+        <button id="detailSize" class="soft-btn">Size: ${(task.calendarSize||'medium')[0].toUpperCase()+(task.calendarSize||'medium').slice(1)}</button>
         ${task.done
-          ?`<button id="detailRestore" class="soft-btn">↶ Return to To-do</button>`
-          :`<button id="detailDone" class="soft-btn">✓ Mark as done</button>`
+          ?`<button id="detailRestore" class="primary-btn">↶ Return to To-do</button>`
+          :`<button id="detailDone" class="primary-btn">✓ Mark as done</button>`
         }
       </div>
-      <button id="detailClose" class="soft-btn">Close</button>
-      <button id="detailSize" class="soft-btn">Size: ${(task.calendarSize||'medium')[0].toUpperCase()+(task.calendarSize||'medium').slice(1)}</button>
-      <button id="detailEdit" class="detail-edit-btn">Edit</button>
     </div>
   </div>`);
   $('#detailClose').onclick=closeModal;
@@ -402,49 +406,49 @@ function askApplyCourseIcon(task){
   return true;
 }
 
-function bindEventTypeSwitch(){const h=$('#fEventType');if(!h)return;const set=t=>{h.value=t;document.querySelectorAll('[data-event-type]').forEach(b=>b.classList.toggle('active',b.dataset.eventType===t));document.querySelectorAll('.due-time-field').forEach(x=>x.classList.toggle('hidden',t!=='due'));document.querySelectorAll('.duration-time-field').forEach(x=>x.classList.toggle('hidden',t!=='duration'))};document.querySelectorAll('[data-event-type]').forEach(b=>b.onclick=()=>set(b.dataset.eventType));set(h.value||'due')}
-function openTaskModal(task=null,prefillDate=''){
-  const now=new Date(),t=task||{title:'',course:'',date:prefillDate||fmtDateInput(now),time:'',notes:'',done:false};
-  const existingRepeat=t.repeat?.enabled?t.repeat:{enabled:false,unit:'week',interval:1,until:''};
-  showModal(`<h3>${task?'Edit task':'Add task'}</h3><div class="form-grid">
-    <div class="field full"><label>Task name</label><input id="fTitle" value="${escapeHtml(t.title)}" placeholder="Your task name"></div>
-    <div class="field"><label>Course (optional)</label><input id="fCourse" value="${escapeHtml(t.course||'')}" placeholder="Your course name (if applicable)"></div>
-    <div class="field full"><label>Event type</label><div class="event-type-switch"><button type="button" data-event-type="due" class="event-type-btn ${(t.eventType||'due')==='due'?'active':''}">Due date</button><button type="button" data-event-type="duration" class="event-type-btn ${t.eventType==='duration'?'active':''}">Time block / event</button></div></div>
-    <input id="fEventType" type="hidden" value="${t.eventType||'due'}">
-    <div class="field"><label>Date</label><input id="fDate" type="date" value="${t.date}"></div>
-    <div class="field due-time-field ${t.eventType==='duration'?'hidden':''}"><label>Exact due time (optional)</label><input id="fTime" type="time" value="${t.time||''}"></div>
-    <div class="field duration-time-field ${t.eventType==='duration'?'':'hidden'}"><label>Starts</label><input id="fStartTime" type="time" value="${t.startTime||''}"></div>
-    <div class="field duration-time-field ${t.eventType==='duration'?'':'hidden'}"><label>Ends</label><input id="fEndTime" type="time" value="${t.endTime||''}"></div>
-    <div class="field"><label>Emoji icon (optional)</label><input id="fEmoji" maxlength="8" value="${escapeHtml(t.emoji||'')}" placeholder="📘"></div>
-    <div class="field"><label>Icon color (if no emoji)</label><select id="fIconColor"><option value="">None</option>${['red','orange','yellow','green','blue','indigo','purple'].map(c=>`<option value="${c}" ${t.iconColor===c?'selected':''}>${c[0].toUpperCase()+c.slice(1)}</option>`).join('')}</select></div>
-    <div class="field full repeat-field">
-      <label class="repeat-toggle"><input id="fRepeat" type="checkbox" ${existingRepeat.enabled?'checked':''}><span>Repeat</span></label>
-      <div id="repeatOptions" class="repeat-options ${existingRepeat.enabled?'':'hidden'}">
-        <div class="repeat-row"><span>Repeat every</span><input id="fRepeatInterval" type="number" min="1" max="99" value="${existingRepeat.interval||1}">
-          <select id="fRepeatUnit"><option value="day" ${existingRepeat.unit==='day'?'selected':''}>day(s)</option><option value="week" ${existingRepeat.unit==='week'?'selected':''}>week(s)</option><option value="month" ${existingRepeat.unit==='month'?'selected':''}>month(s)</option></select>
-        </div>
-        <div id="repeatSummary" class="repeat-summary"></div>
-        <div class="repeat-until"><label>Repeat until</label><input id="fRepeatUntil" type="date" value="${existingRepeat.until||''}"><div class="field-hint">The last occurrence will be on or before this date.</div></div>
-      </div>
-    </div>
-    <div class="field full"><label>Link (optional)</label><input id="fLink" type="url" value="${escapeHtml(t.link||'')}" placeholder="https://…"></div>
-    <div class="field full"><label>Description</label><textarea id="fNotes" placeholder="Add instructions, details, or anything useful…">${escapeHtml(t.notes||'')}</textarea></div>
-  </div>
-  <div class="modal-actions">${task?'<button id="deleteTask" class="danger-btn">Delete</button>':''}<button id="cancelModal" class="soft-btn">Cancel</button><button id="saveTask" class="primary-btn">Save</button></div>`);
-  $('#cancelModal').onclick=closeModal;bindRepeatPreview();bindEventTypeSwitch();
+function bindEventTypeSwitch(){
+  const h=$('#fEventType');if(!h)return;
+  const start=$('#fStartTime'),end=$('#fEndTime');
+  let endTouched=!!(end&&end.value);
 
-  $('#saveTask').onclick=async()=>{
-    const form=readTaskForm();if(!form)return;
-    if(task&&isSeriesTask(task))return chooseSeriesSaveScope(task,form);
-    if(task){
-      const updated={...t,...form,repeat:form.repeat||null,updatedAt:Date.now()};
-      await idbPut(updated);closeModal();await refresh();
-      if(!askApplyCourseIcon(updated))toast('Task updated.');
-      return
-    }
-    await createFromForm(form);closeModal();await refresh()
+  const addOneHour=time=>{
+    if(!time)return'';
+    const [hh,mm]=time.split(':').map(Number);
+    const total=(hh*60+mm+60)%(24*60);
+    return `${pad(Math.floor(total/60))}:${pad(total%60)}`;
   };
-  if(task)$('#deleteTask').onclick=()=>{if(isSeriesTask(task))chooseSeriesDeleteScope(task);else deleteSingle(task)}
+
+  const set=t=>{
+    h.value=t;
+    document.querySelectorAll('[data-event-type]').forEach(b=>b.classList.toggle('active',b.dataset.eventType===t));
+    document.querySelectorAll('.due-time-field').forEach(x=>x.classList.toggle('hidden',t!=='due'));
+    document.querySelectorAll('.duration-time-field').forEach(x=>x.classList.toggle('hidden',t!=='duration'));
+    if(t==='duration'&&start&&start.value&&end&&!end.value){
+      end.value=addOneHour(start.value);
+      endTouched=false;
+    }
+  };
+
+  document.querySelectorAll('[data-event-type]').forEach(b=>b.onclick=()=>set(b.dataset.eventType));
+
+  if(end){
+    end.addEventListener('input',()=>{endTouched=true});
+    end.addEventListener('change',()=>{endTouched=true});
+  }
+
+  if(start){
+    const syncEnd=()=>{
+      if(!start.value||!end)return;
+      if(!endTouched||!end.value){
+        end.value=addOneHour(start.value);
+        endTouched=false;
+      }
+    };
+    start.addEventListener('input',syncEnd);
+    start.addEventListener('change',syncEnd);
+  }
+
+  set(h.value||'due');
 }
 
 async function createFromForm(form,seriesId=null){
