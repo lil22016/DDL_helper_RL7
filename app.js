@@ -9,6 +9,7 @@ const CAL_DISPLAY_KEY='deadline-garden-calendar-display-v1';
 const CAL_VIEW_KEY='deadline-garden-calendar-view-v1';
 const CUSTOMIZE_KEY='deadline-garden-customize-v1';
 const HOLIDAY_KEY='deadline-garden-holidays-v1';
+const CHECKLIST_COLLAPSE_KEY='deadline-garden-checklist-collapsed-v1';
 let customize={flowerSize:'medium',flowerOpacity:'medium',confetti:'medium',checklistColor:'postit',checklistShape:'postit',todoCount:'today'};
 let holidays=[];
 try{Object.assign(customize,JSON.parse(localStorage.getItem(CUSTOMIZE_KEY)||'{}')||{})}catch{}
@@ -250,19 +251,13 @@ function renderWarnings(){
 
 function showModal(html){
   if(modalCloseTimer){clearTimeout(modalCloseTimer);modalCloseTimer=null}
-  const root=$('#modalRoot');
-  $('#modalCard').innerHTML=html;
-  root.classList.remove('hidden');
-  requestAnimationFrame(()=>root.classList.add('visible'))
+  const root=$('#modalRoot'),card=$('#modalCard');if(!root||!card)return;
+  card.innerHTML=html;root.classList.remove('hidden');requestAnimationFrame(()=>root.classList.add('visible'))
 }
 function closeModal(){
-  const root=$('#modalRoot');
-  root.classList.remove('visible');
+  const root=$('#modalRoot');if(!root)return;root.classList.remove('visible');
   if(modalCloseTimer)clearTimeout(modalCloseTimer);
-  modalCloseTimer=setTimeout(()=>{
-    root.classList.add('hidden');
-    modalCloseTimer=null;
-  },190)
+  modalCloseTimer=setTimeout(()=>{root.classList.add('hidden');modalCloseTimer=null},190)
 }
 $('#modalRoot').onclick=e=>{if(e.target===$('#modalRoot'))closeModal()}
 
@@ -324,7 +319,7 @@ function openTaskDetails(task){
     </div>
   </div>`);
   $('#detailClose').onclick=closeModal;
-  $('#detailEdit').onclick=()=>openTaskModal(task);$('#detailSize').onclick=()=>openTaskSizePicker(task);
+  $('#detailEdit').onclick=(e)=>{e.preventDefault();e.stopPropagation();openTaskModal(task)};$('#detailSize').onclick=()=>openTaskSizePicker(task);
   if(task.done)$('#detailRestore').onclick=async()=>{closeModal();await restoreTask(task.id)}
   else $('#detailDone').onclick=async()=>{closeModal();await completeTask(task.id)}
 }
@@ -746,7 +741,7 @@ function initPetalRain(){
   for(let i=0;i<18;i++){const p=document.createElement('span');p.className='petal';p.textContent=glyphs[i%glyphs.length];p.style.left=`${Math.random()*100}%`;p.style.animationDuration=`${14+Math.random()*15}s`;p.style.animationDelay=`${-Math.random()*25}s`;p.style.fontSize=`${8+Math.random()*9}px`;p.style.opacity=`${.12+Math.random()*.20}`;root.appendChild(p)}
 }
 
-$('#addBtn').onclick=()=>openTaskModal();
+$('#addBtn').onclick=(e)=>{e.preventDefault();e.stopPropagation();openTaskModal()};
 $('#bulkEditBtn').onclick=openBulkEdit;
 $('#importBtn').onclick=openBatch;
 $('#todoToggle').onclick=()=>{$('#todoPanel').classList.toggle('open');$('#todoPanel').setAttribute('aria-hidden',!$('#todoPanel').classList.contains('open'));document.querySelectorAll('[data-todo-badge]').forEach(r=>r.checked=r.value===customize.todoCount)};
@@ -769,6 +764,14 @@ $('#nextCountdown').onclick=()=>{const id=$('#nextCountdown').dataset.finishTask
 document.querySelectorAll('[data-cal-view]').forEach(b=>b.onclick=()=>setCalendarView(b.dataset.calView));
 $('#quickTodoAdd').onclick=addQuickTodo;
 $('#quickTodoInput').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();addQuickTodo()}};$('#quickCollapse').onclick=()=>{$('.quick-note').classList.add('collapsed-away');$('#quickBubble').classList.remove('hidden')};$('#quickBubble').onclick=()=>{const note=$('.quick-note');$('#quickBubble').classList.add('hidden');note.classList.remove('collapsed-away');note.classList.remove('quick-note-pop');void note.offsetWidth;note.classList.add('quick-note-pop');setTimeout(()=>note.classList.remove('quick-note-pop'),420)};
+function setChecklistCollapsed(collapsed){
+  const note=$('.quick-note'),bubble=$('#quickBubble');if(!note||!bubble)return;
+  note.classList.toggle('collapsed-away',collapsed);bubble.classList.toggle('hidden',!collapsed);
+  try{localStorage.setItem(CHECKLIST_COLLAPSE_KEY,collapsed?'1':'0')}catch{}
+}
+$('#quickCollapse').onclick=()=>setChecklistCollapsed(true);
+$('#quickBubble').onclick=()=>setChecklistCollapsed(false);
+try{const savedChecklistState=localStorage.getItem(CHECKLIST_COLLAPSE_KEY);setChecklistCollapsed(savedChecklistState===null?true:savedChecklistState==='1')}catch{setChecklistCollapsed(true)};
 
 (async()=>{
   initTheme();initPetalRain();await openDB();await refresh();

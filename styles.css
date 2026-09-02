@@ -857,3 +857,24 @@ body.urgent-global-critical .warning-backdrop{
 @media(prefers-reduced-motion:reduce){
   .celebration-card,.confetti-cannon,.cannon-burst i{animation-duration:.01ms!important}
 }
+
+
+/* v15.2 fixes */
+.quick-note[data-color="white"]{
+  background:#fff!important;background-image:none!important;border-color:rgba(50,60,55,.12)!important;
+  box-shadow:0 17px 40px rgba(40,48,43,.14)!important;
+}
+.quick-note[data-color="white"]::after{background:linear-gradient(135deg,transparent 49%,rgba(180,188,183,.18) 50%)!important}
+.quick-note[data-color="white"] .quick-note-header strong,
+.quick-note[data-color="white"] .quick-todo-item,
+.quick-note[data-color="white"] .quick-add-row input{color:#344039!important}
+.quick-note[data-color="white"] .quick-note-header span:first-child,
+.quick-note[data-color="white"] .quick-count,
+.quick-note[data-color="white"] .quick-delete{color:#647169!important}
+.quick-note[data-color="white"] .quick-add-row input{background:#fafbfa!important;border-bottom-color:rgba(70,82,74,.18)!important}
+.quick-note[data-color="white"] .quick-add-row button,
+.quick-note[data-color="white"] .quick-collapse,
+.quick-note[data-color="white"] .quick-count{background:#f2f5f3!important}
+.quick-note[data-color="white"] .quick-todo-item{border-bottom-color:rgba(80,90,84,.13)!important}
+.modal-root{z-index:500!important}.modal-card{position:relative;z-index:501!important}
+.modal-card button,.modal-card input,.modal-card select,.modal-card textarea,.modal-card a{position:relative;z-index:502}
