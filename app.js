@@ -513,13 +513,94 @@ async function restoreTask(id){
   t.done=false;delete t.completedAt;
   await idbPut(t);await refresh();toast('Returned to To-do.');
 }
-async function completeTask(id){
-  const t=tasks.find(x=>x.id===id);if(!t)return;const previous=JSON.parse(JSON.stringify(t)),today=fmtDateInput(new Date()),wasToday=t.date===today;
-  const todays=deadlineTasks().filter(x=>x.date===today),willFinishDay=wasToday&&todays.length>0&&todays.filter(x=>!x.done&&x.id!==t.id).length===0;
-  t.done=true;t.completedAt=Date.now();await idbPut(t);await refresh();if(willFinishDay)celebrateAllDoneToday(todays.length);else confetti();
-  toastAction('Marked as done.','Undo',async()=>{const restored={...previous,done:false};delete restored.completedAt;await idbPut(restored);await refresh();toast('Task restored.');},6500)
+function celebrationOverlay({kicker,title,subtitle='',className='achievement-celebration',duration=2100}){
+  document.querySelectorAll('.achievement-celebration,.mega-early-celebration').forEach(el=>el.remove());
+  const el=document.createElement('div');
+  el.className=className;
+  el.innerHTML=`<div class="celebration-card">
+    <div class="celebration-kicker">${escapeHtml(kicker)}</div>
+    <div class="celebration-title">${escapeHtml(title)}</div>
+    ${subtitle?`<div class="celebration-subtitle">${escapeHtml(subtitle)}</div>`:''}
+  </div>`;
+  document.body.appendChild(el);
+  requestAnimationFrame(()=>el.classList.add('show'));
+  setTimeout(()=>el.classList.add('leaving'),Math.max(900,duration-450));
+  setTimeout(()=>el.remove(),duration);
 }
 
+function celebrateAheadOfSchedule(task){
+  confetti();
+  celebrationOverlay({
+    kicker:'AHEAD OF SCHEDULE',
+    title:'Look at you go ✨',
+    subtitle:`${task.title} is already done.`,
+    className:'achievement-celebration early-task-celebration',
+    duration:2200
+  });
+}
+
+function celebrateFutureDayCleared(date,count){
+  const d=dateFromInput(date);
+  const dayName=d.toLocaleDateString(undefined,{weekday:'long'});
+  const pretty=d.toLocaleDateString(undefined,{month:'long',day:'numeric'});
+  megaConfettiCannons();
+  celebrationOverlay({
+    kicker:'WAY AHEAD OF SCHEDULE',
+    title:`YOU CLEARED A WHOLE DAY EARLY!`,
+    subtitle:`${count} task${count===1?'':'s'} for ${pretty} — already finished ahead of schedule. Seriously impressive.`,
+    className:'mega-early-celebration',
+    duration:3400
+  });
+}
+
+function megaConfettiCannons(){
+  confetti();
+
+  const layer=document.createElement('div');
+  layer.className='confetti-cannon-layer';
+  layer.innerHTML=`
+    <div class="confetti-cannon left"><div class="cannon-body">🎉</div></div>
+    <div class="confetti-cannon right"><div class="cannon-body">🎉</div></div>
+    <div class="cannon-burst left-burst">${Array.from({length:24},(_,i)=>`<i style="--i:${i}"></i>`).join('')}</div>
+    <div class="cannon-burst right-burst">${Array.from({length:24},(_,i)=>`<i style="--i:${i}"></i>`).join('')}</div>`;
+  document.body.appendChild(layer);
+  setTimeout(()=>layer.remove(),3600);
+}
+
+async function completeTask(id){
+  const t=tasks.find(x=>x.id===id);if(!t)return;
+  const previous=JSON.parse(JSON.stringify(t));
+  const today=fmtDateInput(new Date());
+  const isFutureDay=!!t.date&&t.date>today;
+
+  const sameDayBefore=deadlineTasks().filter(x=>x.date===t.date);
+  const unfinishedOthers=sameDayBefore.filter(x=>!x.done&&x.id!==t.id);
+  const completesWholeDay=sameDayBefore.length>0&&unfinishedOthers.length===0;
+
+  t.done=true;
+  t.completedAt=Date.now();
+  await idbPut(t);
+  await refresh();
+
+  // Exactly ONE celebration tier per completion.
+  if(isFutureDay&&completesWholeDay){
+    celebrateFutureDayCleared(t.date,sameDayBefore.length);
+  }else if(isFutureDay){
+    celebrateAheadOfSchedule(t);
+  }else if(t.date===today&&completesWholeDay){
+    celebrateAllDoneToday(sameDayBefore.length);
+  }else{
+    confetti();
+  }
+
+  toastAction('Marked as done.','Undo',async()=>{
+    const restored={...previous,done:false};
+    delete restored.completedAt;
+    await idbPut(restored);
+    await refresh();
+    toast('Task restored.');
+  },6500);
+}
 function normalizeBatchLine(line){
   return line.replace(/[，]/g,',').replace(/[；]/g,';').replace(/[｜]/g,'|').replace(/\s+/g,' ').trim();
 }

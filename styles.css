@@ -662,3 +662,198 @@ body.urgent-global-critical .warning-backdrop{
     width:100%;
   }
 }
+
+
+/* v15: encouragement tiers for early completion */
+.achievement-celebration,
+.mega-early-celebration{
+  position:fixed;
+  inset:0;
+  z-index:285;
+  pointer-events:none;
+  display:grid;
+  place-items:center;
+  padding:24px;
+  opacity:0;
+  background:radial-gradient(circle at center,rgba(255,255,255,.30),transparent 46%);
+  transition:opacity .22s ease;
+}
+.achievement-celebration.show,
+.mega-early-celebration.show{opacity:1}
+.achievement-celebration.leaving,
+.mega-early-celebration.leaving{opacity:0}
+
+.celebration-card{
+  max-width:min(760px,92vw);
+  text-align:center;
+  padding:28px 34px;
+  border-radius:30px;
+  background:rgba(255,255,255,.92);
+  border:2px solid var(--accent-soft);
+  box-shadow:0 24px 90px rgba(50,75,58,.24),0 0 0 8px rgba(255,255,255,.28);
+  transform:translateY(22px) scale(.86);
+  animation:achievementPop .62s cubic-bezier(.2,1.25,.3,1) forwards;
+  backdrop-filter:blur(12px);
+  -webkit-backdrop-filter:blur(12px);
+}
+.celebration-kicker{
+  color:var(--accent-strong);
+  font-size:12px;
+  font-weight:950;
+  letter-spacing:.18em;
+  margin-bottom:10px;
+}
+.celebration-title{
+  color:var(--text);
+  font-size:clamp(30px,5vw,60px);
+  line-height:1.03;
+  font-weight:1000;
+  letter-spacing:-.045em;
+}
+.celebration-subtitle{
+  margin-top:12px;
+  color:var(--muted);
+  font-size:clamp(13px,1.6vw,18px);
+  font-weight:700;
+}
+
+.early-task-celebration .celebration-card{
+  background:linear-gradient(145deg,rgba(255,255,255,.96),var(--accent-pale));
+  box-shadow:0 22px 80px var(--focus),0 0 0 8px rgba(255,255,255,.30);
+}
+.early-task-celebration::before,
+.early-task-celebration::after{
+  content:"✦";
+  position:absolute;
+  color:var(--accent);
+  font-size:44px;
+  animation:earlySparkle 1.35s ease-in-out infinite alternate;
+}
+.early-task-celebration::before{left:18%;top:28%}
+.early-task-celebration::after{right:18%;bottom:28%;animation-delay:.3s}
+
+.mega-early-celebration{
+  z-index:292;
+  background:
+    radial-gradient(circle at 50% 50%,rgba(255,255,255,.38),transparent 42%),
+    linear-gradient(135deg,rgba(255,222,120,.28),rgba(190,224,255,.20),rgba(237,199,255,.22));
+}
+.mega-early-celebration .celebration-card{
+  max-width:min(980px,94vw);
+  padding:38px 46px;
+  border-radius:36px;
+  border:3px solid rgba(255,255,255,.82);
+  background:linear-gradient(145deg,rgba(255,255,255,.97),var(--accent-pale));
+  box-shadow:
+    0 0 0 10px rgba(255,255,255,.28),
+    0 0 70px var(--focus),
+    0 28px 110px rgba(43,62,48,.28);
+  animation:megaAchievementPop .8s cubic-bezier(.18,1.35,.28,1) forwards;
+}
+.mega-early-celebration .celebration-kicker{
+  font-size:14px;
+  color:#b07b20;
+}
+.mega-early-celebration .celebration-title{
+  font-size:clamp(40px,7vw,92px);
+  background:linear-gradient(90deg,#d76a6f,#d58c42,#b9a33e,#5f9c71,#5f8fb5,#7770bd,#9a70b4);
+  -webkit-background-clip:text;
+  background-clip:text;
+  color:transparent;
+  filter:drop-shadow(0 4px 12px rgba(80,70,40,.10));
+}
+.mega-early-celebration .celebration-subtitle{
+  font-size:clamp(15px,2vw,22px);
+  color:#53645a;
+}
+
+.confetti-cannon-layer{
+  position:fixed;
+  inset:0;
+  z-index:290;
+  pointer-events:none;
+  overflow:hidden;
+}
+.confetti-cannon{
+  position:absolute;
+  bottom:18px;
+  width:120px;
+  height:120px;
+  display:grid;
+  place-items:center;
+  transform-origin:center bottom;
+  animation:cannonKick 1s ease-in-out 2;
+}
+.confetti-cannon.left{left:24px;transform:rotate(-28deg)}
+.confetti-cannon.right{right:24px;transform:scaleX(-1) rotate(-28deg)}
+.cannon-body{
+  font-size:74px;
+  filter:drop-shadow(0 10px 16px rgba(60,45,20,.20));
+}
+.cannon-burst{
+  position:absolute;
+  bottom:95px;
+  width:1px;
+  height:1px;
+}
+.left-burst{left:86px}
+.right-burst{right:86px}
+.cannon-burst i{
+  --angle:calc((var(--i) - 12) * 7deg);
+  position:absolute;
+  width:10px;
+  height:16px;
+  border-radius:3px;
+  background:hsl(calc(var(--i) * 29deg) 76% 62%);
+  transform-origin:center 160px;
+  animation:cannonParticle 2.1s cubic-bezier(.12,.7,.25,1) forwards;
+  animation-delay:calc(var(--i) * 12ms);
+}
+.right-burst i{animation-name:cannonParticleRight}
+
+@keyframes achievementPop{
+  0%{opacity:0;transform:translateY(28px) scale(.80) rotate(-1deg)}
+  62%{opacity:1;transform:translateY(-5px) scale(1.035) rotate(.3deg)}
+  100%{opacity:1;transform:translateY(0) scale(1)}
+}
+@keyframes megaAchievementPop{
+  0%{opacity:0;transform:scale(.64) rotate(-2deg)}
+  55%{opacity:1;transform:scale(1.07) rotate(.7deg)}
+  78%{transform:scale(.98)}
+  100%{opacity:1;transform:scale(1)}
+}
+@keyframes earlySparkle{
+  from{opacity:.35;transform:scale(.75) rotate(-12deg)}
+  to{opacity:1;transform:scale(1.25) rotate(12deg)}
+}
+@keyframes cannonKick{
+  0%,100%{translate:0 0}
+  35%{translate:0 7px}
+  55%{translate:0 -5px}
+}
+@keyframes cannonParticle{
+  0%{opacity:0;transform:rotate(var(--angle)) translateY(0) scale(.4)}
+  12%{opacity:1}
+  70%{opacity:1;transform:rotate(var(--angle)) translateY(-360px) rotate(460deg) scale(1)}
+  100%{opacity:0;transform:rotate(var(--angle)) translateY(-470px) translateX(120px) rotate(700deg) scale(.75)}
+}
+@keyframes cannonParticleRight{
+  0%{opacity:0;transform:rotate(calc(var(--angle) * -1)) translateY(0) scale(.4)}
+  12%{opacity:1}
+  70%{opacity:1;transform:rotate(calc(var(--angle) * -1)) translateY(-360px) rotate(-460deg) scale(1)}
+  100%{opacity:0;transform:rotate(calc(var(--angle) * -1)) translateY(-470px) translateX(-120px) rotate(-700deg) scale(.75)}
+}
+
+@media(max-width:760px){
+  .celebration-card{padding:24px 20px}
+  .mega-early-celebration .celebration-card{padding:30px 20px}
+  .confetti-cannon{width:82px;height:82px}
+  .cannon-body{font-size:54px}
+  .confetti-cannon.left{left:4px}
+  .confetti-cannon.right{right:4px}
+  .left-burst{left:48px}
+  .right-burst{right:48px}
+}
+@media(prefers-reduced-motion:reduce){
+  .celebration-card,.confetti-cannon,.cannon-burst i{animation-duration:.01ms!important}
+}
