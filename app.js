@@ -446,6 +446,162 @@ function bindEventTypeSwitch(){
   set(h.value||'due');
 }
 
+
+function openTaskModal(task=null,prefillDate=''){
+  const now=new Date();
+  const t=task||{
+    title:'',
+    course:'',
+    date:prefillDate||fmtDateInput(now),
+    eventType:'due',
+    time:'',
+    startTime:'',
+    endTime:'',
+    emoji:'',
+    iconColor:'',
+    link:'',
+    notes:'',
+    done:false
+  };
+  const existingRepeat=t.repeat?.enabled
+    ? t.repeat
+    : {enabled:false,unit:'week',interval:1,until:''};
+
+  showModal(`<h3>${task?'Edit task':'Add task'}</h3>
+  <div class="form-grid">
+    <div class="field full">
+      <label>Task name</label>
+      <input id="fTitle" value="${escapeHtml(t.title||'')}" placeholder="Your task name">
+    </div>
+
+    <div class="field full">
+      <label>Course (optional)</label>
+      <input id="fCourse" value="${escapeHtml(t.course||'')}" placeholder="Your course name (if applicable)">
+    </div>
+
+    <div class="field full">
+      <label>Event type</label>
+      <div class="event-type-switch">
+        <button type="button" data-event-type="due" class="event-type-btn ${(t.eventType||'due')==='due'?'active':''}">Due date</button>
+        <button type="button" data-event-type="duration" class="event-type-btn ${t.eventType==='duration'?'active':''}">Time block / event</button>
+      </div>
+    </div>
+    <input id="fEventType" type="hidden" value="${t.eventType||'due'}">
+
+    <div class="field full">
+      <label>Date</label>
+      <input id="fDate" type="date" value="${t.date||fmtDateInput(now)}">
+    </div>
+
+    <div class="field full due-time-field ${t.eventType==='duration'?'hidden':''}">
+      <label>Exact due time (optional)</label>
+      <input id="fTime" type="time" value="${t.time||''}">
+    </div>
+
+    <div class="field duration-time-field ${t.eventType==='duration'?'':'hidden'}">
+      <label>Starts</label>
+      <input id="fStartTime" type="time" value="${t.startTime||''}">
+    </div>
+
+    <div class="field duration-time-field ${t.eventType==='duration'?'':'hidden'}">
+      <label>Ends</label>
+      <input id="fEndTime" type="time" value="${t.endTime||''}">
+    </div>
+
+    <div class="field">
+      <label>Emoji icon (optional)</label>
+      <input id="fEmoji" maxlength="8" value="${escapeHtml(t.emoji||'')}" placeholder="📘">
+    </div>
+
+    <div class="field">
+      <label>Icon color (if no emoji)</label>
+      <select id="fIconColor">
+        <option value="">None</option>
+        ${['red','orange','yellow','green','blue','indigo','purple']
+          .map(c=>`<option value="${c}" ${t.iconColor===c?'selected':''}>${c[0].toUpperCase()+c.slice(1)}</option>`)
+          .join('')}
+      </select>
+    </div>
+
+    <div class="field full repeat-field">
+      <label class="repeat-toggle">
+        <input id="fRepeat" type="checkbox" ${existingRepeat.enabled?'checked':''}>
+        <span>Repeat</span>
+      </label>
+
+      <div id="repeatOptions" class="repeat-options ${existingRepeat.enabled?'':'hidden'}">
+        <div class="repeat-row">
+          <span>Repeat every</span>
+          <input id="fRepeatInterval" type="number" min="1" max="99" value="${existingRepeat.interval||1}">
+          <select id="fRepeatUnit">
+            <option value="day" ${existingRepeat.unit==='day'?'selected':''}>day(s)</option>
+            <option value="week" ${existingRepeat.unit==='week'?'selected':''}>week(s)</option>
+            <option value="month" ${existingRepeat.unit==='month'?'selected':''}>month(s)</option>
+          </select>
+        </div>
+        <div id="repeatSummary" class="repeat-summary"></div>
+        <div class="repeat-until">
+          <label>Repeat until</label>
+          <input id="fRepeatUntil" type="date" value="${existingRepeat.until||''}">
+          <div class="field-hint">The last occurrence will be on or before this date.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="field full">
+      <label>Link (optional)</label>
+      <input id="fLink" type="url" value="${escapeHtml(t.link||'')}" placeholder="https://…">
+    </div>
+
+    <div class="field full">
+      <label>Description</label>
+      <textarea id="fNotes" placeholder="Add instructions, details, or anything useful…">${escapeHtml(t.notes||'')}</textarea>
+    </div>
+  </div>
+
+  <div class="modal-actions">
+    ${task?'<button id="deleteTask" class="danger-btn">Delete</button>':''}
+    <button id="cancelModal" class="soft-btn">Cancel</button>
+    <button id="saveTask" class="primary-btn">Save</button>
+  </div>`);
+
+  $('#cancelModal').onclick=closeModal;
+  bindRepeatPreview();
+  bindEventTypeSwitch();
+
+  $('#saveTask').onclick=async()=>{
+    const form=readTaskForm();
+    if(!form)return;
+
+    if(task&&isSeriesTask(task)){
+      return chooseSeriesSaveScope(task,form);
+    }
+
+    if(task){
+      const updated={...t,...form,repeat:form.repeat||null,updatedAt:Date.now()};
+      await idbPut(updated);
+      closeModal();
+      await refresh();
+
+      if(!askApplyCourseIcon(updated)){
+        toast('Task updated.');
+      }
+      return;
+    }
+
+    await createFromForm(form);
+    closeModal();
+    await refresh();
+  };
+
+  if(task){
+    $('#deleteTask').onclick=()=>{
+      if(isSeriesTask(task))chooseSeriesDeleteScope(task);
+      else deleteSingle(task);
+    };
+  }
+}
+
 async function createFromForm(form,seriesId=null){
   const dates=recurrenceDates(form.date,form.repeat);
   if(!dates.length){toast('Could not create repeated dates.');return}
