@@ -918,6 +918,55 @@ function updateWardrobeEffectLabels(){
   if($('#rainSizeValue'))$('#rainSizeValue').textContent=String(Number(customize.rainDropSize ?? 50));
   if($('#rainDensityValue'))$('#rainDensityValue').textContent=String(Number(customize.rainDensity ?? 50));
 }
+function applyTheme(theme){
+  if(!THEMES.includes(theme))theme='green';
+  document.documentElement.dataset.theme=theme;
+  try{localStorage.setItem(THEME_KEY,theme)}catch{}
+  document.querySelectorAll('[data-theme-choice]').forEach(
+    b=>b.classList.toggle('active',b.dataset.themeChoice===theme)
+  );
+  updateWardrobeEffectLabels();
+  renderAmbientEffect();
+}
+
+function initTheme(){
+  let saved='green';
+  try{saved=localStorage.getItem(THEME_KEY)||'green'}catch{}
+  applyTheme(saved);
+  applyCustomize();
+
+  const themeBtn=$('#themeBtn');
+  if(themeBtn){
+    themeBtn.onclick=e=>{
+      e.stopPropagation();
+      const menu=$('#themeMenu');
+      if(!menu)return;
+      if(menu.classList.contains('hidden'))openWardrobe();
+      else menu.classList.add('hidden');
+    };
+  }
+
+  document.querySelectorAll('[data-theme-choice]').forEach(b=>{
+    b.onclick=e=>{
+      e.stopPropagation();
+      applyTheme(b.dataset.themeChoice);
+    };
+  });
+
+  document.querySelectorAll('[data-customize-key]').forEach(b=>{
+    b.onclick=e=>{
+      e.stopPropagation();
+      setCustomizeField(b.dataset.customizeKey,b.dataset.customizeValue);
+    };
+  });
+
+  document.addEventListener('click',e=>{
+    if(!e.target.closest('.theme-wrap'))$('#themeMenu')?.classList.add('hidden');
+  });
+
+  updateWardrobeEffectLabels();
+}
+
 function renderAmbientEffect(){
   const root=$('#petalRain');if(!root)return;root.innerHTML='';const theme=document.documentElement.dataset.theme||'green';
   if(theme==='glass'){
@@ -963,7 +1012,15 @@ $('#quickBubble').onclick=()=>setChecklistCollapsed(false);
 try{const savedChecklistState=localStorage.getItem(CHECKLIST_COLLAPSE_KEY);setChecklistCollapsed(savedChecklistState===null?true:savedChecklistState==='1')}catch{setChecklistCollapsed(true)};
 
 (async()=>{
-  initTheme();initPetalRain();await openDB();await refresh();
-  setInterval(()=>{renderHeader();renderTodo();renderWarnings()},1000);
+  try{initTheme()}catch(err){console.error('Theme initialization failed:',err)}
+  try{initPetalRain()}catch(err){console.error('Ambient effect initialization failed:',err)}
+  try{
+    await openDB();
+    await refresh();
+  }catch(err){
+    console.error('Task database initialization failed:',err);
+    toast('Could not load tasks. Your saved data has not been cleared.');
+  }
+  setInterval(()=>{try{renderHeader();renderTodo();renderWarnings()}catch{}},1000);
   if('serviceWorker'in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{})
 })();
