@@ -897,3 +897,13 @@ html[data-theme="glass"] .theme-menu{background:rgba(61,77,88,.80);border-color:
 html[data-theme="glass"] .wardrobe-title,html[data-theme="glass"] .theme-menu-title{color:#fff}
 .petal-rain.rain-mode{z-index:2;overflow:hidden}.rain-drop{--drop-scale:1;position:absolute;width:calc(4px * var(--drop-scale));height:calc(30px * var(--drop-scale));border-radius:999px;background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,.66) 38%,rgba(218,239,250,.15));box-shadow:0 0 1px rgba(255,255,255,.72),inset 1px 0 1px rgba(255,255,255,.38),1px 4px 6px rgba(24,39,48,.16);animation:glassRainSlide linear infinite}.rain-drop::before{content:"";position:absolute;top:-5px;left:50%;width:calc(7px * var(--drop-scale));height:calc(7px * var(--drop-scale));transform:translateX(-50%);border-radius:50%;background:radial-gradient(circle at 32% 25%,rgba(255,255,255,.88),rgba(220,240,250,.20) 55%,rgba(45,65,76,.10))}.rain-trail{position:absolute;width:2px;height:150px;border-radius:999px;background:linear-gradient(180deg,transparent,rgba(238,249,255,.25) 20%,rgba(238,249,255,.10) 72%,transparent);filter:blur(.4px);animation:glassWaterTrail linear infinite}@keyframes glassRainSlide{0%{transform:translateY(-20vh) scaleY(.6)}18%{transform:translateY(5vh) scaleY(1)}70%{transform:translateY(82vh) scaleY(1.24)}100%{transform:translateY(125vh) scaleY(1.42)}}@keyframes glassWaterTrail{0%{transform:translateY(-30vh);opacity:0}15%{opacity:.18}65%{opacity:.15}100%{transform:translateY(115vh);opacity:0}}
 html[data-theme="glass"] body.urgent-global .petal-rain{display:none!important}
+
+/* v16.1: ensure the eighth Glass swatch is visible */
+.theme-swatches{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+}
+.theme-swatch.glass{
+  flex:0 0 auto;
+}
