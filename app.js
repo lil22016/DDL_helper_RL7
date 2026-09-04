@@ -902,9 +902,38 @@ function applyCustomize(){
   }
   renderHeader();
   renderAmbientEffect();
+}
+function setCustomizeField(key,value){
+  customize[key]=value;
+  saveCustomize();
+  document.querySelectorAll(`[data-customize-key="${key}"]`).forEach(
+    b=>b.classList.toggle('active',b.dataset.customizeValue===value)
+  );
+}
+
+function openWardrobe(){
+  const menu=$('#themeMenu');if(!menu)return;
+  menu.classList.remove('hidden');
+  document.querySelectorAll('[data-customize-key]').forEach(
+    b=>b.classList.toggle('active',customize[b.dataset.customizeKey]===b.dataset.customizeValue)
+  );
+  updateWardrobeEffectLabels();
+}
+
+const bindWardrobeRange=(selector,key,valueSelector)=>{
+  const el=$(selector);if(!el)return;
+  const sync=()=>{
+    customize[key]=Number(el.value);
+    const out=$(valueSelector);if(out)out.textContent=el.value;
+    saveCustomize();
+  };
+  el.addEventListener('input',sync);
+  el.addEventListener('change',sync);
 };
-bindWardrobeRange('#rainSizeSlider','rainDropSize','#rainSizeValue');
-bindWardrobeRange('#rainDensitySlider','rainDensity','#rainDensityValue');
+bindWardrobeRange('#effectSizeSlider','effectSize','#effectSizeValue');
+bindWardrobeRange('#effectDensitySlider','effectDensity','#effectDensityValue');
+
+;
 function updateWardrobeEffectLabels(){
   const glass=document.documentElement.dataset.theme==='glass';
   if($('#effectSizeLabel'))$('#effectSizeLabel').textContent=glass?'Rain drop size':'Flower size';
