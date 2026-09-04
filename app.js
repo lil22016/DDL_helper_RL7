@@ -4,7 +4,7 @@ const $=s=>document.querySelector(s);
 const pad=n=>String(n).padStart(2,'0');
 const fmtDateInput=d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
 const THEME_KEY='deadline-garden-theme-v1';
-const THEMES=['red','orange','yellow','green','blue','indigo','purple'];
+const THEMES=['red','orange','yellow','green','blue','indigo','purple','glass'];
 const CAL_DISPLAY_KEY='deadline-garden-calendar-display-v1';
 const CAL_VIEW_KEY='deadline-garden-calendar-view-v1';
 const CUSTOMIZE_KEY='deadline-garden-customize-v1';
@@ -879,12 +879,8 @@ function celebrateAllDoneToday(count){
 function applyCustomize(){document.body.dataset.flowerSize=customize.flowerSize||'medium';document.body.dataset.flowerOpacity=customize.flowerOpacity||'medium';document.body.dataset.confetti=customize.confetti||'medium';const note=$('.quick-note');if(note){note.dataset.color=customize.checklistColor||'postit';note.dataset.shape=customize.checklistShape||'postit'}renderHeader()}
 function setCustomizeField(key,value){customize[key]=value;saveCustomize();document.querySelectorAll(`[data-customize-key="${key}"]`).forEach(b=>b.classList.toggle('active',b.dataset.customizeValue===value))}
 function openWardrobe(){$('#themeMenu').classList.remove('hidden');document.querySelectorAll('[data-customize-key]').forEach(b=>b.classList.toggle('active',customize[b.dataset.customizeKey]===b.dataset.customizeValue))}
-function applyTheme(theme){
-  if(!THEMES.includes(theme))theme='green';
-  document.documentElement.dataset.theme=theme;
-  try{localStorage.setItem(THEME_KEY,theme)}catch{}
-  document.querySelectorAll('[data-theme-choice]').forEach(b=>b.classList.toggle('active',b.dataset.themeChoice===theme))
-}
+function updateWardrobeEffectLabels(){const glass=document.documentElement.dataset.theme==='glass';const a=$('#fxSizeLabel'),b=$('#fxDensityLabel');if(a)a.textContent=glass?'Rain drops · size':'Flowers · size';if(b)b.textContent=glass?'Rain density':'Flowers · opacity'}
+function applyTheme(theme){if(!THEMES.includes(theme))theme='green';document.documentElement.dataset.theme=theme;try{localStorage.setItem(THEME_KEY,theme)}catch{}document.querySelectorAll('[data-theme-choice]').forEach(b=>b.classList.toggle('active',b.dataset.themeChoice===theme));updateWardrobeEffectLabels();renderAmbientEffect()}
 function initTheme(){
   let saved='green';try{saved=localStorage.getItem(THEME_KEY)||'green'}catch{}
   applyTheme(saved);applyCustomize();
@@ -892,10 +888,16 @@ function initTheme(){
   document.querySelectorAll('[data-theme-choice]').forEach(b=>b.onclick=e=>{e.stopPropagation();applyTheme(b.dataset.themeChoice)});document.querySelectorAll('[data-customize-key]').forEach(b=>b.onclick=e=>{e.stopPropagation();setCustomizeField(b.dataset.customizeKey,b.dataset.customizeValue)});
   document.addEventListener('click',e=>{if(!e.target.closest('.theme-wrap'))$('#themeMenu').classList.add('hidden')})
 }
-function initPetalRain(){
-  const root=$('#petalRain');if(!root)return;const glyphs=['✿','❀','✾','·'];
-  for(let i=0;i<18;i++){const p=document.createElement('span');p.className='petal';p.textContent=glyphs[i%glyphs.length];p.style.left=`${Math.random()*100}%`;p.style.animationDuration=`${14+Math.random()*15}s`;p.style.animationDelay=`${-Math.random()*25}s`;p.style.fontSize=`${8+Math.random()*9}px`;p.style.opacity=`${.12+Math.random()*.20}`;root.appendChild(p)}
+function renderAmbientEffect(){
+  const root=$('#petalRain');if(!root)return;root.innerHTML='';const theme=document.documentElement.dataset.theme||'green';
+  if(theme==='glass'){
+    root.classList.add('rain-mode');const density=customize.flowerOpacity==='low'?16:customize.flowerOpacity==='high'?42:27;const scale=customize.flowerSize==='small'?.72:customize.flowerSize==='large'?1.42:1;
+    for(let i=0;i<density;i++){const d=document.createElement('span');d.className='rain-drop';d.style.left=`${Math.random()*100}%`;d.style.top=`${-20-Math.random()*90}%`;d.style.animationDuration=`${5.5+Math.random()*7}s`;d.style.animationDelay=`${-Math.random()*12}s`;d.style.setProperty('--drop-scale',scale);d.style.opacity=`${.30+Math.random()*.38}`;root.appendChild(d)}
+    for(let i=0;i<10;i++){const t=document.createElement('span');t.className='rain-trail';t.style.left=`${4+Math.random()*92}%`;t.style.top=`${-10+Math.random()*65}%`;t.style.animationDuration=`${11+Math.random()*10}s`;t.style.animationDelay=`${-Math.random()*14}s`;t.style.opacity=`${.10+Math.random()*.18}`;root.appendChild(t)}return;
+  }
+  root.classList.remove('rain-mode');const glyphs=['✿','❀','✾','·'];for(let i=0;i<18;i++){const p=document.createElement('span');p.className='petal';p.textContent=glyphs[i%glyphs.length];p.style.left=`${Math.random()*100}%`;p.style.animationDuration=`${14+Math.random()*15}s`;p.style.animationDelay=`${-Math.random()*25}s`;p.style.fontSize=`${8+Math.random()*9}px`;p.style.opacity=`${.12+Math.random()*.20}`;root.appendChild(p)}
 }
+function initPetalRain(){renderAmbientEffect()}
 
 $('#addBtn').onclick=(e)=>{e.preventDefault();e.stopPropagation();openTaskModal()};
 $('#bulkEditBtn').onclick=openBulkEdit;
