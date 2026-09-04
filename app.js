@@ -10,7 +10,7 @@ const CAL_VIEW_KEY='deadline-garden-calendar-view-v1';
 const CUSTOMIZE_KEY='deadline-garden-customize-v1';
 const HOLIDAY_KEY='deadline-garden-holidays-v1';
 const CHECKLIST_COLLAPSE_KEY='deadline-garden-checklist-collapsed-v1';
-let customize={flowerSize:'medium',flowerOpacity:'medium',confetti:'medium',checklistColor:'postit',checklistShape:'postit',todoCount:'today'};
+let customize={flowerSize:'medium',flowerOpacity:'medium',rainDropSize:50,rainDensity:50,confetti:'medium',checklistColor:'postit',checklistShape:'postit',todoCount:'today'};
 let holidays=[];
 try{Object.assign(customize,JSON.parse(localStorage.getItem(CUSTOMIZE_KEY)||'{}')||{})}catch{}
 try{const h=JSON.parse(localStorage.getItem(HOLIDAY_KEY)||'[]');if(Array.isArray(h))holidays=h}catch{}
@@ -123,8 +123,8 @@ function renderCalendar(){
   document.querySelectorAll('.day-cell,.week-day,.daily-view').forEach(el=>el.onclick=()=>{el.classList.remove('calendar-click');void el.offsetWidth;el.classList.add('calendar-click');setTimeout(()=>openTaskModal(null,el.dataset.date),90)})
 }
 
-function openHolidayModal(existing=null){
-  const today=fmtDateInput(new Date()),h=existing||{name:'',start:today,end:today};
+function openHolidayModal(existing=null,prefillDate=''){
+  const today=prefillDate||fmtDateInput(new Date()),h=existing||{name:'',start:today,end:today};
   showModal(`<div class="section-label">HOLIDAY</div><h3>${existing?'Edit holiday':'Add time off'}</h3><div class="form-grid"><div class="field full"><label>Name</label><input id="holidayName" value="${escapeHtml(h.name||'')}" placeholder="Fall Break"></div><div class="field"><label>Starts</label><input id="holidayStart" type="date" value="${h.start}"></div><div class="field"><label>Ends</label><input id="holidayEnd" type="date" value="${h.end}"></div></div><div class="next-meta" style="margin-top:10px">Holiday dates stay visible and softly highlighted. Existing tasks are kept unless you choose to clear them.</div><div class="modal-actions">${existing?'<button id="holidayDelete" class="danger-btn">Delete holiday</button>':''}<button id="holidayCancel" class="soft-btn">Cancel</button><button id="holidaySave" class="primary-btn">${existing?'Save changes':'Save holiday'}</button></div>`);
   $('#holidayCancel').onclick=closeModal;
   if(existing)$('#holidayDelete').onclick=()=>{holidays=holidays.filter(x=>x.id!==existing.id);saveHolidays();closeModal();renderCalendar();toast('Holiday deleted.')};
@@ -468,7 +468,13 @@ function openTaskModal(task=null,prefillDate=''){
     ? t.repeat
     : {enabled:false,unit:'week',interval:1,until:''};
 
-  showModal(`<h3>${task?'Edit task':'Add task'}</h3>
+  const dayAddSwitch=(!task&&prefillDate)?`
+  <div class="day-add-switch" role="tablist" aria-label="Add to this day">
+    <button id="dayAddTaskTab" class="day-add-tab active" type="button">Add Task</button>
+    <button id="dayAddHolidayTab" class="day-add-tab" type="button">Add Holiday</button>
+  </div>`:'';
+
+  showModal(`${dayAddSwitch}<h3>${task?'Edit task':'Add task'}</h3>
   <div class="form-grid">
     <div class="field full">
       <label>Task name</label>
@@ -566,6 +572,12 @@ function openTaskModal(task=null,prefillDate=''){
     <button id="saveTask" class="primary-btn">Save</button>
   </div>`);
 
+  if($('#dayAddHolidayTab')){
+    $('#dayAddHolidayTab').onclick=()=>openHolidayModal(null,prefillDate);
+  }
+  if($('#dayAddTaskTab')){
+    $('#dayAddTaskTab').onclick=()=>{};
+  }
   $('#cancelModal').onclick=closeModal;
   bindRepeatPreview();
   bindEventTypeSwitch();
@@ -880,19 +892,37 @@ function celebrateAllDoneToday(count){
 function applyCustomize(){document.body.dataset.flowerSize=customize.flowerSize||'medium';document.body.dataset.flowerOpacity=customize.flowerOpacity||'medium';document.body.dataset.confetti=customize.confetti||'medium';const note=$('.quick-note');if(note){note.dataset.color=customize.checklistColor||'postit';note.dataset.shape=customize.checklistShape||'postit'}renderHeader()}
 function setCustomizeField(key,value){customize[key]=value;saveCustomize();document.querySelectorAll(`[data-customize-key="${key}"]`).forEach(b=>b.classList.toggle('active',b.dataset.customizeValue===value))}
 function openWardrobe(){$('#themeMenu').classList.remove('hidden');document.querySelectorAll('[data-customize-key]').forEach(b=>b.classList.toggle('active',customize[b.dataset.customizeKey]===b.dataset.customizeValue))}
-function updateWardrobeEffectLabels(){const glass=document.documentElement.dataset.theme==='glass';const a=$('#fxSizeLabel'),b=$('#fxDensityLabel');if(a)a.textContent=glass?'Rain drops · size':'Flowers · size';if(b)b.textContent=glass?'Rain density':'Flowers · opacity'}
-function applyTheme(theme){if(!THEMES.includes(theme))theme='green';document.documentElement.dataset.theme=theme;try{localStorage.setItem(THEME_KEY,theme)}catch{}document.querySelectorAll('[data-theme-choice]').forEach(b=>b.classList.toggle('active',b.dataset.themeChoice===theme));updateWardrobeEffectLabels();renderAmbientEffect()}
-function initTheme(){
-  let saved='green';try{saved=localStorage.getItem(THEME_KEY)||'green'}catch{}
-  applyTheme(saved);applyCustomize();
-  $('#themeBtn').onclick=e=>{e.stopPropagation();if($('#themeMenu').classList.contains('hidden'))openWardrobe();else $('#themeMenu').classList.add('hidden')};
-  document.querySelectorAll('[data-theme-choice]').forEach(b=>b.onclick=e=>{e.stopPropagation();applyTheme(b.dataset.themeChoice)});document.querySelectorAll('[data-customize-key]').forEach(b=>b.onclick=e=>{e.stopPropagation();setCustomizeField(b.dataset.customizeKey,b.dataset.customizeValue)});
-  document.addEventListener('click',e=>{if(!e.target.closest('.theme-wrap'))$('#themeMenu').classList.add('hidden')})
+
+const bindWardrobeRange=(selector,key,valueSelector)=>{
+  const el=$(selector);if(!el)return;
+  const sync=()=>{
+    customize[key]=Number(el.value);
+    const out=$(valueSelector);if(out)out.textContent=el.value;
+    saveCustomize();
+  };
+  el.addEventListener('input',sync);
+  el.addEventListener('change',sync);
+};
+bindWardrobeRange('#rainSizeSlider','rainDropSize','#rainSizeValue');
+bindWardrobeRange('#rainDensitySlider','rainDensity','#rainDensityValue');
+function updateWardrobeEffectLabels(){
+  const glass=document.documentElement.dataset.theme==='glass';
+  $('#flowerSizeControl')?.classList.toggle('hidden',glass);
+  $('#flowerDensityControl')?.classList.toggle('hidden',glass);
+  $('#rainSizeControl')?.classList.toggle('hidden',!glass);
+  $('#rainDensityControl')?.classList.toggle('hidden',!glass);
+
+  const rs=$('#rainSizeSlider'),rd=$('#rainDensitySlider');
+  if(rs)rs.value=String(Number(customize.rainDropSize ?? 50));
+  if(rd)rd.value=String(Number(customize.rainDensity ?? 50));
+  if($('#rainSizeValue'))$('#rainSizeValue').textContent=String(Number(customize.rainDropSize ?? 50));
+  if($('#rainDensityValue'))$('#rainDensityValue').textContent=String(Number(customize.rainDensity ?? 50));
 }
 function renderAmbientEffect(){
   const root=$('#petalRain');if(!root)return;root.innerHTML='';const theme=document.documentElement.dataset.theme||'green';
   if(theme==='glass'){
-    root.classList.add('rain-mode');const density=customize.flowerOpacity==='low'?16:customize.flowerOpacity==='high'?42:27;const scale=customize.flowerSize==='small'?.40:customize.flowerSize==='large'?2.15:1;
+    root.classList.add('rain-mode');const density=Math.round(6 + (Number(customize.rainDensity ?? 50)/100)*84);
+    const scale=0.18 + (Number(customize.rainDropSize ?? 50)/100)*3.9;
     for(let i=0;i<density;i++){const d=document.createElement('span');d.className='rain-drop';d.style.left=`${Math.random()*100}%`;d.style.top=`${-20-Math.random()*90}%`;d.style.animationDuration=`${5.5+Math.random()*7}s`;d.style.animationDelay=`${-Math.random()*12}s`;d.style.setProperty('--drop-scale',scale);d.style.opacity=`${.30+Math.random()*.38}`;root.appendChild(d)}
     for(let i=0;i<10;i++){const t=document.createElement('span');t.className='rain-trail';t.style.left=`${4+Math.random()*92}%`;t.style.top=`${-10+Math.random()*65}%`;t.style.animationDuration=`${11+Math.random()*10}s`;t.style.animationDelay=`${-Math.random()*14}s`;t.style.opacity=`${.10+Math.random()*.18}`;root.appendChild(t)}return;
   }

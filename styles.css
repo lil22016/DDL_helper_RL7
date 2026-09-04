@@ -1208,3 +1208,202 @@ html[data-theme="glass"] .all-done-today-celebration .celebration-card{
     linear-gradient(145deg,rgba(38,63,76,.96),rgba(74,110,128,.94))!important;
   border-color:rgba(255,255,255,.72)!important;
 }
+
+
+/* v16.4 — Glass UI polish, day add switch, smooth checklist, continuous rain sliders */
+
+/* ---- Add/Edit form readability ---- */
+html[data-theme="glass"] .modal-card .field > label,
+html[data-theme="glass"] .modal-card .repeat-toggle,
+html[data-theme="glass"] .modal-card .repeat-toggle span{
+  color:#f6fbff!important;
+  text-shadow:0 1px 2px rgba(0,0,0,.72)!important;
+}
+html[data-theme="glass"] .modal-card h3{
+  color:#fff!important;
+  text-shadow:0 2px 4px rgba(0,0,0,.62)!important;
+}
+html[data-theme="glass"] .event-type-switch{
+  background:rgba(30,46,56,.28)!important;
+  border:1px solid rgba(255,255,255,.28)!important;
+  padding:5px!important;
+}
+html[data-theme="glass"] .event-type-btn{
+  color:#edf7fc!important;
+  background:transparent!important;
+  text-shadow:0 1px 2px rgba(0,0,0,.66)!important;
+}
+html[data-theme="glass"] .event-type-btn.active{
+  color:#2e4655!important;
+  background:rgba(247,251,253,.94)!important;
+  text-shadow:none!important;
+  box-shadow:0 3px 12px rgba(0,0,0,.14)!important;
+}
+html[data-theme="glass"] .repeat-field{
+  background:rgba(233,244,250,.11)!important;
+  border:1px solid rgba(255,255,255,.25)!important;
+}
+
+/* ---- Calendar day Add Task / Add Holiday chooser ---- */
+.day-add-switch{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:5px;
+  padding:5px;
+  margin-bottom:16px;
+  border-radius:18px;
+  background:rgba(230,240,246,.08);
+  border:1px solid rgba(255,255,255,.18);
+}
+.day-add-tab{
+  border:0;
+  border-radius:14px;
+  padding:12px 14px;
+  font:inherit;
+  font-weight:800;
+  cursor:pointer;
+  background:transparent;
+  color:var(--muted);
+}
+.day-add-tab.active{
+  background:var(--paper);
+  color:var(--text);
+  box-shadow:0 3px 12px rgba(0,0,0,.08);
+}
+html[data-theme="glass"] .day-add-switch{
+  background:rgba(29,45,55,.28);
+  border-color:rgba(255,255,255,.28);
+}
+html[data-theme="glass"] .day-add-tab{
+  color:#e8f3f9!important;
+  text-shadow:0 1px 2px rgba(0,0,0,.64)!important;
+}
+html[data-theme="glass"] .day-add-tab.active{
+  color:#294350!important;
+  background:rgba(247,251,253,.95)!important;
+  text-shadow:none!important;
+}
+
+/* ---- Task size picker: no black labels / no stark white cards ---- */
+html[data-theme="glass"] .size-picker{
+  gap:14px;
+}
+html[data-theme="glass"] .size-choice{
+  background:rgba(224,239,247,.10)!important;
+  color:#eef8fc!important;
+  border:1px solid rgba(255,255,255,.22)!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.22),0 6px 18px rgba(0,0,0,.10)!important;
+}
+html[data-theme="glass"] .size-choice:hover{
+  background:rgba(224,239,247,.16)!important;
+}
+html[data-theme="glass"] .size-choice.active{
+  background:rgba(178,213,232,.22)!important;
+  border-color:rgba(211,238,251,.75)!important;
+  box-shadow:0 0 0 2px rgba(196,230,247,.15),inset 0 1px 0 rgba(255,255,255,.32)!important;
+}
+html[data-theme="glass"] .size-choice strong{
+  color:#f8fcff!important;
+  text-shadow:0 1px 2px rgba(0,0,0,.62)!important;
+}
+html[data-theme="glass"] .size-demo{
+  background:rgba(38,56,67,.26)!important;
+  color:#fff!important;
+  text-shadow:0 1px 2px rgba(0,0,0,.60)!important;
+}
+
+/* ---- Wardrobe buttons: translucent, no white slabs ---- */
+html[data-theme="glass"] .theme-menu{
+  background:rgba(55,72,83,.88)!important;
+}
+html[data-theme="glass"] .mini-options button{
+  background:rgba(222,238,247,.10)!important;
+  color:#edf7fc!important;
+  border:1px solid rgba(255,255,255,.20)!important;
+  text-shadow:0 1px 2px rgba(0,0,0,.62)!important;
+}
+html[data-theme="glass"] .mini-options button:hover{
+  background:rgba(222,238,247,.16)!important;
+}
+html[data-theme="glass"] .mini-options button.active{
+  background:rgba(178,214,233,.24)!important;
+  color:#fff!important;
+  border-color:rgba(214,239,251,.72)!important;
+  text-shadow:0 1px 2px rgba(0,0,0,.55)!important;
+}
+
+/* Continuous rain controls */
+.wardrobe-range-title{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+}
+.wardrobe-range-title strong{
+  min-width:34px;
+  text-align:center;
+  padding:3px 7px;
+  border-radius:999px;
+  font-size:12px;
+  background:rgba(255,255,255,.10);
+}
+.wardrobe-range{
+  width:100%;
+  height:24px;
+  margin:7px 0 2px;
+  accent-color:var(--accent);
+  cursor:pointer;
+}
+.range-ends{
+  display:flex;
+  justify-content:space-between;
+  font-size:10px;
+  color:var(--muted);
+  opacity:.9;
+}
+html[data-theme="glass"] .wardrobe-range{
+  accent-color:#d7effb;
+}
+html[data-theme="glass"] .range-ends{
+  color:#d5e4ec!important;
+  text-shadow:0 1px 2px rgba(0,0,0,.45);
+}
+
+/* ---- Smooth Checklist morph ---- */
+.quick-note{
+  transform-origin:left bottom;
+  transition:
+    opacity .28s ease,
+    transform .34s cubic-bezier(.2,.8,.2,1),
+    filter .28s ease!important;
+}
+.quick-note.collapsed-away{
+  display:block!important;
+  opacity:0!important;
+  transform:translate(-12px,14px) scale(.72)!important;
+  pointer-events:none!important;
+  filter:blur(2px);
+}
+.quick-bubble{
+  transform-origin:left bottom;
+  transition:
+    opacity .24s ease,
+    transform .32s cubic-bezier(.2,.8,.2,1),
+    filter .24s ease!important;
+}
+.quick-bubble.hidden{
+  display:flex!important;
+  opacity:0!important;
+  transform:translate(-8px,8px) scale(.72)!important;
+  pointer-events:none!important;
+  filter:blur(1.5px);
+}
+.quick-bubble:not(.hidden){
+  opacity:1;
+  transform:translate(0,0) scale(1);
+}
+
+/* Rain extremes are deliberately dramatic. */
+.rain-drop{
+  min-width:1px;
+}
