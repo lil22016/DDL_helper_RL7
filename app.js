@@ -98,7 +98,8 @@ function setCalendarView(view){
 
 function weekStartFor(date){
   const d=new Date(date.getFullYear(),date.getMonth(),date.getDate());
-  d.setDate(d.getDate()-d.getDay());
+  const mondayOffset=(d.getDay()+6)%7;
+  d.setDate(d.getDate()-mondayOffset);
   return d;
 }
 
@@ -107,7 +108,7 @@ function renderCalendar(){
   const chip=(t,extra='')=>`<button class="event-chip ${extra} size-${t.calendarSize||'medium'} ${t.done?'done':''} urgent${urgency(t)}" data-id="${t.id}" title="${escapeHtml([t.course,t.title,formatDue(t),t.notes].filter(Boolean).join(' · '))}">${calendarChipHtml(t)}</button>`;
   const holidayTag=h=>h?`<button class="holiday-mini holiday-edit-tag" data-holiday-id="${h.id}" title="Edit holiday">✦ ${escapeHtml(h.name||'Holiday')}</button>`:'';
   if(calendarView==='month'){
-    const y=currentMonth.getFullYear(),m=currentMonth.getMonth();$('#monthLabel').textContent=currentMonth.toLocaleDateString(undefined,{month:'long',year:'numeric'});const start=new Date(y,m,1-new Date(y,m,1).getDay());let html='';
+    const y=currentMonth.getFullYear(),m=currentMonth.getMonth();$('#monthLabel').textContent=currentMonth.toLocaleDateString(undefined,{month:'long',year:'numeric'});const first=new Date(y,m,1),offset=(first.getDay()+6)%7,start=new Date(y,m,1-offset);let html='';
     for(let i=0;i<42;i++){const d=new Date(start);d.setDate(start.getDate()+i);const ds=fmtDateInput(d),dayTasks=all.filter(t=>t.date===ds),outside=d.getMonth()!==m,today=ds===fmtDateInput(new Date()),holiday=holidayForDate(ds);html+=`<div class="day-cell ${outside?'outside':''} ${today?'today':''} ${holiday?'holiday-day':''}" data-date="${ds}"><div class="day-number"><span>${d.getDate()}</span>${holidayTag(holiday)}</div>${dayTasks.slice(0,5).map(t=>chip(t)).join('')}${dayTasks.length>5?`<div class="tiny">+${dayTasks.length-5} more</div>`:''}</div>`}
     grid.innerHTML=html;
   }else if(calendarView==='week'){
@@ -873,7 +874,7 @@ function confetti(forceBig=false){const c=$('#confettiCanvas'),ctx=c.getContext(
 function celebrateAllDoneToday(count){
   confetti(true);
   const old=document.querySelector('.all-done-overlay');if(old)old.remove();
-  const el=document.createElement('div');el.className='all-done-overlay';el.innerHTML=`<div><span>✦</span><strong>All done for today!</strong><small>${count} task${count===1?'':'s'} complete · enjoy the rest of your day</small></div>`;document.body.appendChild(el);setTimeout(()=>el.remove(),2600)
+  const el=document.createElement('div');el.className='all-done-overlay';el.innerHTML=`<div><span>✦</span><strong>All done for today!</strong><small>${count} task${count===1?'':'s'} complete · enjoy the rest of your day</small></div>`;el.classList.add('all-done-today-celebration');document.body.appendChild(el);setTimeout(()=>el.remove(),2600)
 }
 
 function applyCustomize(){document.body.dataset.flowerSize=customize.flowerSize||'medium';document.body.dataset.flowerOpacity=customize.flowerOpacity||'medium';document.body.dataset.confetti=customize.confetti||'medium';const note=$('.quick-note');if(note){note.dataset.color=customize.checklistColor||'postit';note.dataset.shape=customize.checklistShape||'postit'}renderHeader()}

@@ -1168,3 +1168,43 @@ html[data-theme="glass"] .quick-note[data-color="white"] *{
   color:#344039!important;
   text-shadow:none!important;
 }
+
+
+/* v16.3 — Monday-first calendar + high-contrast All Done celebration */
+.all-done-today-celebration{
+  background:rgba(15,28,36,.28)!important;
+  backdrop-filter:blur(7px)!important;
+  -webkit-backdrop-filter:blur(7px)!important;
+}
+.all-done-today-celebration .celebration-card{
+  background:
+    linear-gradient(145deg,rgba(39,66,78,.94),rgba(83,119,133,.92))!important;
+  border:1px solid rgba(255,255,255,.58)!important;
+  box-shadow:
+    0 24px 70px rgba(0,0,0,.34),
+    inset 0 1px 0 rgba(255,255,255,.42)!important;
+}
+.all-done-today-celebration .celebration-kicker{
+  color:#d9f3ff!important;
+  text-shadow:0 2px 4px rgba(0,0,0,.72)!important;
+}
+.all-done-today-celebration .celebration-title{
+  color:#ffffff!important;
+  text-shadow:
+    0 3px 8px rgba(0,0,0,.68),
+    0 1px 2px rgba(0,0,0,.88)!important;
+}
+.all-done-today-celebration .celebration-subtitle{
+  color:#eaf6fb!important;
+  text-shadow:0 2px 4px rgba(0,0,0,.62)!important;
+}
+
+/* In Glass mode make it even more distinct from the pale page behind it */
+html[data-theme="glass"] .all-done-today-celebration{
+  background:rgba(10,22,30,.42)!important;
+}
+html[data-theme="glass"] .all-done-today-celebration .celebration-card{
+  background:
+    linear-gradient(145deg,rgba(38,63,76,.96),rgba(74,110,128,.94))!important;
+  border-color:rgba(255,255,255,.72)!important;
+}
