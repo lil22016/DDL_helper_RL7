@@ -891,7 +891,7 @@ function initTheme(){
 function renderAmbientEffect(){
   const root=$('#petalRain');if(!root)return;root.innerHTML='';const theme=document.documentElement.dataset.theme||'green';
   if(theme==='glass'){
-    root.classList.add('rain-mode');const density=customize.flowerOpacity==='low'?16:customize.flowerOpacity==='high'?42:27;const scale=customize.flowerSize==='small'?.72:customize.flowerSize==='large'?1.42:1;
+    root.classList.add('rain-mode');const density=customize.flowerOpacity==='low'?16:customize.flowerOpacity==='high'?42:27;const scale=customize.flowerSize==='small'?.40:customize.flowerSize==='large'?2.15:1;
     for(let i=0;i<density;i++){const d=document.createElement('span');d.className='rain-drop';d.style.left=`${Math.random()*100}%`;d.style.top=`${-20-Math.random()*90}%`;d.style.animationDuration=`${5.5+Math.random()*7}s`;d.style.animationDelay=`${-Math.random()*12}s`;d.style.setProperty('--drop-scale',scale);d.style.opacity=`${.30+Math.random()*.38}`;root.appendChild(d)}
     for(let i=0;i<10;i++){const t=document.createElement('span');t.className='rain-trail';t.style.left=`${4+Math.random()*92}%`;t.style.top=`${-10+Math.random()*65}%`;t.style.animationDuration=`${11+Math.random()*10}s`;t.style.animationDelay=`${-Math.random()*14}s`;t.style.opacity=`${.10+Math.random()*.18}`;root.appendChild(t)}return;
   }
