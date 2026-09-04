@@ -10,9 +10,11 @@ const CAL_VIEW_KEY='deadline-garden-calendar-view-v1';
 const CUSTOMIZE_KEY='deadline-garden-customize-v1';
 const HOLIDAY_KEY='deadline-garden-holidays-v1';
 const CHECKLIST_COLLAPSE_KEY='deadline-garden-checklist-collapsed-v1';
-let customize={flowerSize:'medium',flowerOpacity:'medium',rainDropSize:50,rainDensity:50,confetti:'medium',checklistColor:'postit',checklistShape:'postit',todoCount:'today'};
+let customize={flowerSize:'medium',flowerOpacity:'medium',rainDropSize:50,rainDensity:50,effectSize:50,effectDensity:50,confetti:'medium',checklistColor:'postit',checklistShape:'postit',todoCount:'today'};
 let holidays=[];
 try{Object.assign(customize,JSON.parse(localStorage.getItem(CUSTOMIZE_KEY)||'{}')||{})}catch{}
+if(customize.effectSize==null)customize.effectSize=Number(customize.rainDropSize??50);
+if(customize.effectDensity==null)customize.effectDensity=Number(customize.rainDensity??50);
 try{const h=JSON.parse(localStorage.getItem(HOLIDAY_KEY)||'[]');if(Array.isArray(h))holidays=h}catch{}
 let calendarDisplay={time:true,course:false,title:true,description:false};
 let calendarView='month';
@@ -889,34 +891,36 @@ function celebrateAllDoneToday(count){
   const el=document.createElement('div');el.className='all-done-overlay';el.innerHTML=`<div><span>✦</span><strong>All done for today!</strong><small>${count} task${count===1?'':'s'} complete · enjoy the rest of your day</small></div>`;el.classList.add('all-done-today-celebration');document.body.appendChild(el);setTimeout(()=>el.remove(),2600)
 }
 
-function applyCustomize(){document.body.dataset.flowerSize=customize.flowerSize||'medium';document.body.dataset.flowerOpacity=customize.flowerOpacity||'medium';document.body.dataset.confetti=customize.confetti||'medium';const note=$('.quick-note');if(note){note.dataset.color=customize.checklistColor||'postit';note.dataset.shape=customize.checklistShape||'postit'}renderHeader()}
-function setCustomizeField(key,value){customize[key]=value;saveCustomize();document.querySelectorAll(`[data-customize-key="${key}"]`).forEach(b=>b.classList.toggle('active',b.dataset.customizeValue===value))}
-function openWardrobe(){$('#themeMenu').classList.remove('hidden');document.querySelectorAll('[data-customize-key]').forEach(b=>b.classList.toggle('active',customize[b.dataset.customizeKey]===b.dataset.customizeValue))}
-
-const bindWardrobeRange=(selector,key,valueSelector)=>{
-  const el=$(selector);if(!el)return;
-  const sync=()=>{
-    customize[key]=Number(el.value);
-    const out=$(valueSelector);if(out)out.textContent=el.value;
-    saveCustomize();
-  };
-  el.addEventListener('input',sync);
-  el.addEventListener('change',sync);
+function applyCustomize(){
+  document.body.dataset.flowerSize=customize.flowerSize||'medium';
+  document.body.dataset.flowerOpacity=customize.flowerOpacity||'medium';
+  document.body.dataset.confetti=customize.confetti||'medium';
+  const note=$('.quick-note');
+  if(note){
+    note.dataset.color=customize.checklistColor||'postit';
+    note.dataset.shape=customize.checklistShape||'postit';
+  }
+  renderHeader();
+  renderAmbientEffect();
 };
 bindWardrobeRange('#rainSizeSlider','rainDropSize','#rainSizeValue');
 bindWardrobeRange('#rainDensitySlider','rainDensity','#rainDensityValue');
 function updateWardrobeEffectLabels(){
   const glass=document.documentElement.dataset.theme==='glass';
-  $('#flowerSizeControl')?.classList.toggle('hidden',glass);
-  $('#flowerDensityControl')?.classList.toggle('hidden',glass);
-  $('#rainSizeControl')?.classList.toggle('hidden',!glass);
-  $('#rainDensityControl')?.classList.toggle('hidden',!glass);
+  if($('#effectSizeLabel'))$('#effectSizeLabel').textContent=glass?'Rain drop size':'Flower size';
+  if($('#effectDensityLabel'))$('#effectDensityLabel').textContent=glass?'Rain density':'Flower density';
 
-  const rs=$('#rainSizeSlider'),rd=$('#rainDensitySlider');
-  if(rs)rs.value=String(Number(customize.rainDropSize ?? 50));
-  if(rd)rd.value=String(Number(customize.rainDensity ?? 50));
-  if($('#rainSizeValue'))$('#rainSizeValue').textContent=String(Number(customize.rainDropSize ?? 50));
-  if($('#rainDensityValue'))$('#rainDensityValue').textContent=String(Number(customize.rainDensity ?? 50));
+  const s=Number(customize.effectSize ?? 50);
+  const d=Number(customize.effectDensity ?? 50);
+  if($('#effectSizeSlider'))$('#effectSizeSlider').value=String(s);
+  if($('#effectDensitySlider'))$('#effectDensitySlider').value=String(d);
+  if($('#effectSizeValue'))$('#effectSizeValue').textContent=String(s);
+  if($('#effectDensityValue'))$('#effectDensityValue').textContent=String(d);
+
+  const leftDensity=$('#effectDensityControl .range-ends span:first-child');
+  const rightDensity=$('#effectDensityControl .range-ends span:last-child');
+  if(leftDensity)leftDensity.textContent='Sparse';
+  if(rightDensity)rightDensity.textContent=glass?'Stormy':'Dense';
 }
 function applyTheme(theme){
   if(!THEMES.includes(theme))theme='green';
@@ -968,14 +972,65 @@ function initTheme(){
 }
 
 function renderAmbientEffect(){
-  const root=$('#petalRain');if(!root)return;root.innerHTML='';const theme=document.documentElement.dataset.theme||'green';
+  const root=$('#petalRain');if(!root)return;
+  root.innerHTML='';
+  const theme=document.documentElement.dataset.theme||'green';
+  const sizeValue=Math.max(0,Math.min(100,Number(customize.effectSize ?? 50)));
+  const densityValue=Math.max(0,Math.min(100,Number(customize.effectDensity ?? 50)));
+
   if(theme==='glass'){
-    root.classList.add('rain-mode');const density=Math.round(6 + (Number(customize.rainDensity ?? 50)/100)*84);
-    const scale=0.18 + (Number(customize.rainDropSize ?? 50)/100)*3.9;
-    for(let i=0;i<density;i++){const d=document.createElement('span');d.className='rain-drop';d.style.left=`${Math.random()*100}%`;d.style.top=`${-20-Math.random()*90}%`;d.style.animationDuration=`${5.5+Math.random()*7}s`;d.style.animationDelay=`${-Math.random()*12}s`;d.style.setProperty('--drop-scale',scale);d.style.opacity=`${.30+Math.random()*.38}`;root.appendChild(d)}
-    for(let i=0;i<10;i++){const t=document.createElement('span');t.className='rain-trail';t.style.left=`${4+Math.random()*92}%`;t.style.top=`${-10+Math.random()*65}%`;t.style.animationDuration=`${11+Math.random()*10}s`;t.style.animationDelay=`${-Math.random()*14}s`;t.style.opacity=`${.10+Math.random()*.18}`;root.appendChild(t)}return;
+    root.classList.add('rain-mode');
+
+    // Extreme range is intentional: 4 sparse drops -> 120 stormy drops.
+    const density=Math.round(4 + (densityValue/100)*116);
+    // 0.14x tiny -> 5.2x huge.
+    const scale=0.14 + (sizeValue/100)*5.06;
+
+    for(let i=0;i<density;i++){
+      const d=document.createElement('span');
+      d.className='rain-drop';
+      d.style.left=`${Math.random()*100}%`;
+      d.style.top=`${-20-Math.random()*100}%`;
+      d.style.animationDuration=`${5+Math.random()*8}s`;
+      d.style.animationDelay=`${-Math.random()*13}s`;
+      d.style.setProperty('--drop-scale',scale);
+      d.style.opacity=`${.26+Math.random()*.42}`;
+      root.appendChild(d);
+    }
+
+    const trailCount=Math.round(2 + (densityValue/100)*24);
+    for(let i=0;i<trailCount;i++){
+      const t=document.createElement('span');
+      t.className='rain-trail';
+      t.style.left=`${3+Math.random()*94}%`;
+      t.style.top=`${-20+Math.random()*65}%`;
+      t.style.animationDuration=`${10+Math.random()*11}s`;
+      t.style.animationDelay=`${-Math.random()*15}s`;
+      t.style.opacity=`${.08+Math.random()*.22}`;
+      t.style.setProperty('--trail-scale',Math.max(.35,scale*.58));
+      root.appendChild(t);
+    }
+    return;
   }
-  root.classList.remove('rain-mode');const glyphs=['✿','❀','✾','·'];for(let i=0;i<18;i++){const p=document.createElement('span');p.className='petal';p.textContent=glyphs[i%glyphs.length];p.style.left=`${Math.random()*100}%`;p.style.animationDuration=`${14+Math.random()*15}s`;p.style.animationDelay=`${-Math.random()*25}s`;p.style.fontSize=`${8+Math.random()*9}px`;p.style.opacity=`${.12+Math.random()*.20}`;root.appendChild(p)}
+
+  root.classList.remove('rain-mode');
+
+  // Shared sliders control flowers in color themes.
+  const flowerCount=Math.round(5 + (densityValue/100)*60);
+  const flowerScale=0.38 + (sizeValue/100)*2.45;
+  const glyphs=['✿','❀','✾','·'];
+
+  for(let i=0;i<flowerCount;i++){
+    const p=document.createElement('span');
+    p.className='petal';
+    p.textContent=glyphs[i%glyphs.length];
+    p.style.left=`${Math.random()*100}%`;
+    p.style.animationDuration=`${13+Math.random()*18}s`;
+    p.style.animationDelay=`${-Math.random()*28}s`;
+    p.style.fontSize=`${(8+Math.random()*8)*flowerScale}px`;
+    p.style.opacity=`${.10+Math.random()*.24}`;
+    root.appendChild(p);
+  }
 }
 function initPetalRain(){renderAmbientEffect()}
 

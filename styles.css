@@ -1407,3 +1407,52 @@ html[data-theme="glass"] .range-ends{
 .rain-drop{
   min-width:1px;
 }
+
+
+/* v16.5 — Actual All Done overlay fix.
+   This celebration uses .all-done-overlay > div, NOT .celebration-card. */
+.all-done-overlay{
+  background:rgba(12,25,34,.46)!important;
+  backdrop-filter:blur(12px) saturate(112%)!important;
+  -webkit-backdrop-filter:blur(12px) saturate(112%)!important;
+}
+.all-done-overlay > div{
+  background:
+    linear-gradient(145deg,rgba(50,72,84,.86),rgba(88,116,130,.78))!important;
+  border:1px solid rgba(255,255,255,.58)!important;
+  box-shadow:
+    0 28px 78px rgba(0,0,0,.36),
+    inset 0 1px 0 rgba(255,255,255,.42),
+    inset 0 -2px 8px rgba(0,0,0,.08)!important;
+  backdrop-filter:blur(28px) saturate(125%)!important;
+  -webkit-backdrop-filter:blur(28px) saturate(125%)!important;
+}
+.all-done-overlay > div > span{
+  color:#e7f7ff!important;
+  text-shadow:0 2px 5px rgba(0,0,0,.72)!important;
+}
+.all-done-overlay > div > strong{
+  color:#ffffff!important;
+  text-shadow:
+    0 4px 10px rgba(0,0,0,.72),
+    0 1px 3px rgba(0,0,0,.90)!important;
+}
+.all-done-overlay > div > small{
+  color:#e5f1f7!important;
+  text-shadow:0 2px 5px rgba(0,0,0,.68)!important;
+}
+
+html[data-theme="glass"] .all-done-overlay{
+  background:rgba(10,22,30,.56)!important;
+}
+html[data-theme="glass"] .all-done-overlay > div{
+  background:
+    linear-gradient(145deg,rgba(43,66,78,.88),rgba(73,105,121,.80))!important;
+  border-color:rgba(255,255,255,.64)!important;
+}
+
+/* Shared ambient sliders */
+#effectSizeControl,
+#effectDensityControl{
+  display:block;
+}
