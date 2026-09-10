@@ -12,6 +12,8 @@ const HOLIDAY_KEY='deadline-garden-holidays-v1';
 const CHECKLIST_COLLAPSE_KEY='deadline-garden-checklist-collapsed-v1';
 const COURSE_HISTORY_KEY='deadline-garden-course-history-v1';
 let customize={flowerSize:'medium',flowerOpacity:'medium',rainDropSize:50,rainDensity:50,effectSize:50,effectDensity:50,confetti:'medium',checklistColor:'postit',checklistShape:'postit',todoCount:'today'};
+const EVENT_PROMPT_SNOOZE_KEY='deadline-garden-event-prompt-snooze-v1';
+let eventCompletionPromptOpen=false;
 let holidays=[];
 try{Object.assign(customize,JSON.parse(localStorage.getItem(CUSTOMIZE_KEY)||'{}')||{})}catch{}
 if(customize.effectSize==null)customize.effectSize=Number(customize.rainDropSize??50);
@@ -143,15 +145,22 @@ function dueMs(t){if(!t.date)return Infinity;return new Date(`${t.date}T${isDura
 function sortMs(t){return isDurationEvent(t)?eventStartMs(t):dueMs(t)}
 function visualUrgency(t){
   if(t.done)return 0;
-  if(!isDurationEvent(t))return urgency(t);
-  const diff=eventStartMs(t)-Date.now();
-  if(diff<0)return 0;
-  if(diff<=15*60e3)return 5;
-  if(diff<=2*3600e3)return 4;
-  if(diff<=24*3600e3)return 3;
-  if(diff<=3*86400e3)return 2;
-  if(diff<=7*86400e3)return 1;
-  return 0;
+
+  if(isDurationEvent(t)){
+    const diff=eventStartMs(t)-Date.now();
+    if(diff<=0)return 0;                 // ended/started events stay out of "past due"
+    if(diff<=15*60e3)return 5;           // red
+    if(diff<=2*3600e3)return 4;          // orange
+    return 0;                            // default blue
+  }
+
+  const diff=dueMs(t)-Date.now();
+  if(diff<0)return 5;                    // overdue deadline = red
+  if(diff<=2*3600e3)return 5;            // red
+  if(diff<=24*3600e3)return 4;           // orange
+  if(diff<=3*86400e3)return 3;           // yellow
+  if(diff<=7*86400e3)return 2;           // green
+  return 0;                              // normal
 }
 function urgency(t){if(t.done||isDurationEvent(t))return 0;const diff=dueMs(t)-Date.now();if(diff<0||diff<=15*60e3)return 5;if(diff<=2*3600e3)return 4;if(diff<=24*3600e3)return 3;if(diff<=3*86400e3)return 2;if(diff<=7*86400e3)return 1;return 0}
 function formatDue(t){const date=new Date(`${t.date}T12:00:00`).toLocaleDateString(undefined,{month:'short',day:'numeric'});if(isDurationEvent(t)){const s=t.startTime?new Date(`${t.date}T${t.startTime}:00`).toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'}):'Start';const e=t.endTime?new Date(`${t.date}T${t.endTime}:00`).toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'}):'End';return `${date} · ${s}–${e}`}return `${date}${t.time?` · ${new Date(`${t.date}T${t.time}:00`).toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'})}`:' · No specific time'}`}
@@ -183,6 +192,7 @@ function renderHeader(){
   if(!next){$('#nextTitle').textContent='Nothing due soon';$('#nextMeta').textContent='Your deadline calendar is clear.';return}
   $('#nextTitle').textContent=`${next.course?next.course+' · ':''}${next.title}`;$('#nextMeta').textContent=formatDue(next);
   const diff=dueMs(next)-Date.now();if(diff<=2*3600e3){ce.textContent=countdown(diff);ce.dataset.finishTask=next.id;ce.classList.add('clickable-countdown')}
+  setTimeout(maybePromptEndedEvent,180);
 }
 
 function calendarChipContent(t){
@@ -348,15 +358,67 @@ function renderQuickTodo(){
   document.querySelectorAll('[data-quick-delete]').forEach(b=>b.onclick=()=>deleteQuickTodo(b.dataset.quickDelete));
 }
 
+
+function getEventPromptSnoozes(){
+  try{return JSON.parse(localStorage.getItem(EVENT_PROMPT_SNOOZE_KEY)||'{}')||{}}catch{return {}}
+}
+function setEventPromptSnooze(id,until){
+  const s=getEventPromptSnoozes();s[id]=until;
+  try{localStorage.setItem(EVENT_PROMPT_SNOOZE_KEY,JSON.stringify(s))}catch{}
+}
+function clearEventPromptSnooze(id){
+  const s=getEventPromptSnoozes();delete s[id];
+  try{localStorage.setItem(EVENT_PROMPT_SNOOZE_KEY,JSON.stringify(s))}catch{}
+}
+function endedUnfinishedEvents(){
+  const now=Date.now(),snoozes=getEventPromptSnoozes();
+  return deadlineTasks()
+    .filter(t=>isDurationEvent(t)&&!t.done&&t.date&&t.endTime)
+    .filter(t=>new Date(`${t.date}T${t.endTime}:00`).getTime()<=now)
+    .filter(t=>!snoozes[t.id]||Number(snoozes[t.id])<=now)
+    .sort((a,b)=>new Date(`${a.date}T${a.endTime}:00`)-new Date(`${b.date}T${b.endTime}:00`));
+}
+function maybePromptEndedEvent(){
+  if(eventCompletionPromptOpen)return;
+  if(!$('#modalRoot')?.classList.contains('hidden'))return;
+  const t=endedUnfinishedEvents()[0];if(!t)return;
+
+  eventCompletionPromptOpen=true;
+  const start=t.startTime?new Date(`${t.date}T${t.startTime}:00`).toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'}):'';
+  const end=t.endTime?new Date(`${t.date}T${t.endTime}:00`).toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'}):'';
+  showModal(`
+    <div class="section-label">EVENT CHECK-IN</div>
+    <h3>${escapeHtml(t.title||'This event')}</h3>
+    <div class="event-finished-question">Did you finish this event?</div>
+    <div class="next-meta">${escapeHtml([t.course,start&&end?`${start}–${end}`:''].filter(Boolean).join(' · '))}</div>
+    <div class="modal-actions event-finished-actions">
+      <button id="eventLater" class="soft-btn">Ask me later</button>
+      <button id="eventDone" class="primary-btn">Yes, completed</button>
+    </div>
+  `);
+
+  $('#eventDone').onclick=async()=>{
+    clearEventPromptSnooze(t.id);
+    await idbPut({...t,done:true,updatedAt:Date.now()});
+    eventCompletionPromptOpen=false;
+    closeModal();
+    await refresh();
+    toast('Event marked as completed.');
+  };
+  $('#eventLater').onclick=()=>{
+    setEventPromptSnooze(t.id,Date.now()+60*60e3);
+    eventCompletionPromptOpen=false;
+    closeModal();
+  };
+}
+
 function renderWarnings(){
   const active=actualDueTasks().filter(t=>!t.done).sort((a,b)=>dueMs(a)-dueMs(b))[0],wb=$('#warningBackdrop');
   wb.className='warning-backdrop';
-  document.body.classList.remove('urgent-global','urgent-global-critical','glass-urgency-1','glass-urgency-2','glass-urgency-3','glass-urgency-4','glass-urgency-5');
+  document.body.classList.remove('urgent-global','urgent-global-critical');
   $('#warningKicker').textContent='';$('#warningText').textContent='';
   if(!active)return;
   const diff=dueMs(active)-Date.now();
-  const glassLevel=urgency(active);
-  if(glassLevel>0)document.body.classList.add(`glass-urgency-${glassLevel}`);
   if(diff>0&&diff<=30*60e3){
     const level=diff<=15*60e3?2:1;
     wb.classList.add(`level${level}`);
@@ -377,6 +439,7 @@ function showModal(html){
   card.innerHTML=html;root.classList.remove('hidden');requestAnimationFrame(()=>root.classList.add('visible'))
 }
 function closeModal(){
+  eventCompletionPromptOpen=false;
   const root=$('#modalRoot');if(!root)return;root.classList.remove('visible');
   if(modalCloseTimer)clearTimeout(modalCloseTimer);
   modalCloseTimer=setTimeout(()=>{root.classList.add('hidden');modalCloseTimer=null},190)
@@ -1260,6 +1323,6 @@ try{const savedChecklistState=localStorage.getItem(CHECKLIST_COLLAPSE_KEY);setCh
     console.error('Task database initialization failed:',err);
     toast('Could not load tasks. Your saved data has not been cleared.');
   }
-  setInterval(()=>{try{renderHeader();renderTodo();renderWarnings()}catch{}},1000);
+  setInterval(()=>{try{renderHeader();renderTodo();renderWarnings();maybePromptEndedEvent()}catch{}},1000);
   if('serviceWorker'in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{})
 })();

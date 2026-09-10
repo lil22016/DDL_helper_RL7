@@ -1664,3 +1664,84 @@ html[data-theme="glass"] .event-chip.urgent2:not(.duration-event){border-left-co
 html[data-theme="glass"] .event-chip.urgent3:not(.duration-event){border-left-color:#f08757!important;background:linear-gradient(135deg,rgba(218,126,73,.42),rgba(98,77,79,.32))!important}
 html[data-theme="glass"] .event-chip.urgent4:not(.duration-event){border-left-color:#ef6b68!important;background:linear-gradient(135deg,rgba(204,83,79,.48),rgba(92,65,74,.36))!important}
 html[data-theme="glass"] .event-chip.urgent5:not(.duration-event){border-left-color:#ff626b!important;background:linear-gradient(135deg,rgba(179,55,64,.58),rgba(82,55,66,.42))!important}
+
+
+/* v16.6.5 — urgency belongs to cards, not the whole Glass background. */
+html[data-theme="glass"] body[class*="glass-urgency-"]::before{
+  content:none!important;
+  display:none!important;
+}
+html[data-theme="glass"] body[class*="glass-urgency-"] .panel,
+html[data-theme="glass"] body[class*="glass-urgency-"] .calendar-shell,
+html[data-theme="glass"] body[class*="glass-urgency-"] .todo-panel,
+html[data-theme="glass"] body[class*="glass-urgency-"] .hero,
+html[data-theme="glass"] body[class*="glass-urgency-"] .quick-note{
+  border-color:rgba(255,255,255,.40)!important;
+}
+
+/* Due date cards: normal -> green -> yellow -> orange -> red */
+.event-chip:not(.duration-event).urgent0,
+.daily-task-card:not(.duration-event).urgent0{
+  background:var(--task-bg,rgba(255,255,255,.12))!important;
+}
+.event-chip:not(.duration-event).urgent2,
+.daily-task-card:not(.duration-event).urgent2{
+  background:linear-gradient(135deg,rgba(67,157,103,.40),rgba(55,109,84,.28))!important;
+  border-left-color:#5fca83!important;
+  border-color:rgba(111,211,146,.62)!important;
+}
+.event-chip:not(.duration-event).urgent3,
+.daily-task-card:not(.duration-event).urgent3{
+  background:linear-gradient(135deg,rgba(194,175,68,.46),rgba(129,116,60,.30))!important;
+  border-left-color:#e0c94f!important;
+  border-color:rgba(235,215,105,.68)!important;
+}
+.event-chip:not(.duration-event).urgent4,
+.daily-task-card:not(.duration-event).urgent4{
+  background:linear-gradient(135deg,rgba(218,132,56,.52),rgba(145,91,54,.34))!important;
+  border-left-color:#f09245!important;
+  border-color:rgba(247,166,83,.74)!important;
+}
+.event-chip:not(.duration-event).urgent5,
+.daily-task-card:not(.duration-event).urgent5{
+  background:linear-gradient(135deg,rgba(194,65,69,.58),rgba(117,53,61,.42))!important;
+  border-left-color:#ef5f64!important;
+  border-color:rgba(247,112,116,.82)!important;
+}
+
+/* Time block/event: default blue, near start orange, very near red. */
+.event-chip.duration-event,
+.daily-task-card.duration-event,
+.event-chip.duration-event.urgent0,
+.daily-task-card.duration-event.urgent0{
+  background:linear-gradient(135deg,rgba(76,151,191,.46),rgba(57,101,128,.34))!important;
+  border:1px solid rgba(150,216,248,.70)!important;
+  border-left:6px solid #8fd8ff!important;
+}
+.event-chip.duration-event.urgent4,
+.daily-task-card.duration-event.urgent4{
+  background:linear-gradient(135deg,rgba(219,126,54,.56),rgba(145,85,51,.38))!important;
+  border-color:rgba(255,169,85,.80)!important;
+  border-left-color:#f09545!important;
+}
+.event-chip.duration-event.urgent5,
+.daily-task-card.duration-event.urgent5{
+  background:linear-gradient(135deg,rgba(190,61,68,.62),rgba(110,49,59,.46))!important;
+  border-color:rgba(255,111,118,.86)!important;
+  border-left-color:#ff626b!important;
+}
+
+/* Event completion check-in */
+.event-finished-question{
+  margin:18px 0 8px;
+  font-size:18px;
+  font-weight:900;
+  color:var(--text);
+}
+html[data-theme="glass"] .event-finished-question{
+  color:#fff!important;
+  text-shadow:0 2px 4px rgba(0,0,0,.55)!important;
+}
+.event-finished-actions{
+  margin-top:20px!important;
+}
