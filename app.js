@@ -436,11 +436,17 @@ function renderWarnings(){
 function showModal(html){
   if(modalCloseTimer){clearTimeout(modalCloseTimer);modalCloseTimer=null}
   const root=$('#modalRoot'),card=$('#modalCard');if(!root||!card)return;
-  card.innerHTML=html;root.classList.remove('hidden');requestAnimationFrame(()=>root.classList.add('visible'))
+  card.innerHTML=html;
+  root.scrollTop=0;
+  root.classList.remove('hidden');
+  document.body.classList.add('modal-open');
+  requestAnimationFrame(()=>root.classList.add('visible'))
 }
 function closeModal(){
   eventCompletionPromptOpen=false;
-  const root=$('#modalRoot');if(!root)return;root.classList.remove('visible');
+  const root=$('#modalRoot');if(!root)return;
+  document.body.classList.remove('modal-open');
+  root.classList.remove('visible');
   if(modalCloseTimer)clearTimeout(modalCloseTimer);
   modalCloseTimer=setTimeout(()=>{root.classList.add('hidden');modalCloseTimer=null},190)
 }
@@ -575,7 +581,6 @@ function bindCourseAutocomplete(){
     if(!matches.length){list.classList.add('hidden');list.innerHTML='';return}
     list.innerHTML=matches.map(c=>`<button type="button" data-course-suggestion="${escapeHtml(c)}">${escapeHtml(c)}</button>`).join('');
     list.classList.remove('hidden');
-    input.closest('.course-autocomplete-field')?.classList.add('suggestions-open');
     list.querySelectorAll('[data-course-suggestion]').forEach(b=>b.onclick=()=>{input.value=b.dataset.courseSuggestion;list.classList.add('hidden');input.focus()});
   };
   input.addEventListener('input',render);input.addEventListener('focus',render);input.addEventListener('blur',()=>setTimeout(()=>list.classList.add('hidden'),130));
