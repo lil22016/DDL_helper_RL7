@@ -10,6 +10,9 @@ const CAL_VIEW_KEY='deadline-garden-calendar-view-v1';
 const CUSTOMIZE_KEY='deadline-garden-customize-v1';
 const HOLIDAY_KEY='deadline-garden-holidays-v1';
 const CHECKLIST_COLLAPSE_KEY='deadline-garden-checklist-collapsed-v1';
+const BACKGROUND_PROTECTION_KEY='deadline-garden-background-protection-v1';
+let backgroundKeepAlive=null;
+let backgroundKeepAlivePlaying=false;
 const COURSE_HISTORY_KEY='deadline-garden-course-history-v1';
 let customize={flowerSize:'medium',flowerOpacity:'medium',rainDropSize:50,rainDensity:50,effectSize:50,effectDensity:50,confetti:'medium',checklistColor:'postit',checklistShape:'postit',todoCount:'today',mobileLayout:'auto'};
 const EVENT_PROMPT_SNOOZE_KEY='deadline-garden-event-prompt-snooze-v1';
@@ -1302,6 +1305,90 @@ function initTheme(){
 const mobileLayoutMedia=window.matchMedia('(max-width: 700px)');
 try{mobileLayoutMedia.addEventListener('change',()=>{if((customize.mobileLayout||'auto')==='auto')applyCustomize()})}catch{}
 
+
+function setBackgroundProtectionButton(state,error=''){
+  const btn=$('#backgroundProtectionBtn');if(!btn)return;
+  btn.dataset.state=state;
+  if(state==='on')btn.textContent='Background protection: On';
+  else if(state==='starting')btn.textContent='Background protection: Starting…';
+  else if(state==='resume')btn.textContent='Background protection: Tap to resume';
+  else if(state==='unavailable')btn.textContent='Background protection: Unavailable';
+  else btn.textContent='Background protection: Off';
+  btn.title=error||'';
+}
+
+function backgroundProtectionWanted(){
+  try{return localStorage.getItem(BACKGROUND_PROTECTION_KEY)==='1'}catch{return false}
+}
+function saveBackgroundProtectionWanted(on){
+  try{localStorage.setItem(BACKGROUND_PROTECTION_KEY,on?'1':'0')}catch{}
+}
+
+async function requestBackgroundProtection(){
+  if(!backgroundKeepAlive){
+    setBackgroundProtectionButton('unavailable','Background keepalive module was not loaded.');
+    return false;
+  }
+  saveBackgroundProtectionWanted(true);
+  setBackgroundProtectionButton('starting');
+  const ok=await backgroundKeepAlive.enable();
+  if(ok){
+    backgroundKeepAlivePlaying=true;
+    setBackgroundProtectionButton('on');
+  }else{
+    backgroundKeepAlivePlaying=false;
+    setBackgroundProtectionButton('resume');
+  }
+  return !!ok;
+}
+
+function stopBackgroundProtection(){
+  saveBackgroundProtectionWanted(false);
+  backgroundKeepAlivePlaying=false;
+  try{backgroundKeepAlive?.disable()}catch{}
+  setBackgroundProtectionButton('off');
+}
+
+function initBackgroundProtection(){
+  const btn=$('#backgroundProtectionBtn');if(!btn)return;
+
+  if(typeof window.createBackgroundKeepAlive!=='function'){
+    setBackgroundProtectionButton('unavailable','background-keepalive.js could not be loaded.');
+    btn.disabled=true;
+    return;
+  }
+
+  backgroundKeepAlive=window.createBackgroundKeepAlive({
+    title:'Deadline Garden',
+    artist:'Background protection',
+    onStatus:state=>{
+      backgroundKeepAlivePlaying=!!state.playing;
+      if(!backgroundProtectionWanted()){
+        setBackgroundProtectionButton('off');
+        return;
+      }
+      if(state.playing)setBackgroundProtectionButton('on');
+      else setBackgroundProtectionButton('resume',state.error||'');
+    }
+  });
+
+  btn.onclick=async e=>{
+    e.stopPropagation();
+    if(backgroundProtectionWanted()&&backgroundKeepAlivePlaying){
+      stopBackgroundProtection();
+    }else{
+      await requestBackgroundProtection();
+    }
+  };
+
+  if(backgroundProtectionWanted()){
+    setBackgroundProtectionButton('starting');
+    setTimeout(()=>requestBackgroundProtection(),0);
+  }else{
+    setBackgroundProtectionButton('off');
+  }
+}
+
 function renderAmbientEffect(){
   const root=$('#petalRain');if(!root)return;
   root.innerHTML='';
@@ -1401,6 +1488,7 @@ try{const savedChecklistState=localStorage.getItem(CHECKLIST_COLLAPSE_KEY);setCh
 
 (async()=>{
   try{initTheme()}catch(err){console.error('Theme initialization failed:',err)}
+  try{initBackgroundProtection()}catch(err){console.error('Background protection initialization failed:',err)}
   try{initPetalRain()}catch(err){console.error('Ambient effect initialization failed:',err)}
   try{
     await openDB();

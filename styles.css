@@ -2151,3 +2151,57 @@ body.mobile-layout .calendar-card{
   min-width:0!important;
   max-width:100%!important;
 }
+
+
+/* v16.8 — Background protection */
+.background-protection-btn{
+  width:100%;
+  min-height:42px;
+  border:1px solid var(--border);
+  border-radius:13px;
+  padding:10px 12px;
+  font:inherit;
+  font-weight:850;
+  cursor:pointer;
+  background:rgba(0,0,0,.05);
+  color:var(--text);
+  transition:background .18s ease,border-color .18s ease,transform .18s ease;
+}
+.background-protection-btn[data-state="on"]{
+  background:var(--accent);
+  color:#fff;
+  border-color:transparent;
+}
+.background-protection-btn[data-state="starting"],
+.background-protection-btn[data-state="resume"]{
+  background:var(--accent-pale);
+  color:var(--text);
+  border-color:color-mix(in srgb,var(--accent) 45%,var(--border));
+}
+.background-protection-btn[data-state="unavailable"]{
+  opacity:.55;
+  cursor:not-allowed;
+}
+.background-protection-help{
+  margin-top:7px;
+  font-size:10.5px;
+  line-height:1.35;
+  color:var(--muted);
+}
+html[data-theme="glass"] .background-protection-btn{
+  background:rgba(225,240,248,.10);
+  color:#fff;
+  border-color:rgba(255,255,255,.24);
+}
+html[data-theme="glass"] .background-protection-btn[data-state="on"]{
+  background:rgba(174,216,238,.30);
+  border-color:rgba(222,243,253,.62);
+}
+html[data-theme="glass"] .background-protection-btn[data-state="resume"],
+html[data-theme="glass"] .background-protection-btn[data-state="starting"]{
+  background:rgba(220,235,244,.16);
+  border-color:rgba(255,255,255,.40);
+}
+html[data-theme="glass"] .background-protection-help{
+  color:#d8e6ee!important;
+}

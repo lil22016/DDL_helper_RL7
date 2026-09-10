@@ -6,6 +6,10 @@
   <meta name="theme-color" content="#dfeadf" />
   <title>Deadline Garden</title>
   <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" href="./favicon.ico" sizes="any" />
+  <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="Deadline Garden" />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
@@ -49,6 +53,11 @@
   <div class="theme-menu-title">Layout</div>
   <button id="mobileLayoutBtn" class="mobile-layout-btn" type="button">Mobile layout: Auto</button>
   <div class="mobile-layout-help">Auto uses the phone layout on narrow screens. Tap to switch Auto → On → Off.</div>
+</div>
+<div class="wardrobe-section background-protection-setting">
+  <div class="theme-menu-title">Background</div>
+  <button id="backgroundProtectionBtn" class="background-protection-btn" type="button" data-state="off">Background protection: Off</button>
+  <div class="background-protection-help">Best-effort keepalive for timers and event checks. If iOS blocks auto-resume, tap again.</div>
 </div>
 <div class="wardrobe-section"><div class="theme-menu-title">Confetti</div><div class="mini-options"><button data-customize-key="confetti" data-customize-value="low">Low</button><button data-customize-key="confetti" data-customize-value="medium">Medium</button><button data-customize-key="confetti" data-customize-value="high">High</button></div></div>
             <div class="wardrobe-section"><div class="theme-menu-title">Checklist color</div><div class="mini-options"><button data-customize-key="checklistColor" data-customize-value="postit">Post-it</button><button data-customize-key="checklistColor" data-customize-value="white">White</button><button data-customize-key="checklistColor" data-customize-value="theme">Theme</button></div></div>
@@ -163,6 +172,7 @@
   <div id="toast" class="toast"></div>
   <canvas id="confettiCanvas"></canvas>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="./background-keepalive.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
