@@ -36,6 +36,13 @@ const SUPABASE_ANON_KEY='sb_publishable_aNka9UBED7hc5JF-Ugw4KA_E5saENef';
 let supabaseClient=null,currentCloudUser=null,cloudApplying=false,cloudSyncTimer=null,authMode='signin';
 const REMEMBER_LOGIN_KEY='deadline-garden-remember-login-v1';
 
+function authNotice(message,type='info'){
+  let n=$('#authNotice');
+  if(!n){n=document.createElement('div');n.id='authNotice';n.className='auth-notice';document.body.appendChild(n)}
+  n.textContent=message;n.dataset.type=type;n.classList.remove('show');
+  requestAnimationFrame(()=>requestAnimationFrame(()=>n.classList.add('show')));
+  clearTimeout(authNotice._timer);authNotice._timer=setTimeout(()=>n.classList.remove('show'),5200);
+}
 function supabaseConfigured(){return !SUPABASE_URL.startsWith('PASTE_')&&!SUPABASE_ANON_KEY.startsWith('PASTE_')}
 function createSupabaseClient(remember=true){
   if(!supabaseConfigured()||!window.supabase)return null;
@@ -205,7 +212,7 @@ function weekStartFor(date){
 
 function renderCalendar(){
   const all=deadlineTasks(),grid=$('#calendarGrid'),weekdays=$('.weekday-row');grid.className='calendar-grid';weekdays.classList.remove('hidden');document.querySelectorAll('[data-cal-view]').forEach(b=>b.classList.toggle('active',b.dataset.calView===calendarView));
-  const chip=(t,extra='')=>`<button class="event-chip ${extra} size-${t.calendarSize||'medium'} ${t.done?'done':''} urgent${urgency(t)}" data-id="${t.id}" title="${escapeHtml([t.course,t.title,formatDue(t),t.notes].filter(Boolean).join(' · '))}">${calendarChipHtml(t)}</button>`;
+  const chip=(t,extra='')=>`<button class="event-chip ${extra} ${isDurationEvent(t)?'duration-event':''} size-${t.calendarSize||'medium'} ${t.done?'done':''} urgent${urgency(t)}" data-id="${t.id}" title="${escapeHtml([t.course,t.title,formatDue(t),t.notes].filter(Boolean).join(' · '))}">${calendarChipHtml(t)}</button>`;
   const holidayTag=h=>h?`<button class="holiday-mini holiday-edit-tag" data-holiday-id="${h.id}" title="Edit holiday">✦ ${escapeHtml(h.name||'Holiday')}</button>`:'';
   if(calendarView==='month'){
     const y=currentMonth.getFullYear(),m=currentMonth.getMonth();$('#monthLabel').textContent=currentMonth.toLocaleDateString(undefined,{month:'long',year:'numeric'});const first=new Date(y,m,1),offset=(first.getDay()+6)%7,start=new Date(y,m,1-offset);let html='';
@@ -216,7 +223,7 @@ function renderCalendar(){
     for(let i=0;i<7;i++){const d=addDays(start,i),ds=fmtDateInput(d),dayTasks=all.filter(t=>t.date===ds),today=ds===fmtDateInput(new Date()),holiday=holidayForDate(ds);html+=`<div class="week-day ${today?'today':''} ${holiday?'holiday-day':''}" data-date="${ds}"><div class="week-date"><strong>${d.getDate()}</strong><span>${d.toLocaleDateString(undefined,{month:'short'})}</span>${holidayTag(holiday)}</div><div class="week-events">${dayTasks.length?dayTasks.map(t=>chip(t,'week-event')).join(''):'<div class="calendar-empty">No tasks</div>'}</div></div>`}
     grid.innerHTML=html;
   }else{
-    weekdays.classList.add('hidden');const d=new Date(currentMonth.getFullYear(),currentMonth.getMonth(),currentMonth.getDate()),ds=fmtDateInput(d),dayTasks=all.filter(t=>t.date===ds),holiday=holidayForDate(ds);$('#monthLabel').textContent=d.toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric',year:'numeric'});grid.classList.add('calendar-grid-day');grid.innerHTML=`<div class="daily-view ${holiday?'holiday-day':''}" data-date="${ds}"><div class="daily-date"><div>${d.toLocaleDateString(undefined,{weekday:'long'})}</div><strong>${d.getDate()}</strong><span>${d.toLocaleDateString(undefined,{month:'long',year:'numeric'})}</span>${holidayTag(holiday)}</div><div class="daily-events">${dayTasks.length?dayTasks.map(t=>`<button class="daily-task-card size-${t.calendarSize||'medium'} ${t.done?'done':''} urgent${urgency(t)}" data-id="${t.id}"><span class="daily-task-time">${t.time?new Date(`${t.date}T${t.time}:00`).toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'}):'Any time'}</span><span class="daily-task-main">${calendarChipHtml(t)}</span></button>`).join(''):'<div class="daily-empty">Nothing scheduled for this day.<button class="soft-btn small" id="dailyAdd">+ Add task</button></div>'}</div></div>`;if($('#dailyAdd'))$('#dailyAdd').onclick=e=>{e.stopPropagation();openTaskModal(null,ds)};
+    weekdays.classList.add('hidden');const d=new Date(currentMonth.getFullYear(),currentMonth.getMonth(),currentMonth.getDate()),ds=fmtDateInput(d),dayTasks=all.filter(t=>t.date===ds),holiday=holidayForDate(ds);$('#monthLabel').textContent=d.toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric',year:'numeric'});grid.classList.add('calendar-grid-day');grid.innerHTML=`<div class="daily-view ${holiday?'holiday-day':''}" data-date="${ds}"><div class="daily-date"><div>${d.toLocaleDateString(undefined,{weekday:'long'})}</div><strong>${d.getDate()}</strong><span>${d.toLocaleDateString(undefined,{month:'long',year:'numeric'})}</span>${holidayTag(holiday)}</div><div class="daily-events">${dayTasks.length?dayTasks.map(t=>`<button class="daily-task-card ${isDurationEvent(t)?'duration-event':''} size-${t.calendarSize||'medium'} ${t.done?'done':''} urgent${urgency(t)}" data-id="${t.id}"><span class="daily-task-time">${isDurationEvent(t)?`${new Date(`${t.date}T${t.startTime}:00`).toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'})}${t.endTime?`–${new Date(`${t.date}T${t.endTime}:00`).toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'})}`:''}`:(t.time?new Date(`${t.date}T${t.time}:00`).toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'}):'Any time')}</span><span class="daily-task-main">${calendarChipHtml(t)}</span></button>`).join(''):'<div class="daily-empty">Nothing scheduled for this day.<button class="soft-btn small" id="dailyAdd">+ Add task</button></div>'}</div></div>`;if($('#dailyAdd'))$('#dailyAdd').onclick=e=>{e.stopPropagation();openTaskModal(null,ds)};
   }
   document.querySelectorAll('.event-chip,[data-id].daily-task-card').forEach(el=>el.onclick=e=>{e.stopPropagation();openTaskDetails(tasks.find(t=>t.id===el.dataset.id))});
   document.querySelectorAll('[data-holiday-id]').forEach(el=>el.onclick=e=>{e.stopPropagation();openHolidayModal(holidays.find(h=>h.id===el.dataset.holidayId))});
