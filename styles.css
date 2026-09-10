@@ -1883,7 +1883,7 @@ body.modal-open{
 
 /* v16.6.7 — independent account tab + whole garden clearance */
 .garden-frame{
-  margin-top:82px!important;
+  margin-top:42px!important;
 }
 #accountBtn{
   position:fixed!important;
@@ -1901,7 +1901,7 @@ body.modal-open{
   padding-right:initial!important;
 }
 @media(max-width:700px){
-  .garden-frame{margin-top:68px!important}
+  .garden-frame{margin-top:34px!important}
   #accountBtn{
     top:max(10px,env(safe-area-inset-top))!important;
     right:max(10px,env(safe-area-inset-right))!important;
@@ -1952,4 +1952,17 @@ body.modal-open{
 .course-suggestion-portal button:focus{
   background:#405966!important;
   outline:none!important;
+}
+
+
+/* v16.6.8 — tighter account clearance */
+#accountBtn{
+  top:max(12px,env(safe-area-inset-top))!important;
+  right:max(18px,env(safe-area-inset-right))!important;
+}
+@media(max-width:700px){
+  #accountBtn{
+    top:max(8px,env(safe-area-inset-top))!important;
+    right:max(8px,env(safe-area-inset-right))!important;
+  }
 }
