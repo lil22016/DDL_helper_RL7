@@ -11,7 +11,7 @@ const CUSTOMIZE_KEY='deadline-garden-customize-v1';
 const HOLIDAY_KEY='deadline-garden-holidays-v1';
 const CHECKLIST_COLLAPSE_KEY='deadline-garden-checklist-collapsed-v1';
 const COURSE_HISTORY_KEY='deadline-garden-course-history-v1';
-let customize={flowerSize:'medium',flowerOpacity:'medium',rainDropSize:50,rainDensity:50,effectSize:50,effectDensity:50,confetti:'medium',checklistColor:'postit',checklistShape:'postit',todoCount:'today',mobileLayout:false};
+let customize={flowerSize:'medium',flowerOpacity:'medium',rainDropSize:50,rainDensity:50,effectSize:50,effectDensity:50,confetti:'medium',checklistColor:'postit',checklistShape:'postit',todoCount:'today',mobileLayout:'auto'};
 const EVENT_PROMPT_SNOOZE_KEY='deadline-garden-event-prompt-snooze-v1';
 let eventCompletionPromptOpen=false;
 let holidays=[];
@@ -1177,8 +1177,16 @@ function applyCustomize(){
   }
   renderHeader();
   renderAmbientEffect();
-  document.body.classList.toggle('mobile-layout',!!customize.mobileLayout);
-  const mobileToggle=$('#mobileLayoutToggle');if(mobileToggle)mobileToggle.checked=!!customize.mobileLayout;
+  const mobileMode=(customize.mobileLayout===true?'on':customize.mobileLayout===false?'off':(customize.mobileLayout||'auto'));
+  const autoPhone=window.matchMedia('(max-width: 700px)').matches;
+  const mobileEnabled=mobileMode==='on'||(mobileMode==='auto'&&autoPhone);
+  document.body.classList.toggle('mobile-layout',mobileEnabled);
+  document.body.dataset.mobileMode=mobileMode;
+  const mobileBtn=$('#mobileLayoutBtn');
+  if(mobileBtn){
+    mobileBtn.textContent=`Mobile layout: ${mobileMode==='auto'?'Auto':mobileMode==='on'?'On':'Off'}`;
+    mobileBtn.dataset.mode=mobileMode;
+  }
 }
 function setCustomizeField(key,value){
   customize[key]=value;
@@ -1271,15 +1279,17 @@ function initTheme(){
     };
   });
 
-  const mobileToggle=$('#mobileLayoutToggle');
-  if(mobileToggle){
-    mobileToggle.checked=!!customize.mobileLayout;
-    mobileToggle.onchange=e=>{
+  const mobileBtn=$('#mobileLayoutBtn');
+  if(mobileBtn){
+    mobileBtn.onclick=e=>{
       e.stopPropagation();
-      customize.mobileLayout=mobileToggle.checked;
-      saveCustomize();
+      const current=(customize.mobileLayout===true?'on':customize.mobileLayout===false?'off':(customize.mobileLayout||'auto'));
+      const next=current==='auto'?'on':current==='on'?'off':'auto';
+      customize.mobileLayout=next;
+      applyCustomize();      // immediate visual change first
+      try{localStorage.setItem(CUSTOMIZE_KEY,JSON.stringify(customize))}catch{}
+      queueCloudSync();      // save after UI has already changed
     };
-    mobileToggle.onclick=e=>e.stopPropagation();
   }
 
   document.addEventListener('click',e=>{
@@ -1288,6 +1298,9 @@ function initTheme(){
 
   updateWardrobeEffectLabels();
 }
+
+const mobileLayoutMedia=window.matchMedia('(max-width: 700px)');
+try{mobileLayoutMedia.addEventListener('change',()=>{if((customize.mobileLayout||'auto')==='auto')applyCustomize()})}catch{}
 
 function renderAmbientEffect(){
   const root=$('#petalRain');if(!root)return;

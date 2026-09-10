@@ -2087,3 +2087,67 @@ body.mobile-layout .modal-actions button{flex:1 1 120px!important}
   body.mobile-layout .garden-frame{margin-left:5px!important;margin-right:5px!important}
   body.mobile-layout .topbar{padding:12px!important}
 }
+
+/* v16.7 — explicit Mobile Layout mode button */
+.mobile-layout-btn{
+  width:100%;
+  min-height:42px;
+  border:1px solid var(--border);
+  border-radius:13px;
+  padding:10px 12px;
+  font:inherit;
+  font-weight:850;
+  cursor:pointer;
+  background:var(--accent-pale);
+  color:var(--text);
+}
+.mobile-layout-btn[data-mode="on"]{
+  background:var(--accent);
+  color:#fff;
+}
+.mobile-layout-btn[data-mode="off"]{
+  background:rgba(0,0,0,.05);
+}
+.mobile-layout-help{
+  margin-top:7px;
+  font-size:10.5px;
+  line-height:1.35;
+  color:var(--muted);
+}
+html[data-theme="glass"] .mobile-layout-btn{
+  background:rgba(225,240,248,.10);
+  color:#fff;
+  border-color:rgba(255,255,255,.24);
+}
+html[data-theme="glass"] .mobile-layout-btn[data-mode="on"]{
+  background:rgba(174,216,238,.30);
+  border-color:rgba(222,243,253,.62);
+}
+html[data-theme="glass"] .mobile-layout-help{color:#d8e6ee!important}
+
+/* Strong phone canvas reset when mobile-layout is active */
+body.mobile-layout{
+  width:100%!important;
+  min-width:0!important;
+  max-width:100%!important;
+  margin:0!important;
+  padding:0!important;
+  overflow-x:hidden!important;
+}
+body.mobile-layout .garden-frame{
+  position:relative!important;
+  left:auto!important;
+  right:auto!important;
+  transform:none!important;
+  width:calc(100% - 12px)!important;
+  max-width:calc(100% - 12px)!important;
+  min-width:0!important;
+  margin:54px 6px 20px!important;
+}
+body.mobile-layout .topbar,
+body.mobile-layout .page-shell,
+body.mobile-layout .hero-card,
+body.mobile-layout .calendar-card{
+  min-width:0!important;
+  max-width:100%!important;
+}
