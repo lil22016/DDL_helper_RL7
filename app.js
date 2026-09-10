@@ -446,6 +446,7 @@ function closeModal(){
   eventCompletionPromptOpen=false;
   const root=$('#modalRoot');if(!root)return;
   document.body.classList.remove('modal-open');
+  $('#courseSuggestionPortal')?.remove();
   root.classList.remove('visible');
   if(modalCloseTimer)clearTimeout(modalCloseTimer);
   modalCloseTimer=setTimeout(()=>{root.classList.add('hidden');modalCloseTimer=null},190)
@@ -573,17 +574,72 @@ function rememberCourse(course){
   try{localStorage.setItem(COURSE_HISTORY_KEY,JSON.stringify(values.slice(0,100)))}catch{}
 }
 function bindCourseAutocomplete(){
-  const input=$('#fCourse'),list=$('#courseSuggestions');if(!input||!list)return;
+  const input=$('#fCourse');if(!input)return;
+
+  $('#courseSuggestionPortal')?.remove();
+  const list=document.createElement('div');
+  list.id='courseSuggestionPortal';
+  list.className='course-suggestion-portal hidden';
+  document.body.appendChild(list);
+
+  const place=()=>{
+    if(!document.body.contains(input))return;
+    const r=input.getBoundingClientRect();
+    list.style.left=`${Math.max(10,r.left)}px`;
+    list.style.width=`${Math.max(180,r.width)}px`;
+
+    const roomBelow=window.innerHeight-r.bottom-18;
+    const roomAbove=r.top-18;
+    if(roomBelow<150&&roomAbove>roomBelow){
+      list.style.top='auto';
+      list.style.bottom=`${window.innerHeight-r.top+7}px`;
+      list.dataset.placement='above';
+    }else{
+      list.style.bottom='auto';
+      list.style.top=`${r.bottom+7}px`;
+      list.dataset.placement='below';
+    }
+  };
+
+  const hide=()=>{
+    list.classList.add('hidden');
+    list.innerHTML='';
+  };
+
   const render=()=>{
     const q=input.value.trim().toLowerCase();
-    if(!q){list.classList.add('hidden');list.innerHTML='';return}
-    const matches=getCourseSuggestions().filter(c=>c.toLowerCase().includes(q)).slice(0,8);
-    if(!matches.length){list.classList.add('hidden');list.innerHTML='';return}
-    list.innerHTML=matches.map(c=>`<button type="button" data-course-suggestion="${escapeHtml(c)}">${escapeHtml(c)}</button>`).join('');
+    const matches=getCourseSuggestions()
+      .filter(c=>!q||c.toLowerCase().includes(q))
+      .slice(0,8);
+
+    if(!q||!matches.length){hide();return}
+
+    list.innerHTML=matches.map(c=>
+      `<button type="button" data-course-suggestion="${escapeHtml(c)}">${escapeHtml(c)}</button>`
+    ).join('');
+
+    place();
     list.classList.remove('hidden');
-    list.querySelectorAll('[data-course-suggestion]').forEach(b=>b.onclick=()=>{input.value=b.dataset.courseSuggestion;list.classList.add('hidden');input.focus()});
+
+    list.querySelectorAll('[data-course-suggestion]').forEach(b=>{
+      b.onmousedown=e=>e.preventDefault();
+      b.onclick=()=>{
+        input.value=b.dataset.courseSuggestion;
+        hide();
+        input.focus();
+      };
+    });
   };
-  input.addEventListener('input',render);input.addEventListener('focus',render);input.addEventListener('blur',()=>setTimeout(()=>list.classList.add('hidden'),130));
+
+  input.addEventListener('input',render);
+  input.addEventListener('focus',render);
+  input.addEventListener('blur',()=>setTimeout(hide,120));
+
+  const reposition=()=>{
+    if(!list.classList.contains('hidden'))place();
+  };
+  $('#modalRoot')?.addEventListener('scroll',reposition,{passive:true});
+  window.addEventListener('resize',reposition,{passive:true});
 }
 
 function normalizedCourse(s){return (s||'').trim().toLowerCase()}
