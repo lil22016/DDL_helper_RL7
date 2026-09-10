@@ -11,7 +11,7 @@ const CUSTOMIZE_KEY='deadline-garden-customize-v1';
 const HOLIDAY_KEY='deadline-garden-holidays-v1';
 const CHECKLIST_COLLAPSE_KEY='deadline-garden-checklist-collapsed-v1';
 const COURSE_HISTORY_KEY='deadline-garden-course-history-v1';
-let customize={flowerSize:'medium',flowerOpacity:'medium',rainDropSize:50,rainDensity:50,effectSize:50,effectDensity:50,confetti:'medium',checklistColor:'postit',checklistShape:'postit',todoCount:'today'};
+let customize={flowerSize:'medium',flowerOpacity:'medium',rainDropSize:50,rainDensity:50,effectSize:50,effectDensity:50,confetti:'medium',checklistColor:'postit',checklistShape:'postit',todoCount:'today',mobileLayout:false};
 const EVENT_PROMPT_SNOOZE_KEY='deadline-garden-event-prompt-snooze-v1';
 let eventCompletionPromptOpen=false;
 let holidays=[];
@@ -1177,6 +1177,8 @@ function applyCustomize(){
   }
   renderHeader();
   renderAmbientEffect();
+  document.body.classList.toggle('mobile-layout',!!customize.mobileLayout);
+  const mobileToggle=$('#mobileLayoutToggle');if(mobileToggle)mobileToggle.checked=!!customize.mobileLayout;
 }
 function setCustomizeField(key,value){
   customize[key]=value;
@@ -1268,6 +1270,17 @@ function initTheme(){
       setCustomizeField(b.dataset.customizeKey,b.dataset.customizeValue);
     };
   });
+
+  const mobileToggle=$('#mobileLayoutToggle');
+  if(mobileToggle){
+    mobileToggle.checked=!!customize.mobileLayout;
+    mobileToggle.onchange=e=>{
+      e.stopPropagation();
+      customize.mobileLayout=mobileToggle.checked;
+      saveCustomize();
+    };
+    mobileToggle.onclick=e=>e.stopPropagation();
+  }
 
   document.addEventListener('click',e=>{
     if(!e.target.closest('.theme-wrap'))$('#themeMenu')?.classList.add('hidden');

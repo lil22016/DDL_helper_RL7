@@ -1966,3 +1966,124 @@ body.modal-open{
     right:max(8px,env(safe-area-inset-right))!important;
   }
 }
+
+/* v16.6.9 — manual Mobile Layout toggle */
+.wardrobe-check-row{display:flex;align-items:center;justify-content:space-between;gap:14px;width:100%;cursor:pointer}
+.wardrobe-check-row>span{display:grid;gap:2px;min-width:0}
+.wardrobe-check-row strong{font-size:13px}
+.wardrobe-check-row small{font-size:11px;color:var(--muted);line-height:1.25}
+.wardrobe-check-row input{flex:0 0 auto;width:19px;height:19px;accent-color:var(--accent)}
+html[data-theme="glass"] .wardrobe-check-row strong{color:#fff!important}
+html[data-theme="glass"] .wardrobe-check-row small{color:rgba(235,246,252,.76)!important}
+
+body.mobile-layout{overflow-x:hidden!important}
+body.mobile-layout .garden-frame{
+  width:auto!important;max-width:none!important;min-width:0!important;
+  margin:54px 8px 22px!important;padding:0!important;box-sizing:border-box!important
+}
+body.mobile-layout #accountBtn{
+  position:fixed!important;top:max(8px,env(safe-area-inset-top))!important;
+  right:max(9px,env(safe-area-inset-right))!important;max-width:145px!important;
+  min-width:96px!important;padding:9px 13px!important;font-size:14px!important;z-index:7600!important
+}
+body.mobile-layout .topbar{
+  width:100%!important;min-width:0!important;box-sizing:border-box!important;
+  padding:14px!important;display:grid!important;grid-template-columns:1fr!important;gap:13px!important
+}
+body.mobile-layout .brand-row{width:100%!important;min-width:0!important}
+body.mobile-layout #todayHeading{font-size:clamp(27px,8vw,38px)!important;line-height:1.02!important;overflow-wrap:anywhere!important}
+body.mobile-layout .summary-line{font-size:13px!important}
+body.mobile-layout .top-actions{
+  width:100%!important;min-width:0!important;display:grid!important;
+  grid-template-columns:1fr 1fr!important;gap:8px!important
+}
+body.mobile-layout .top-actions>button{
+  width:100%!important;min-width:0!important;margin:0!important;padding:11px 8px!important;
+  font-size:14px!important;white-space:normal!important;line-height:1.15!important
+}
+body.mobile-layout .top-actions #todoToggle{justify-content:center!important}
+
+body.mobile-layout .page-shell{width:100%!important;min-width:0!important;box-sizing:border-box!important;padding:0!important}
+body.mobile-layout .hero-card,
+body.mobile-layout .calendar-card,
+body.mobile-layout .todo-panel,
+body.mobile-layout .panel{width:100%!important;min-width:0!important;max-width:100%!important;box-sizing:border-box!important}
+body.mobile-layout .hero-card{padding:18px!important}
+body.mobile-layout .next-title{font-size:clamp(23px,7vw,34px)!important;overflow-wrap:anywhere!important}
+
+body.mobile-layout .calendar-card{padding:13px 9px!important;overflow:hidden!important}
+body.mobile-layout .calendar-toolbar{
+  display:grid!important;grid-template-columns:1fr!important;gap:11px!important
+}
+body.mobile-layout .month-nav{width:100%!important;justify-content:space-between!important}
+body.mobile-layout #monthLabel{font-size:21px!important;text-align:center!important;min-width:0!important}
+body.mobile-layout .calendar-controls,
+body.mobile-layout .calendar-toolbar>div:last-child{
+  display:flex!important;flex-wrap:wrap!important;justify-content:center!important;gap:6px!important
+}
+body.mobile-layout .calendar-toolbar button{min-height:39px!important;font-size:13px!important}
+
+body.mobile-layout .calendar-grid:not(.calendar-grid-week):not(.calendar-grid-day){
+  width:100%!important;min-width:0!important;grid-template-columns:repeat(7,minmax(0,1fr))!important
+}
+body.mobile-layout .weekday-row{
+  width:100%!important;min-width:0!important;grid-template-columns:repeat(7,minmax(0,1fr))!important;font-size:10px!important
+}
+body.mobile-layout .day-cell{min-width:0!important;padding:5px 3px!important}
+body.mobile-layout .day-number{font-size:11px!important}
+body.mobile-layout .event-chip{
+  min-width:0!important;width:100%!important;padding:5px 4px!important;border-left-width:4px!important;
+  border-radius:9px!important;font-size:9px!important;line-height:1.08!important
+}
+body.mobile-layout .event-main-line,
+body.mobile-layout .event-meta-line,
+body.mobile-layout .event-desc-line{min-width:0!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important}
+body.mobile-layout .event-main-line{display:block!important}
+body.mobile-layout .event-meta-line,
+body.mobile-layout .event-desc-line{display:block!important;font-size:8px!important}
+
+body.mobile-layout .calendar-grid-week{
+  display:grid!important;grid-template-columns:1fr!important;width:100%!important;gap:8px!important
+}
+body.mobile-layout .week-day{
+  width:100%!important;min-width:0!important;box-sizing:border-box!important;padding:11px!important
+}
+body.mobile-layout .week-date{display:flex!important;align-items:baseline!important;gap:7px!important}
+body.mobile-layout .week-events{min-width:0!important}
+body.mobile-layout .week-event{width:100%!important;font-size:13px!important;padding:10px!important}
+
+body.mobile-layout .calendar-grid-day,
+body.mobile-layout .daily-view{width:100%!important;min-width:0!important}
+body.mobile-layout .daily-view{grid-template-columns:1fr!important}
+body.mobile-layout .daily-task-card{width:100%!important;min-width:0!important}
+
+body.mobile-layout .quick-bubble{
+  position:fixed!important;left:9px!important;bottom:max(12px,env(safe-area-inset-bottom))!important;
+  transform:scale(.82)!important;transform-origin:left bottom!important;z-index:6200!important
+}
+body.mobile-layout .quick-note{
+  left:9px!important;right:9px!important;bottom:max(12px,env(safe-area-inset-bottom))!important;
+  width:auto!important;max-width:none!important;z-index:6300!important
+}
+
+body.mobile-layout #modalRoot.modal-root{
+  padding:max(12px,env(safe-area-inset-top)) 8px max(16px,env(safe-area-inset-bottom)) 8px!important
+}
+body.mobile-layout #modalCard.modal-card{
+  width:100%!important;max-width:100%!important;border-radius:21px!important;padding:17px!important
+}
+body.mobile-layout #modalCard .form-grid{grid-template-columns:1fr!important}
+body.mobile-layout #modalCard .field,
+body.mobile-layout #modalCard .field.full{grid-column:1!important}
+body.mobile-layout #modalCard input,
+body.mobile-layout #modalCard select,
+body.mobile-layout #modalCard textarea{
+  width:100%!important;min-width:0!important;box-sizing:border-box!important;font-size:16px!important
+}
+body.mobile-layout .modal-actions{display:flex!important;flex-wrap:wrap!important;gap:8px!important}
+body.mobile-layout .modal-actions button{flex:1 1 120px!important}
+
+@media(max-width:430px){
+  body.mobile-layout .garden-frame{margin-left:5px!important;margin-right:5px!important}
+  body.mobile-layout .topbar{padding:12px!important}
+}
