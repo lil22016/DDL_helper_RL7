@@ -11,6 +11,8 @@ const CUSTOMIZE_KEY='deadline-garden-customize-v1';
 const HOLIDAY_KEY='deadline-garden-holidays-v1';
 const CHECKLIST_COLLAPSE_KEY='deadline-garden-checklist-collapsed-v1';
 const BACKGROUND_PROTECTION_KEY='deadline-garden-background-protection-v1';
+const VAPID_PUBLIC_KEY='BKks6hnXtY3MnQG30NzV4tI5Hh19UR4nDXy8YyhyJPgmdphmbTvxSUbYjANODABclv1q3MDBUg9y56KtStBgh0w';
+const NOTIFICATION_ENABLED_KEY='deadline-garden-notifications-v1';
 let backgroundKeepAlive=null;
 let backgroundKeepAlivePlaying=false;
 const COURSE_HISTORY_KEY='deadline-garden-course-history-v1';
@@ -1389,6 +1391,170 @@ function initBackgroundProtection(){
   }
 }
 
+
+function urlBase64ToUint8Array(base64String){
+  const padding='='.repeat((4-base64String.length%4)%4);
+  const base64=(base64String+padding).replace(/-/g,'+').replace(/_/g,'/');
+  const raw=atob(base64);
+  return Uint8Array.from([...raw].map(c=>c.charCodeAt(0)));
+}
+function setNotificationButton(state,message=''){
+  const b=$('#notificationBtn'),test=$('#testNotificationBtn');
+  if(!b)return;
+  b.dataset.state=state;
+  if(state==='on')b.textContent='Notifications: On';
+  else if(state==='starting')b.textContent='Notifications: Enabling…';
+  else if(state==='denied')b.textContent='Notifications: Blocked';
+  else if(state==='unsupported')b.textContent='Notifications: Unsupported';
+  else b.textContent='Notifications: Off';
+  b.title=message||'';
+  if(test)test.classList.toggle('hidden',state!=='on');
+}
+function notificationWanted(){
+  try{return localStorage.getItem(NOTIFICATION_ENABLED_KEY)==='1'}catch{return false}
+}
+function saveNotificationWanted(on){
+  try{localStorage.setItem(NOTIFICATION_ENABLED_KEY,on?'1':'0')}catch{}
+}
+function isIOSLike(){
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform==='MacIntel' && navigator.maxTouchPoints>1);
+}
+function isStandaloneWebApp(){
+  return window.matchMedia?.('(display-mode: standalone)').matches || navigator.standalone===true;
+}
+async function signedInUser(){
+  if(!supabaseClient)return null;
+  try{
+    const {data}=await supabaseClient.auth.getUser();
+    return data?.user||null;
+  }catch{return null}
+}
+async function showNotificationPrimer(){
+  return new Promise(resolve=>{
+    showModal(`
+      <div class="section-label">NOTIFICATIONS</div>
+      <h3>Stay ahead of your deadlines</h3>
+      <p class="notification-primer-copy">Deadline Garden can send a daily 8:00 AM summary and reminders 5 hours, 2 hours, 1 hour, and 15 minutes before unfinished due dates.</p>
+      <p class="notification-primer-copy">Your device will ask for notification permission next.</p>
+      <div class="modal-actions">
+        <button id="notificationPrimerCancel" class="soft-btn">Not now</button>
+        <button id="notificationPrimerContinue" class="primary-btn">Continue</button>
+      </div>`);
+    $('#notificationPrimerCancel').onclick=()=>{closeModal();resolve(false)};
+    $('#notificationPrimerContinue').onclick=()=>{closeModal();resolve(true)};
+  });
+}
+async function storePushSubscription(subscription){
+  const user=await signedInUser();
+  if(!user)throw new Error('Sign in before enabling notifications.');
+  const j=subscription.toJSON();
+  const {error}=await supabaseClient.from('push_subscriptions').upsert({
+    user_id:user.id,
+    endpoint:j.endpoint,
+    p256dh:j.keys?.p256dh||'',
+    auth:j.keys?.auth||'',
+    user_agent:navigator.userAgent,
+    timezone:Intl.DateTimeFormat().resolvedOptions().timeZone||'UTC',
+    enabled:true,
+    updated_at:new Date().toISOString()
+  },{onConflict:'user_id,endpoint'});
+  if(error)throw error;
+}
+async function enableNotifications(){
+  if(!('Notification' in window)||!('serviceWorker' in navigator)||!('PushManager' in window)){
+    setNotificationButton('unsupported','Web Push is not supported here.');
+    authNotice('This browser does not support Web Push.','error');
+    return;
+  }
+  if(isIOSLike()&&!isStandaloneWebApp()){
+    authNotice('On iPhone/iPad, add Deadline Garden to your Home Screen first, then enable notifications from the app.','error');
+    return;
+  }
+  const user=await signedInUser();
+  if(!user){
+    authNotice('Sign in first, then enable notifications.','error');
+    return;
+  }
+  if(Notification.permission==='default'){
+    const proceed=await showNotificationPrimer();
+    if(!proceed)return;
+  }
+  setNotificationButton('starting');
+  let permission=Notification.permission;
+  if(permission!=='granted')permission=await Notification.requestPermission();
+  if(permission!=='granted'){
+    saveNotificationWanted(false);
+    setNotificationButton(permission==='denied'?'denied':'off');
+    authNotice(permission==='denied'?'Notifications were blocked. You can change this in device settings.':'Notifications were not enabled.','error');
+    return;
+  }
+  const reg=await navigator.serviceWorker.ready;
+  let sub=await reg.pushManager.getSubscription();
+  if(!sub){
+    sub=await reg.pushManager.subscribe({
+      userVisibleOnly:true,
+      applicationServerKey:urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+    });
+  }
+  await storePushSubscription(sub);
+  saveNotificationWanted(true);
+  setNotificationButton('on');
+  authNotice('Notifications enabled.','success');
+}
+async function disableNotifications(){
+  try{
+    const reg=await navigator.serviceWorker.ready;
+    const sub=await reg.pushManager.getSubscription();
+    const user=await signedInUser();
+    if(sub && user && supabaseClient){
+      await supabaseClient.from('push_subscriptions')
+        .update({enabled:false,updated_at:new Date().toISOString()})
+        .eq('user_id',user.id).eq('endpoint',sub.endpoint);
+    }
+    if(sub)await sub.unsubscribe();
+  }catch(err){console.warn('Could not disable push subscription',err)}
+  saveNotificationWanted(false);
+  setNotificationButton('off');
+  authNotice('Notifications turned off.','success');
+}
+async function testBackgroundNotification(){
+  const b=$('#testNotificationBtn');if(!b||!supabaseClient)return;
+  b.disabled=true;b.textContent='Sending test…';
+  try{
+    const {data,error}=await supabaseClient.functions.invoke('test-push',{body:{}});
+    if(error)throw error;
+    authNotice('Test sent. Put the app in the background or lock your phone and wait a few seconds.','success');
+  }catch(err){
+    console.error(err);
+    authNotice('Test push could not be sent. The Supabase push function may not be deployed yet.','error');
+  }finally{
+    setTimeout(()=>{b.disabled=false;b.textContent='Test background notification'},900);
+  }
+}
+function initNotifications(){
+  const b=$('#notificationBtn'),test=$('#testNotificationBtn');if(!b)return;
+  if(!('Notification' in window)||!('serviceWorker' in navigator)||!('PushManager' in window)){
+    setNotificationButton('unsupported');b.disabled=true;return;
+  }
+  if(Notification.permission==='denied')setNotificationButton('denied');
+  else if(notificationWanted()&&Notification.permission==='granted')setNotificationButton('on');
+  else setNotificationButton('off');
+
+  b.onclick=async e=>{
+    e.stopPropagation();
+    try{
+      if(notificationWanted()&&Notification.permission==='granted')await disableNotifications();
+      else await enableNotifications();
+    }catch(err){
+      console.error(err);
+      setNotificationButton('off');
+      authNotice(err?.message||'Could not enable notifications.','error');
+    }
+  };
+  if(test)test.onclick=async e=>{e.stopPropagation();await testBackgroundNotification()};
+}
+
 function renderAmbientEffect(){
   const root=$('#petalRain');if(!root)return;
   root.innerHTML='';
@@ -1489,6 +1655,7 @@ try{const savedChecklistState=localStorage.getItem(CHECKLIST_COLLAPSE_KEY);setCh
 (async()=>{
   try{initTheme()}catch(err){console.error('Theme initialization failed:',err)}
   try{initBackgroundProtection()}catch(err){console.error('Background protection initialization failed:',err)}
+  try{initNotifications()}catch(err){console.error('Notification initialization failed:',err)}
   try{initPetalRain()}catch(err){console.error('Ambient effect initialization failed:',err)}
   try{
     await openDB();

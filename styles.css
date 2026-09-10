@@ -2205,3 +2205,31 @@ html[data-theme="glass"] .background-protection-btn[data-state="starting"]{
 html[data-theme="glass"] .background-protection-help{
   color:#d8e6ee!important;
 }
+
+/* v16.9 — move the whole desktop action row slightly left */
+@media (min-width: 761px){
+  .topbar .top-actions{
+    transform:translateX(-20px)!important;
+  }
+}
+
+.notification-btn,.test-notification-btn{
+  width:100%;min-height:42px;border:1px solid var(--border);border-radius:13px;
+  padding:10px 12px;font:inherit;font-weight:850;cursor:pointer;
+}
+.notification-btn{background:rgba(0,0,0,.05);color:var(--text)}
+.notification-btn[data-state="on"]{background:var(--accent);color:#fff;border-color:transparent}
+.notification-btn[data-state="starting"]{background:var(--accent-pale)}
+.notification-btn[data-state="denied"],.notification-btn[data-state="unsupported"]{opacity:.62}
+.test-notification-btn{margin-top:8px;background:transparent;color:var(--text)}
+.test-notification-btn.hidden{display:none!important}
+.notification-help{margin-top:7px;font-size:10.5px;line-height:1.35;color:var(--muted)}
+.notification-primer-copy{line-height:1.5;color:var(--muted);font-size:14px}
+html[data-theme="glass"] .notification-btn,
+html[data-theme="glass"] .test-notification-btn{
+  background:rgba(225,240,248,.10);color:#fff;border-color:rgba(255,255,255,.24)
+}
+html[data-theme="glass"] .notification-btn[data-state="on"]{
+  background:rgba(174,216,238,.30);border-color:rgba(222,243,253,.62)
+}
+html[data-theme="glass"] .notification-help{color:#d8e6ee!important}

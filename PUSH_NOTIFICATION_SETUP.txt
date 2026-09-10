@@ -1,0 +1,35 @@
+Deadline Garden — Push Notification Setup
+
+1. In Supabase SQL Editor, run:
+   supabase_push_setup.sql
+
+2. Deploy both Edge Functions:
+   supabase/functions/test-push/index.ts
+   supabase/functions/send-deadline-notifications/index.ts
+
+3. Add these Edge Function secrets in Supabase:
+   VAPID_PUBLIC_KEY=BKks6hnXtY3MnQG30NzV4tI5Hh19UR4nDXy8YyhyJPgmdphmbTvxSUbYjANODABclv1q3MDBUg9y56KtStBgh0w
+   VAPID_PRIVATE_KEY=kBcLFIJk5lDuvVkR2Peg1IezhrED-b-bJ-l4ubB1lNU
+   VAPID_SUBJECT=mailto:YOUR_EMAIL@example.com
+
+   SUPABASE_URL / SUPABASE_ANON_KEY / SUPABASE_SERVICE_ROLE_KEY are normally available to Edge Functions.
+   If your dashboard asks for them, use the values from your project settings. Never put SERVICE_ROLE_KEY in GitHub frontend files.
+
+4. Schedule send-deadline-notifications to run every 5 minutes in Supabase Cron / Scheduled Functions.
+
+5. On iPhone/iPad:
+   - Add Deadline Garden to Home Screen.
+   - Open the Home Screen app.
+   - Wardrobe → Notifications → Notifications: Off.
+   - Read the in-app explanation, tap Continue, then tap Allow on Apple's system prompt.
+   - After it becomes On, tap “Test background notification”.
+   - Immediately switch apps or lock the phone. A test push should arrive within a few seconds.
+
+Reminder schedule:
+- 8:00 AM local timezone: number of unfinished due-date tasks due today.
+- 5 hours before each unfinished due date.
+- 2 hours before.
+- 1 hour before.
+- 15 minutes before.
+
+VAPID public key is safe in the frontend. Keep VAPID private key and service-role key private.
