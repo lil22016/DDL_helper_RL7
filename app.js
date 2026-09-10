@@ -10,6 +10,7 @@ const CAL_VIEW_KEY='deadline-garden-calendar-view-v1';
 const CUSTOMIZE_KEY='deadline-garden-customize-v1';
 const HOLIDAY_KEY='deadline-garden-holidays-v1';
 const CHECKLIST_COLLAPSE_KEY='deadline-garden-checklist-collapsed-v1';
+const COURSE_HISTORY_KEY='deadline-garden-course-history-v1';
 let customize={flowerSize:'medium',flowerOpacity:'medium',rainDropSize:50,rainDensity:50,effectSize:50,effectDensity:50,confetti:'medium',checklistColor:'postit',checklistShape:'postit',todoCount:'today'};
 let holidays=[];
 try{Object.assign(customize,JSON.parse(localStorage.getItem(CUSTOMIZE_KEY)||'{}')||{})}catch{}
@@ -27,10 +28,107 @@ try{
   for(const key of Object.keys(calendarDisplay))if(typeof savedDisplay[key]==='boolean')calendarDisplay[key]=savedDisplay[key];
 }catch{}
 
+
+// ---- Optional Supabase account + cloud sync ----
+// Put your Supabase project URL and public anon key here to activate login/sync.
+const SUPABASE_URL='https://lgjacbbdysmarqmvejzi.supabase.co';
+const SUPABASE_ANON_KEY='sb_publishable_aNka9UBED7hc5JF-Ugw4KA_E5saENef';
+let supabaseClient=null,currentCloudUser=null,cloudApplying=false,cloudSyncTimer=null,authMode='signin';
+const REMEMBER_LOGIN_KEY='deadline-garden-remember-login-v1';
+
+function supabaseConfigured(){return !SUPABASE_URL.startsWith('PASTE_')&&!SUPABASE_ANON_KEY.startsWith('PASTE_')}
+function createSupabaseClient(remember=true){
+  if(!supabaseConfigured()||!window.supabase)return null;
+  return window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,storage:remember?window.localStorage:window.sessionStorage}})
+}
+function updateAccountButton(user){
+  const b=$('#accountBtn');if(!b)return;
+  b.textContent=user?(user.email?.split('@')[0]||'Account'):'Sign in';
+  b.dataset.signedIn=user?'1':'0';
+}
+async function idbReplaceAll(items){
+  return new Promise((resolve,reject)=>{
+    const tx=db.transaction(STORE,'readwrite'),s=tx.objectStore(STORE);s.clear();
+    for(const item of (items||[]))s.put(item);
+    tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error);
+  });
+}
+async function collectGardenState(){
+  return {version:1,tasks:await idbGetAll(),holidays:[...holidays],customize:{...customize},theme:document.documentElement.dataset.theme||'green',calendarDisplay:{...calendarDisplay},calendarView,checklistCollapsed:localStorage.getItem(CHECKLIST_COLLAPSE_KEY)==='1',updatedAt:new Date().toISOString()};
+}
+async function uploadGardenState(){
+  if(!supabaseClient||!currentCloudUser||cloudApplying)return;
+  const state=await collectGardenState();
+  const {error}=await supabaseClient.from('garden_state').upsert({user_id:currentCloudUser.id,state,updated_at:new Date().toISOString()},{onConflict:'user_id'});
+  if(error)console.error('Cloud sync failed:',error);
+}
+function queueCloudSync(){
+  if(!supabaseClient||!currentCloudUser||cloudApplying)return;
+  clearTimeout(cloudSyncTimer);cloudSyncTimer=setTimeout(()=>uploadGardenState().catch(console.error),500);
+}
+async function applyCloudState(state){
+  if(!state||!Array.isArray(state.tasks))return;
+  cloudApplying=true;
+  try{
+    await idbReplaceAll(state.tasks);
+    if(Array.isArray(state.holidays)){holidays=state.holidays;try{localStorage.setItem(HOLIDAY_KEY,JSON.stringify(holidays))}catch{}}
+    if(state.customize&&typeof state.customize==='object'){Object.assign(customize,state.customize);try{localStorage.setItem(CUSTOMIZE_KEY,JSON.stringify(customize))}catch{}}
+    if(state.calendarDisplay&&typeof state.calendarDisplay==='object'){calendarDisplay={...calendarDisplay,...state.calendarDisplay};try{localStorage.setItem(CAL_DISPLAY_KEY,JSON.stringify(calendarDisplay))}catch{}}
+    if(['month','week','day'].includes(state.calendarView)){calendarView=state.calendarView;try{localStorage.setItem(CAL_VIEW_KEY,calendarView)}catch{}}
+    if(typeof state.checklistCollapsed==='boolean')try{localStorage.setItem(CHECKLIST_COLLAPSE_KEY,state.checklistCollapsed?'1':'0')}catch{}
+    if(THEMES.includes(state.theme))applyTheme(state.theme);else applyCustomize();
+    await refresh();
+  }finally{cloudApplying=false}
+}
+async function syncAccountState(user){
+  currentCloudUser=user||null;updateAccountButton(currentCloudUser);if(!currentCloudUser)return;
+  const {data,error}=await supabaseClient.from('garden_state').select('state,updated_at').eq('user_id',currentCloudUser.id).maybeSingle();
+  if(error){console.error('Could not read cloud garden:',error);return}
+  if(data?.state){await applyCloudState(data.state);toast('Garden synced from your account.');}
+  else{await uploadGardenState();toast('Your current garden is now linked to this account.');}
+}
+async function initSupabaseAuth(){
+  if(!supabaseConfigured()||!window.supabase){updateAccountButton(null);return}
+  let remember=true;try{remember=localStorage.getItem(REMEMBER_LOGIN_KEY)!=='0'}catch{}
+  supabaseClient=createSupabaseClient(remember);if(!supabaseClient)return;
+  const {data}=await supabaseClient.auth.getSession();
+  if(data?.session?.user)await syncAccountState(data.session.user);else updateAccountButton(null);
+  supabaseClient.auth.onAuthStateChange((event,session)=>{
+    if(event==='SIGNED_OUT'){currentCloudUser=null;updateAccountButton(null)}
+    else if(event==='SIGNED_IN'&&session?.user&&session.user.id!==currentCloudUser?.id)setTimeout(()=>syncAccountState(session.user).catch(console.error),0);
+  });
+}
+function renderAuthForm(){
+  const card=$('#authRoot .auth-card');if(!card)return;
+  const signup=authMode==='signup';
+  card.innerHTML=`<button id="authClose" class="auth-close" type="button" aria-label="Close">×</button><div class="section-label">DEADLINE GARDEN</div><h2 id="authTitle">${signup?'Create your account':'Welcome back'}</h2><p id="authSubtitle">${signup?'One account, the same garden everywhere.':'Sign in to open the same garden on every device.'}</p><div class="auth-field"><label>Email</label><input id="authEmail" type="email" autocomplete="email" placeholder="you@example.com"></div><div class="auth-field"><label>Password</label><input id="authPassword" type="password" autocomplete="${signup?'new-password':'current-password'}" placeholder="Password"></div><label class="remember-row"><input id="authRemember" type="checkbox" checked><span>Keep me signed in on this device</span></label><div id="authMessage" class="auth-message"></div><button id="authSubmit" class="primary-btn auth-submit" type="button">${signup?'Create account':'Sign in'}</button><button id="authModeToggle" class="auth-mode-toggle" type="button">${signup?'Already have an account? Sign in':'Create an account instead'}</button><div id="authSetupNote" class="auth-setup-note ${supabaseConfigured()?'hidden':''}">${supabaseConfigured()?'':'Cloud login needs the Supabase project URL and anon key first.'}</div>`;
+  $('#authClose').onclick=closeAuth;$('#authModeToggle').onclick=()=>{authMode=signup?'signin':'signup';renderAuthForm()};$('#authSubmit').onclick=submitAuth;
+}
+function openAuth(){
+  const root=$('#authRoot');if(!root)return;root.classList.remove('hidden');root.setAttribute('aria-hidden','false');
+  if(currentCloudUser){
+    const card=$('#authRoot .auth-card');card.innerHTML=`<button id="authClose" class="auth-close" type="button">×</button><div class="section-label">ACCOUNT</div><h2>Signed in</h2><p class="account-email">${escapeHtml(currentCloudUser.email||'')}</p><p>Your tasks and settings sync through this account.</p><button id="authSignOut" class="soft-btn auth-submit">Sign out</button>`;$('#authClose').onclick=closeAuth;$('#authSignOut').onclick=async()=>{if(supabaseClient)await supabaseClient.auth.signOut();currentCloudUser=null;updateAccountButton(null);closeAuth()};
+  }else{authMode='signin';renderAuthForm()}
+}
+function closeAuth(){const r=$('#authRoot');if(r){r.classList.add('hidden');r.setAttribute('aria-hidden','true')}}
+async function submitAuth(){
+  if(!supabaseConfigured()||!window.supabase){$('#authMessage').textContent='Supabase is not configured yet.';return}
+  const email=$('#authEmail').value.trim(),password=$('#authPassword').value,remember=$('#authRemember').checked;
+  if(!email||!password){$('#authMessage').textContent='Enter your email and password.';return}
+  try{localStorage.setItem(REMEMBER_LOGIN_KEY,remember?'1':'0')}catch{}
+  supabaseClient=createSupabaseClient(remember);$('#authSubmit').disabled=true;$('#authMessage').textContent=authMode==='signup'?'Creating account…':'Signing in…';
+  try{
+    const result=authMode==='signup'?await supabaseClient.auth.signUp({email,password}):await supabaseClient.auth.signInWithPassword({email,password});
+    if(result.error)throw result.error;
+    if(result.data?.session?.user){await syncAccountState(result.data.session.user);closeAuth()}
+    else $('#authMessage').textContent='Account created. Check your email if confirmation is required.';
+  }catch(err){$('#authMessage').textContent=err?.message||'Could not sign in.'}finally{$('#authSubmit').disabled=false}
+}
+
 function openDB(){return new Promise((resolve,reject)=>{const r=indexedDB.open(DB_NAME,DB_VERSION);r.onupgradeneeded=()=>{const d=r.result;if(!d.objectStoreNames.contains(STORE))d.createObjectStore(STORE,{keyPath:'id'});};r.onsuccess=()=>{db=r.result;resolve(db)};r.onerror=()=>reject(r.error)})}
 function idbGetAll(){return new Promise((resolve,reject)=>{const r=db.transaction(STORE).objectStore(STORE).getAll();r.onsuccess=()=>resolve(r.result||[]);r.onerror=()=>reject(r.error)})}
-function idbPut(t){return new Promise((resolve,reject)=>{const r=db.transaction(STORE,'readwrite').objectStore(STORE).put(t);r.onsuccess=()=>resolve();r.onerror=()=>reject(r.error)})}
-function idbDelete(id){return new Promise((resolve,reject)=>{const r=db.transaction(STORE,'readwrite').objectStore(STORE).delete(id);r.onsuccess=()=>resolve();r.onerror=()=>reject(r.error)})}
+function idbPut(t){return new Promise((resolve,reject)=>{const r=db.transaction(STORE,'readwrite').objectStore(STORE).put(t);r.onsuccess=()=>{resolve();queueCloudSync()};r.onerror=()=>reject(r.error)})}
+function idbDelete(id){return new Promise((resolve,reject)=>{const r=db.transaction(STORE,'readwrite').objectStore(STORE).delete(id);r.onsuccess=()=>{resolve();queueCloudSync()};r.onerror=()=>reject(r.error)})}
 
 function isDurationEvent(t){return t?.eventType==='duration'}
 function eventStartMs(t){if(!t.date)return Infinity;return new Date(`${t.date}T${isDurationEvent(t)?(t.startTime||'00:00'):(t.time||'23:59')}:00`).getTime()}
@@ -49,8 +147,8 @@ function quickTasks(){return tasks.filter(t=>t.quick)}
 const ICON_COLORS={red:'#c95f68',orange:'#d88a4f',yellow:'#c5aa47',green:'#5f9c71',blue:'#5f8fb5',indigo:'#6d73b8',purple:'#9870b4'};
 function taskIconHtml(t){const e=(t.emoji||'').trim();if(e)return `<span class="task-icon emoji">${escapeHtml(e)}</span>`;if(t.iconColor&&ICON_COLORS[t.iconColor])return `<span class="task-icon color" style="--task-icon-color:${ICON_COLORS[t.iconColor]}"></span>`;return''}
 function holidayForDate(ds){return holidays.find(h=>ds>=h.start&&ds<=h.end)||null}
-function saveCustomize(){try{localStorage.setItem(CUSTOMIZE_KEY,JSON.stringify(customize))}catch{}applyCustomize()}
-function saveHolidays(){try{localStorage.setItem(HOLIDAY_KEY,JSON.stringify(holidays))}catch{}}
+function saveCustomize(){try{localStorage.setItem(CUSTOMIZE_KEY,JSON.stringify(customize))}catch{}applyCustomize();queueCloudSync()}
+function saveHolidays(){try{localStorage.setItem(HOLIDAY_KEY,JSON.stringify(holidays))}catch{}queueCloudSync()}
 
 
 async function refresh(){tasks=await idbGetAll();tasks.sort((a,b)=>sortMs(a)-sortMs(b));todoSignature='';renderAll()}
@@ -352,7 +450,7 @@ function repeatDescription(date,repeat){
 function isSeriesTask(task){return !!task?.seriesId && tasks.filter(t=>t.seriesId===task.seriesId).length>1}
 function readTaskForm(){
   const title=$('#fTitle').value.trim(),date=$('#fDate').value,eventType=$('#fEventType')?.value||'due';if(!title||!date){toast('Task name and date are required.');return null}
-  let time='',startTime='',endTime='';if(eventType==='duration'){startTime=$('#fStartTime').value;endTime=$('#fEndTime').value;if(!startTime||!endTime){toast('Choose both a start and end time.');return null}if(endTime<=startTime){toast('End time must be after start time.');return null}}else time=$('#fTime').value;
+  let time='',startTime='',endTime='';if(eventType==='duration'){startTime=$('#fStartTime').value;endTime=$('#fEndTime').value;if(!startTime||!endTime){toast('Choose both a start and end time.');return null}if(endTime<=startTime){toast('End time must be after start time.');return null}}else time=$('#fTime').value||'23:59';
   const enabled=$('#fRepeat').checked,repeat=enabled?{enabled:true,unit:$('#fRepeatUnit').value,interval:Math.max(1,Number($('#fRepeatInterval').value)||1),until:$('#fRepeatUntil').value}:null;if(enabled&&!repeat.until){toast('Choose a Repeat until date.');return null}if(enabled&&dateFromInput(repeat.until)<dateFromInput(date)){toast('Repeat until must be on or after the start date.');return null}
   const rawLink=$('#fLink').value.trim(),link=normalizeTaskLink(rawLink);if(rawLink&&!link){toast('Enter a valid http(s) link.');return null}
   return{title,course:$('#fCourse').value.trim(),date,eventType,time,startTime,endTime,emoji:$('#fEmoji').value.trim(),iconColor:$('#fIconColor').value,link,notes:$('#fNotes').value.trim(),repeat}
@@ -369,6 +467,33 @@ function bindRepeatPreview(){
   };
   ['#fRepeat','#fRepeatUnit','#fRepeatInterval','#fRepeatUntil','#fDate'].forEach(sel=>{const el=$(sel);if(el)el.addEventListener('change',update)});
   update()
+}
+
+
+function getCourseSuggestions(){
+  const values=new Set();
+  deadlineTasks().forEach(t=>{const c=(t.course||'').trim();if(c)values.add(c)});
+  try{const saved=JSON.parse(localStorage.getItem(COURSE_HISTORY_KEY)||'[]');if(Array.isArray(saved))saved.forEach(c=>{c=(c||'').trim();if(c)values.add(c)})}catch{}
+  return [...values].sort((a,b)=>a.localeCompare(b));
+}
+function rememberCourse(course){
+  const c=(course||'').trim();if(!c)return;
+  const values=getCourseSuggestions().filter(x=>x.toLowerCase()!==c.toLowerCase());
+  values.unshift(c);
+  try{localStorage.setItem(COURSE_HISTORY_KEY,JSON.stringify(values.slice(0,100)))}catch{}
+}
+function bindCourseAutocomplete(){
+  const input=$('#fCourse'),list=$('#courseSuggestions');if(!input||!list)return;
+  const render=()=>{
+    const q=input.value.trim().toLowerCase();
+    if(!q){list.classList.add('hidden');list.innerHTML='';return}
+    const matches=getCourseSuggestions().filter(c=>c.toLowerCase().includes(q)).slice(0,8);
+    if(!matches.length){list.classList.add('hidden');list.innerHTML='';return}
+    list.innerHTML=matches.map(c=>`<button type="button" data-course-suggestion="${escapeHtml(c)}">${escapeHtml(c)}</button>`).join('');
+    list.classList.remove('hidden');
+    list.querySelectorAll('[data-course-suggestion]').forEach(b=>b.onclick=()=>{input.value=b.dataset.courseSuggestion;list.classList.add('hidden');input.focus()});
+  };
+  input.addEventListener('input',render);input.addEventListener('focus',render);input.addEventListener('blur',()=>setTimeout(()=>list.classList.add('hidden'),130));
 }
 
 function normalizedCourse(s){return (s||'').trim().toLowerCase()}
@@ -457,7 +582,7 @@ function openTaskModal(task=null,prefillDate=''){
     course:'',
     date:prefillDate||fmtDateInput(now),
     eventType:'due',
-    time:'',
+    time:'23:59',
     startTime:'',
     endTime:'',
     emoji:'',
@@ -483,9 +608,10 @@ function openTaskModal(task=null,prefillDate=''){
       <input id="fTitle" value="${escapeHtml(t.title||'')}" placeholder="Your task name">
     </div>
 
-    <div class="field full">
+    <div class="field full course-autocomplete-field">
       <label>Course (optional)</label>
-      <input id="fCourse" value="${escapeHtml(t.course||'')}" placeholder="Your course name (if applicable)">
+      <input id="fCourse" value="${escapeHtml(t.course||'')}" placeholder="e.g. CHIN 1122" autocomplete="off">
+      <div id="courseSuggestions" class="course-suggestions hidden"></div>
     </div>
 
     <div class="field full">
@@ -583,6 +709,7 @@ function openTaskModal(task=null,prefillDate=''){
   $('#cancelModal').onclick=closeModal;
   bindRepeatPreview();
   bindEventTypeSwitch();
+  bindCourseAutocomplete();
 
   $('#saveTask').onclick=async()=>{
     const form=readTaskForm();
@@ -594,6 +721,7 @@ function openTaskModal(task=null,prefillDate=''){
 
     if(task){
       const updated={...t,...form,repeat:form.repeat||null,updatedAt:Date.now()};
+      rememberCourse(form.course);
       await idbPut(updated);
       closeModal();
       await refresh();
@@ -618,6 +746,7 @@ function openTaskModal(task=null,prefillDate=''){
 }
 
 async function createFromForm(form,seriesId=null){
+  rememberCourse(form.course);
   const dates=recurrenceDates(form.date,form.repeat);
   if(!dates.length){toast('Could not create repeated dates.');return}
   const sid=form.repeat?.enabled?(seriesId||crypto.randomUUID()):null,now=Date.now();
@@ -960,6 +1089,7 @@ function applyTheme(theme){
   );
   updateWardrobeEffectLabels();
   renderAmbientEffect();
+  queueCloudSync();
 }
 
 function initTheme(){
@@ -1064,6 +1194,8 @@ function renderAmbientEffect(){
 function initPetalRain(){renderAmbientEffect()}
 
 $('#addBtn').onclick=(e)=>{e.preventDefault();e.stopPropagation();openTaskModal()};
+$('#accountBtn').onclick=openAuth;
+$('#authRoot').onclick=e=>{if(e.target===$('#authRoot'))closeAuth()};
 $('#bulkEditBtn').onclick=openBulkEdit;
 $('#importBtn').onclick=openBatch;
 $('#todoToggle').onclick=()=>{$('#todoPanel').classList.toggle('open');$('#todoPanel').setAttribute('aria-hidden',!$('#todoPanel').classList.contains('open'));document.querySelectorAll('[data-todo-badge]').forEach(r=>r.checked=r.value===customize.todoCount)};
@@ -1101,6 +1233,7 @@ try{const savedChecklistState=localStorage.getItem(CHECKLIST_COLLAPSE_KEY);setCh
   try{
     await openDB();
     await refresh();
+    try{await initSupabaseAuth()}catch(err){console.error('Account initialization failed:',err)}
   }catch(err){
     console.error('Task database initialization failed:',err);
     toast('Could not load tasks. Your saved data has not been cleared.');
