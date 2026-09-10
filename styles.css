@@ -1578,3 +1578,89 @@ html[data-theme="glass"] .daily-task-card.duration-event{
   backdrop-filter:blur(14px) saturate(115%)!important;
   -webkit-backdrop-filter:blur(14px) saturate(115%)!important;
 }
+
+/* v16.6.4 — repair modal scrolling and autocomplete layout */
+#modalRoot{
+  overflow-y:auto!important;
+  overflow-x:hidden!important;
+  align-items:flex-start!important;
+  overscroll-behavior:contain;
+  -webkit-overflow-scrolling:touch;
+}
+#modalCard{
+  overflow:visible!important;
+  margin-top:max(22px,env(safe-area-inset-top))!important;
+  margin-bottom:max(28px,env(safe-area-inset-bottom))!important;
+}
+.task-form,.form-grid{overflow:visible!important}
+.course-autocomplete-field{
+  position:relative!important;
+  z-index:30!important;
+  transition:padding-bottom .18s ease;
+}
+.course-autocomplete-field.suggestions-open{
+  padding-bottom:150px!important;
+}
+.course-suggestions{
+  top:calc(100% - 145px)!important;
+  max-height:145px!important;
+  overflow-y:auto!important;
+  z-index:100!important;
+}
+
+/* Header/account: reserve space so username and Todo badge never overlap. */
+#accountBtn{
+  top:max(16px,env(safe-area-inset-top))!important;
+  right:max(16px,env(safe-area-inset-right))!important;
+  max-width:180px!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+  white-space:nowrap!important;
+}
+.topbar,.header,.hero-header{
+  padding-right:210px!important;
+}
+@media(max-width:700px){
+  #accountBtn{position:absolute!important;max-width:145px!important}
+  .topbar,.header,.hero-header{padding-right:165px!important}
+}
+
+/* Glass urgency palette: the glass itself changes tint while preserving blur. */
+html[data-theme="glass"] body.glass-urgency-1{
+  --glass-tint:rgba(178,166,87,.15);
+  --glass-edge:rgba(231,216,130,.36);
+}
+html[data-theme="glass"] body.glass-urgency-2{
+  --glass-tint:rgba(201,145,67,.19);
+  --glass-edge:rgba(244,181,94,.42);
+}
+html[data-theme="glass"] body.glass-urgency-3{
+  --glass-tint:rgba(210,112,67,.24);
+  --glass-edge:rgba(255,151,102,.50);
+}
+html[data-theme="glass"] body.glass-urgency-4{
+  --glass-tint:rgba(191,73,73,.29);
+  --glass-edge:rgba(255,122,120,.56);
+}
+html[data-theme="glass"] body.glass-urgency-5{
+  --glass-tint:rgba(157,48,59,.36);
+  --glass-edge:rgba(255,105,113,.66);
+}
+html[data-theme="glass"] body[class*="glass-urgency-"]::before{
+  content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
+  background:var(--glass-tint)!important;
+}
+html[data-theme="glass"] body[class*="glass-urgency-"] .panel,
+html[data-theme="glass"] body[class*="glass-urgency-"] .calendar-shell,
+html[data-theme="glass"] body[class*="glass-urgency-"] .todo-panel,
+html[data-theme="glass"] body[class*="glass-urgency-"] .hero,
+html[data-theme="glass"] body[class*="glass-urgency-"] .quick-note{
+  border-color:var(--glass-edge)!important;
+  box-shadow:0 8px 32px rgba(0,0,0,.14),inset 0 1px 0 rgba(255,255,255,.20)!important;
+}
+
+html[data-theme="glass"] .event-chip.urgent1:not(.duration-event){border-left-color:#d7c56d!important;background:linear-gradient(135deg,rgba(190,178,86,.30),rgba(76,94,104,.30))!important}
+html[data-theme="glass"] .event-chip.urgent2:not(.duration-event){border-left-color:#e7a84f!important;background:linear-gradient(135deg,rgba(202,153,72,.36),rgba(84,89,94,.30))!important}
+html[data-theme="glass"] .event-chip.urgent3:not(.duration-event){border-left-color:#f08757!important;background:linear-gradient(135deg,rgba(218,126,73,.42),rgba(98,77,79,.32))!important}
+html[data-theme="glass"] .event-chip.urgent4:not(.duration-event){border-left-color:#ef6b68!important;background:linear-gradient(135deg,rgba(204,83,79,.48),rgba(92,65,74,.36))!important}
+html[data-theme="glass"] .event-chip.urgent5:not(.duration-event){border-left-color:#ff626b!important;background:linear-gradient(135deg,rgba(179,55,64,.58),rgba(82,55,66,.42))!important}

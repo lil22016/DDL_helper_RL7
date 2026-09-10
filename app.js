@@ -351,10 +351,12 @@ function renderQuickTodo(){
 function renderWarnings(){
   const active=actualDueTasks().filter(t=>!t.done).sort((a,b)=>dueMs(a)-dueMs(b))[0],wb=$('#warningBackdrop');
   wb.className='warning-backdrop';
-  document.body.classList.remove('urgent-global','urgent-global-critical');
+  document.body.classList.remove('urgent-global','urgent-global-critical','glass-urgency-1','glass-urgency-2','glass-urgency-3','glass-urgency-4','glass-urgency-5');
   $('#warningKicker').textContent='';$('#warningText').textContent='';
   if(!active)return;
   const diff=dueMs(active)-Date.now();
+  const glassLevel=urgency(active);
+  if(glassLevel>0)document.body.classList.add(`glass-urgency-${glassLevel}`);
   if(diff>0&&diff<=30*60e3){
     const level=diff<=15*60e3?2:1;
     wb.classList.add(`level${level}`);
@@ -510,6 +512,7 @@ function bindCourseAutocomplete(){
     if(!matches.length){list.classList.add('hidden');list.innerHTML='';return}
     list.innerHTML=matches.map(c=>`<button type="button" data-course-suggestion="${escapeHtml(c)}">${escapeHtml(c)}</button>`).join('');
     list.classList.remove('hidden');
+    input.closest('.course-autocomplete-field')?.classList.add('suggestions-open');
     list.querySelectorAll('[data-course-suggestion]').forEach(b=>b.onclick=()=>{input.value=b.dataset.courseSuggestion;list.classList.add('hidden');input.focus()});
   };
   input.addEventListener('input',render);input.addEventListener('focus',render);input.addEventListener('blur',()=>setTimeout(()=>list.classList.add('hidden'),130));
