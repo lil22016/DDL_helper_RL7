@@ -2233,3 +2233,81 @@ html[data-theme="glass"] .notification-btn[data-state="on"]{
   background:rgba(174,216,238,.30);border-color:rgba(222,243,253,.62)
 }
 html[data-theme="glass"] .notification-help{color:#d8e6ee!important}
+
+/* v16.10 — compact mobile calendar pass (keeps existing auto/manual mobile-layout logic) */
+body.mobile-layout .topbar{padding:11px 12px!important;gap:9px!important}
+body.mobile-layout #todayHeading{font-size:clamp(23px,6.7vw,31px)!important;line-height:1.03!important}
+body.mobile-layout .summary-line{font-size:11px!important;line-height:1.25!important}
+body.mobile-layout .top-actions{gap:6px!important}
+body.mobile-layout .top-actions>button{padding:9px 6px!important;min-height:38px!important;font-size:12px!important}
+body.mobile-layout .hero-card{padding:13px 14px!important}
+body.mobile-layout .next-title{font-size:clamp(19px,5.8vw,27px)!important;line-height:1.08!important}
+body.mobile-layout .calendar-card{padding:10px 7px!important}
+body.mobile-layout .calendar-toolbar{gap:7px!important}
+body.mobile-layout #monthLabel{font-size:17px!important;line-height:1.1!important}
+body.mobile-layout .calendar-controls,
+body.mobile-layout .calendar-toolbar>div:last-child{gap:4px!important}
+body.mobile-layout .calendar-toolbar button{min-height:33px!important;padding:6px 8px!important;font-size:11px!important}
+body.mobile-layout .view-switch{padding:2px!important}
+body.mobile-layout .view-btn{padding:5px 7px!important;font-size:10px!important}
+
+/* Month: overview instead of miniature desktop task cards. Tap a date to open Day view. */
+body.mobile-layout .weekday-row{font-size:9px!important;margin-bottom:2px!important}
+body.mobile-layout .calendar-grid:not(.calendar-grid-week):not(.calendar-grid-day){align-items:stretch!important}
+body.mobile-layout .day-cell{min-height:57px!important;height:57px!important;padding:4px 3px!important;overflow:hidden!important}
+body.mobile-layout .day-number{font-size:10px!important;line-height:1!important;padding:0!important;margin:0!important}
+body.mobile-layout .day-number .holiday-mini{max-width:36px!important;padding:2px 3px!important;font-size:0!important;overflow:hidden!important}
+body.mobile-layout .day-number .holiday-mini::first-letter{font-size:8px!important}
+body.mobile-layout .mobile-month-dots{display:flex;align-items:center;justify-content:center;gap:3px;margin-top:10px;min-height:10px}
+body.mobile-layout .mobile-task-dot{width:7px;height:7px;border-radius:50%;background:#aeb9b2;box-shadow:0 1px 3px rgba(0,0,0,.18)}
+body.mobile-layout .mobile-task-dot:not(.duration-event).urgent2{background:#5fca83}
+body.mobile-layout .mobile-task-dot:not(.duration-event).urgent3{background:#e0c94f}
+body.mobile-layout .mobile-task-dot:not(.duration-event).urgent4{background:#f09245}
+body.mobile-layout .mobile-task-dot:not(.duration-event).urgent5{background:#ef5f64}
+body.mobile-layout .mobile-task-dot.duration-event{background:#8fd8ff}
+body.mobile-layout .mobile-task-dot.duration-event.urgent4{background:#f09545}
+body.mobile-layout .mobile-task-dot.duration-event.urgent5{background:#ff626b}
+body.mobile-layout .mobile-month-count{font-size:8px;font-weight:850;line-height:1;color:var(--muted)}
+
+/* Week: 2-ish day cards per screen, horizontally swipeable. */
+body.mobile-layout .calendar-grid-week{
+  display:flex!important;grid-template-columns:none!important;gap:7px!important;width:100%!important;
+  overflow-x:auto!important;overflow-y:hidden!important;scroll-snap-type:x proximity!important;
+  overscroll-behavior-x:contain!important;-webkit-overflow-scrolling:touch!important;padding:1px 1px 7px!important
+}
+body.mobile-layout .calendar-grid-week::-webkit-scrollbar{height:4px}
+body.mobile-layout .week-day{
+  flex:0 0 min(43vw,176px)!important;width:min(43vw,176px)!important;min-width:min(43vw,176px)!important;
+  min-height:220px!important;padding:8px!important;scroll-snap-align:start!important;border:1px solid var(--border)!important;border-radius:14px!important
+}
+body.mobile-layout .week-date{gap:5px!important;padding-bottom:7px!important;margin-bottom:6px!important}
+body.mobile-layout .week-date strong{font-size:17px!important}
+body.mobile-layout .week-date span{font-size:9px!important}
+body.mobile-layout .week-events{gap:5px!important}
+body.mobile-layout .week-event{font-size:10px!important;padding:7px 6px!important;min-height:30px!important;line-height:1.15!important}
+body.mobile-layout .week-event .event-meta-line,
+body.mobile-layout .week-event .event-desc-line{font-size:8px!important}
+body.mobile-layout .calendar-empty{padding:13px 2px!important;font-size:9px!important}
+
+/* Day: keep detail, but make it much denser. */
+body.mobile-layout .daily-view{gap:8px!important;min-height:0!important;padding:9px!important}
+body.mobile-layout .daily-date{padding:9px 8px!important;border-radius:13px!important}
+body.mobile-layout .daily-date>div{font-size:9px!important}
+body.mobile-layout .daily-date strong{font-size:36px!important;margin:5px 0 2px!important}
+body.mobile-layout .daily-date span{font-size:10px!important}
+body.mobile-layout .daily-events{gap:6px!important}
+body.mobile-layout .daily-task-card{grid-template-columns:67px minmax(0,1fr)!important;gap:8px!important;padding:9px 10px!important;border-radius:13px!important}
+body.mobile-layout .daily-task-time{font-size:10px!important}
+body.mobile-layout .daily-task-main{font-size:11px!important;line-height:1.25!important}
+
+/* Add/Edit: shorter fields and spacing without changing the 16px input font iOS needs to avoid zoom. */
+body.mobile-layout #modalCard.modal-card{padding:13px!important;border-radius:18px!important}
+body.mobile-layout #modalCard.modal-card h3{font-size:20px!important;margin-bottom:9px!important}
+body.mobile-layout #modalCard .form-grid{gap:9px!important}
+body.mobile-layout #modalCard .field{gap:4px!important}
+body.mobile-layout #modalCard .field>label{font-size:11px!important}
+body.mobile-layout #modalCard input,
+body.mobile-layout #modalCard select{min-height:42px!important;padding:8px 10px!important}
+body.mobile-layout #modalCard textarea{min-height:82px!important;padding:9px 10px!important}
+body.mobile-layout .modal-actions{margin-top:9px!important}
+body.mobile-layout .modal-actions button{min-height:39px!important;padding:8px 10px!important;font-size:12px!important}
