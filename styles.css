@@ -2745,3 +2745,93 @@ html[data-theme="glass"] .course-icon-prompt{
 }
 .course-icon-remember{display:flex;align-items:flex-start;gap:9px;font-size:13px;line-height:1.35;margin:12px 0 16px}
 .course-icon-remember input{width:18px;height:18px;flex:0 0 18px;margin-top:1px}
+
+
+/* v16.18 — center every modal + task edit action order */
+#modalRoot.modal-root{
+  position:fixed!important;
+  inset:0!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  overflow:hidden!important;
+  padding:
+    max(18px,env(safe-area-inset-top))
+    max(16px,env(safe-area-inset-right))
+    max(18px,env(safe-area-inset-bottom))
+    max(16px,env(safe-area-inset-left))!important;
+}
+
+#modalRoot.modal-root.hidden{
+  display:none!important;
+}
+
+#modalRoot #modalCard.modal-card{
+  margin:auto!important;
+  width:min(860px,100%)!important;
+  max-width:860px!important;
+  max-height:calc(100dvh - 36px - env(safe-area-inset-top) - env(safe-area-inset-bottom))!important;
+  overflow:auto!important;
+  -webkit-overflow-scrolling:touch!important;
+}
+
+/* On phones, keep the same centered behavior with slightly tighter safe-area spacing. */
+body.mobile-layout #modalRoot.modal-root{
+  align-items:center!important;
+  justify-content:center!important;
+  overflow:hidden!important;
+  padding:
+    max(10px,env(safe-area-inset-top))
+    8px
+    max(12px,env(safe-area-inset-bottom))
+    8px!important;
+}
+
+body.mobile-layout #modalRoot #modalCard.modal-card{
+  margin:auto!important;
+  max-height:calc(100dvh - 22px - env(safe-area-inset-top) - env(safe-area-inset-bottom))!important;
+  overflow:auto!important;
+  -webkit-overflow-scrolling:touch!important;
+}
+
+/* Add/Edit task: first row = Delete | Save, second row = Cancel. */
+.task-edit-actions{
+  display:grid!important;
+  grid-template-columns:1fr 1fr!important;
+  gap:10px!important;
+  align-items:stretch!important;
+}
+
+.task-edit-actions #deleteTask{
+  grid-column:1!important;
+  grid-row:1!important;
+  width:100%!important;
+  margin:0!important;
+}
+
+.task-edit-actions #saveTask{
+  grid-column:2!important;
+  grid-row:1!important;
+  width:100%!important;
+  margin:0!important;
+  background:#68a97a!important;
+  color:#fff!important;
+  box-shadow:0 8px 22px rgba(65,118,80,.24)!important;
+}
+
+.task-edit-actions #saveTask:hover{
+  background:#579768!important;
+  box-shadow:0 10px 26px rgba(65,118,80,.32)!important;
+}
+
+.task-edit-actions #cancelModal{
+  grid-column:1 / -1!important;
+  grid-row:2!important;
+  width:100%!important;
+  margin:0!important;
+}
+
+body.mobile-layout .task-edit-actions button{
+  min-height:44px!important;
+  font-size:13px!important;
+}

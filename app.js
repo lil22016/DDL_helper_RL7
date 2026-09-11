@@ -952,7 +952,7 @@ function openTaskModal(task=null,prefillDate=''){
     </div>
   </div>
 
-  <div class="modal-actions">
+  <div class="modal-actions task-edit-actions">
     ${task?'<button id="deleteTask" class="danger-btn">Delete</button>':''}
     <button id="cancelModal" class="soft-btn">Cancel</button>
     <button id="saveTask" class="primary-btn">Save</button>
