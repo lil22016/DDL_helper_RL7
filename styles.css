@@ -2311,4 +2311,59 @@ body.mobile-layout #modalCard select{min-height:42px!important;padding:8px 10px!
 body.mobile-layout #modalCard textarea{min-height:82px!important;padding:9px 10px!important}
 body.mobile-layout .modal-actions{margin-top:9px!important}
 body.mobile-layout .modal-actions button{min-height:39px!important;padding:8px 10px!important;font-size:12px!important}
-\n\n/* v16.11 — celebrations above glass overlays + iOS standalone polish */\n#confettiCanvas{\n  z-index:70000!important;\n  filter:none!important;\n  backdrop-filter:none!important;\n  -webkit-backdrop-filter:none!important;\n  mix-blend-mode:normal!important;\n}\n.confetti-cannon-layer{\n  z-index:70001!important;\n  filter:none!important;\n  backdrop-filter:none!important;\n  -webkit-backdrop-filter:none!important;\n}\nbody.mobile-layout{min-height:100dvh!important;}\n@supports(padding:max(0px)){\n  html{min-height:100%;background:var(--accent-wash);}\n  html[data-theme="glass"]{background:#526572;}\n}\n
+
+
+/* v16.12 — mobile celebration layering + safe header spacing */
+#confettiCanvas{
+  position:fixed!important;
+  inset:0!important;
+  width:100vw!important;
+  height:100dvh!important;
+  pointer-events:none!important;
+  z-index:100000!important;
+  filter:none!important;
+  backdrop-filter:none!important;
+  -webkit-backdrop-filter:none!important;
+  mix-blend-mode:normal!important;
+}
+
+.confetti-cannon-layer{
+  z-index:100001!important;
+  filter:none!important;
+  backdrop-filter:none!important;
+  -webkit-backdrop-filter:none!important;
+}
+
+body.mobile-layout{
+  min-height:100dvh!important;
+}
+
+/* Keep the account chip in the safe area, while moving the garden itself
+   below it so the heading can never sit underneath the account chip. */
+body.mobile-layout #accountBtn{
+  top:calc(env(safe-area-inset-top, 0px) + 8px)!important;
+  right:10px!important;
+  max-width:132px!important;
+  min-width:90px!important;
+  padding:8px 12px!important;
+  font-size:13px!important;
+}
+
+body.mobile-layout .garden-frame{
+  margin-top:calc(env(safe-area-inset-top, 0px) + 68px)!important;
+}
+
+/* The top bar can use the full width again because it starts below account. */
+body.mobile-layout .brand-row{
+  padding-right:0!important;
+}
+
+@supports(padding:max(0px)){
+  html{
+    min-height:100%;
+    background:var(--accent-wash);
+  }
+  html[data-theme="glass"]{
+    background:#526572;
+  }
+}
