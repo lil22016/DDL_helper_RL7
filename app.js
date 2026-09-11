@@ -1632,7 +1632,7 @@ const UI_ZH={
   'Notifications: Enabling…':'通知：开启中…','Notifications: Blocked':'通知：已被阻止','Notifications: Unsupported':'通知：不支持',
   'Test background notification':'测试后台通知','Confetti':'庆祝彩纸','Checklist color':'清单颜色','Checklist shape':'清单形状',
   'Post-it':'便利贴','White':'白色','Theme':'跟随主题','Tall':'竖长方形','Wide':'横长方形','Circle':'圆形',
-  'Low':'低','Medium':'中','High':'高','DEADLINE GARDEN':'截止日期花园','Today':'今天','Batch Paste':'批量粘贴','Bulk Edit':'批量编辑',
+  'Low':'低','Medium':'中','High':'高','DEADLINE GARDEN':'DEADLINE GARDEN','Today':'今天','Batch Paste':'批量粘贴','Bulk Edit':'批量编辑',
   '+ Add task':'+ 添加任务','Todo':'待办','NEXT DEADLINE':'下一个截止日期','Nothing due soon':'近期没有截止任务','Your calendar is clear.':'日历目前很轻松。',
   '+ Holiday':'+ 假期','Month':'月','Week':'周','Day':'日','Display':'显示','TO DO':'待办','Nothing pending':'暂无待办',
   'Todo badge shows':'待办数字显示','This week':'本周','All':'全部','CHECKLIST':'清单','Checklist':'清单',
@@ -1659,7 +1659,19 @@ const UI_ZH={
   'Calendar size updated.':'日历显示大小已更新。','Event marked as completed.':'事件已标记为完成。','Notifications enabled.':'通知已开启。','Notifications turned off.':'通知已关闭。',
   'Sign in first, then enable notifications.':'请先登录，再开启通知。','Not now':'暂不开启','Continue':'继续','Stay ahead of your deadlines':'提前掌握你的截止日期',
   'Your device will ask for notification permission next.':'接下来设备会询问通知权限。','All done for today!':'今天全部完成！','enjoy the rest of your day':'享受今天剩下的时间吧',
-  'Nothing due today':'今天没有截止任务','No tasks':'没有任务','All later deadlines':'之后的所有截止任务'
+  'Nothing due today':'今天没有截止任务','No tasks':'没有任务','All later deadlines':'之后的所有截止任务',
+  'CALENDAR':'日历','Choose what task labels show':'选择日历任务标签显示内容','Deadline time':'截止时间',
+  'Example: 2:30 PM':'示例：2:30 PM','Example: HDFS 2300':'示例：HDFS 2300','Example: Chapter 1 Reading Quiz':'示例：Chapter 1 Reading Quiz',
+  'Show the task description in calendar labels':'在日历标签中显示任务描述','Preview':'预览','Save display':'保存显示设置',
+  'Choose at least one label item.':'请至少选择一项显示内容。','Calendar display updated.':'日历显示设置已更新。',
+  '✓ Mark as done':'✓ 标记为完成','Size: Small':'大小：小','Size: Medium':'大小：中','Size: Large':'大小：大',
+  'Add to this day':'添加到这一天','Edit task':'编辑任务','Save changes':'保存更改','Save holiday':'保存假期','Keep tasks':'保留任务',
+  'Add time off':'添加假期','This event':'这个事件','Marked as done.':'已标记为完成。','Task restored.':'任务已重新加入待办。',
+  'Task updated.':'任务已更新。','Task added.':'任务已添加。','Task deleted.':'任务已删除。',
+  'Icon kept for this task only.':'图标仅应用于此任务。','Only this occurrence was updated.':'仅更新了本次事件。',
+  'Repeats every day.':'每天重复。','Choose a Repeat until date.':'请选择重复结束日期。','Repeat until must be on or after the start date.':'重复结束日期不能早于开始日期。',
+  'Example copied.':'示例已复制。','Example placed in the text box.':'示例已放入输入框。','Could not create repeated dates.':'无法创建重复日期。',
+  'Could not load tasks. Your saved data has not been cleared.':'无法加载任务，但已保存的数据没有被清除。'
 };
 const UI_SKIP_SELECTOR='.event-main-line,.event-desc-line,.todo-title,.todo-course,.quick-todo-item,.preview-raw,.bulk-row strong,.bulk-row small,.task-detail h3,.detail-block strong,.detail-description>div,.task-link-card small,.finish-prompt-task strong';
 function translateUiText(raw){
@@ -1672,6 +1684,7 @@ function translateUiText(raw){
   if((m=s.match(/^(\d+) for today(?: · includes overdue)?$/)))return `今天 ${m[1]} 项待办${s.includes('overdue')?' · 包含逾期':''}`;
   if((m=s.match(/^Due in (.+)$/)))return `还剩 ${m[1]}`;
   if((m=s.match(/^Overdue by (.+)$/)))return `已逾期 ${m[1]}`;
+  if((m=s.match(/^Size: (Small|Medium|Large)$/)))return `大小：${{Small:'小',Medium:'中',Large:'大'}[m[1]]}`;
   if((m=s.match(/^(\d+) tasks? complete · enjoy the rest of your day$/)))return `${m[1]} 项任务已完成 · 好好享受今天剩下的时间`;
   if((m=s.match(/^Delete selected \((\d+)\)$/)))return `删除已选（${m[1]}）`;
   if((m=s.match(/^(\d+) matches?$/)))return `${m[1]} 个匹配项`;
@@ -1695,12 +1708,13 @@ function localizeUi(root=document.body){
   }
   const attrMap={
     'Your task name':'你的任务名称','Your course name (if applicable)':'你的课程名称（如适用）','e.g. CHIN 1122':'例如 CHIN 1122',
-    'Add instructions, details, or anything useful...':'添加说明、细节或其他有用信息…','Type one task per line…':'每行输入一项任务…','e.g. HDFS':'例如 HDFS',
+    'Add instructions, details, or anything useful...':'添加说明、细节或其他有用信息…','Add instructions, details, or anything useful…':'添加说明、细节或其他有用信息…','Type one task per line…':'每行输入一项任务…','e.g. HDFS':'例如 HDFS',
     'you@example.com':'you@example.com','Password':'密码','https://...':'https://...','e.g. Tidy the room':'例如：收拾房间'
   };
   root.querySelectorAll?.('input[placeholder],textarea[placeholder]').forEach(el=>{if(attrMap[el.placeholder])el.placeholder=attrMap[el.placeholder]});
   root.querySelectorAll?.('[aria-label]').forEach(el=>{const a=el.getAttribute('aria-label');if(UI_ZH[a])el.setAttribute('aria-label',UI_ZH[a])});
   root.querySelectorAll?.('[title]').forEach(el=>{const a=el.getAttribute('title');if(UI_ZH[a])el.setAttribute('title',UI_ZH[a])});
+  root.querySelectorAll?.('.detail-description>div').forEach(el=>{if(el.textContent.trim()==='No description added.')el.innerHTML='<em>尚未添加描述。</em>'});
 }
 function initLanguage(){
   document.documentElement.lang=uiLanguage==='zh'?'zh-CN':'en';
