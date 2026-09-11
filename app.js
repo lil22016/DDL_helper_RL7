@@ -13,6 +13,10 @@ const CHECKLIST_COLLAPSE_KEY='deadline-garden-checklist-collapsed-v1';
 const BACKGROUND_PROTECTION_KEY='deadline-garden-background-protection-v1';
 const VAPID_PUBLIC_KEY='BKks6hnXtY3MnQG30NzV4tI5Hh19UR4nDXy8YyhyJPgmdphmbTvxSUbYjANODABclv1q3MDBUg9y56KtStBgh0w';
 const NOTIFICATION_ENABLED_KEY='deadline-garden-notifications-v1';
+const LANGUAGE_KEY='deadline-garden-language-v1';
+let uiLanguage='en';
+try{uiLanguage=localStorage.getItem(LANGUAGE_KEY)==='zh'?'zh':'en'}catch{}
+const uiLocale=()=>uiLanguage==='zh'?'zh-CN':'en-US';
 let backgroundKeepAlive=null;
 let backgroundKeepAlivePlaying=false;
 const COURSE_HISTORY_KEY='deadline-garden-course-history-v1';
@@ -168,7 +172,7 @@ function visualUrgency(t){
   return 0;                              // normal
 }
 function urgency(t){if(t.done||isDurationEvent(t))return 0;const diff=dueMs(t)-Date.now();if(diff<0||diff<=15*60e3)return 5;if(diff<=2*3600e3)return 4;if(diff<=24*3600e3)return 3;if(diff<=3*86400e3)return 2;if(diff<=7*86400e3)return 1;return 0}
-function formatDue(t){const date=new Date(`${t.date}T12:00:00`).toLocaleDateString(undefined,{month:'short',day:'numeric'});if(isDurationEvent(t)){const s=t.startTime?new Date(`${t.date}T${t.startTime}:00`).toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'}):'Start';const e=t.endTime?new Date(`${t.date}T${t.endTime}:00`).toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'}):'End';return `${date} · ${s}–${e}`}return `${date}${t.time?` · ${new Date(`${t.date}T${t.time}:00`).toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'})}`:' · No specific time'}`}
+function formatDue(t){const date=new Date(`${t.date}T12:00:00`).toLocaleDateString(uiLocale(),{month:'short',day:'numeric'});if(isDurationEvent(t)){const s=t.startTime?new Date(`${t.date}T${t.startTime}:00`).toLocaleTimeString(uiLocale(),{hour:'numeric',minute:'2-digit'}):'Start';const e=t.endTime?new Date(`${t.date}T${t.endTime}:00`).toLocaleTimeString(uiLocale(),{hour:'numeric',minute:'2-digit'}):'End';return `${date} · ${s}–${e}`}return `${date}${t.time?` · ${new Date(`${t.date}T${t.time}:00`).toLocaleTimeString(uiLocale(),{hour:'numeric',minute:'2-digit'})}`:' · No specific time'}`}
 function countdown(ms){const neg=ms<0;ms=Math.abs(ms);const h=Math.floor(ms/3600000),m=Math.floor(ms%3600000/60000),s=Math.floor(ms%60000/1000);if(h>=24){const d=Math.floor(h/24);return `${neg?'Overdue ':'Due in '}${d}d ${h%24}h`;}return `${neg?'Overdue by ':'Due in '}${pad(h)}:${pad(m)}:${pad(s)}`}
 function escapeHtml(s=''){return String(s).replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]))}
 function dateFromInput(s){return new Date(`${s}T12:00:00`)}
@@ -189,7 +193,7 @@ function renderAll(){renderHeader();renderCalendar();renderTodo();renderQuickTod
 
 function getTodoBadgeCount(pending){const g=getTodoGroups(pending);if(customize.todoCount==='all')return pending.length;if(customize.todoCount==='week')return g.today.length+g.week.length;return g.today.length}
 function renderHeader(){
-  const now=new Date();$('#todayHeading').textContent=now.toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric'});
+  const now=new Date();$('#todayHeading').textContent=now.toLocaleDateString(uiLocale(),{weekday:'long',month:'long',day:'numeric'});
   const pending=deadlineTasks().filter(t=>!t.done),focus=getTodoGroups(pending).today.length,badge=getTodoBadgeCount(pending);
   $('#summaryLine').textContent=focus?`${focus} task${focus===1?'':'s'} to focus on today`:'Nothing due today';$('#todoCount').textContent=badge;
   const duePending=actualDueTasks().filter(t=>!t.done).sort((a,b)=>dueMs(a)-dueMs(b)),next=duePending[0],ce=$('#nextCountdown');
@@ -203,7 +207,7 @@ function renderHeader(){
 function calendarChipContent(t){
   const parts=[];
   if(calendarDisplay.title&&t.title)parts.push(t.title);
-  if(calendarDisplay.time){if(isDurationEvent(t)&&t.startTime){const s=new Date(`${t.date}T${t.startTime}:00`).toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'}),e=t.endTime?new Date(`${t.date}T${t.endTime}:00`).toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'}):'';parts.push(e?`${s}–${e}`:s)}else if(t.time){const d=new Date(`${t.date}T${t.time}:00`);parts.push(d.toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'}))}}
+  if(calendarDisplay.time){if(isDurationEvent(t)&&t.startTime){const s=new Date(`${t.date}T${t.startTime}:00`).toLocaleTimeString(uiLocale(),{hour:'numeric',minute:'2-digit'}),e=t.endTime?new Date(`${t.date}T${t.endTime}:00`).toLocaleTimeString(uiLocale(),{hour:'numeric',minute:'2-digit'}):'';parts.push(e?`${s}–${e}`:s)}else if(t.time){const d=new Date(`${t.date}T${t.time}:00`);parts.push(d.toLocaleTimeString(uiLocale(),{hour:'numeric',minute:'2-digit'}))}}
   if(calendarDisplay.course&&t.course)parts.push(t.course);
   if(calendarDisplay.description&&t.notes)parts.push(t.notes.replace(/\s+/g,' ').trim());
   if(!parts.length)parts.push(t.title||t.course||formatDue(t));
@@ -211,7 +215,7 @@ function calendarChipContent(t){
 }
 function calendarChipHtml(t){
   const meta=[];
-  if(calendarDisplay.time){if(isDurationEvent(t)&&t.startTime){const s=new Date(`${t.date}T${t.startTime}:00`).toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'}),e=t.endTime?new Date(`${t.date}T${t.endTime}:00`).toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'}):'';meta.push(e?`${s}–${e}`:s)}else if(t.time){const d=new Date(`${t.date}T${t.time}:00`);meta.push(d.toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'}))}}
+  if(calendarDisplay.time){if(isDurationEvent(t)&&t.startTime){const s=new Date(`${t.date}T${t.startTime}:00`).toLocaleTimeString(uiLocale(),{hour:'numeric',minute:'2-digit'}),e=t.endTime?new Date(`${t.date}T${t.endTime}:00`).toLocaleTimeString(uiLocale(),{hour:'numeric',minute:'2-digit'}):'';meta.push(e?`${s}–${e}`:s)}else if(t.time){const d=new Date(`${t.date}T${t.time}:00`);meta.push(d.toLocaleTimeString(uiLocale(),{hour:'numeric',minute:'2-digit'}))}}
   if(calendarDisplay.course&&t.course)meta.push(t.course);
   const title=calendarDisplay.title&&t.title?t.title:'';
   const desc=calendarDisplay.description&&t.notes?t.notes.replace(/\s+/g,' ').trim():'';
@@ -242,15 +246,15 @@ function renderCalendar(){
   const chip=(t,extra='')=>`<button class="event-chip ${extra} ${isDurationEvent(t)?'duration-event':''} size-${t.calendarSize||'medium'} ${t.done?'done':''} urgent${visualUrgency(t)}" data-id="${t.id}" title="${escapeHtml([t.course,t.title,formatDue(t),t.notes].filter(Boolean).join(' · '))}">${calendarChipHtml(t)}</button>`;
   const holidayTag=h=>h?`<button class="holiday-mini holiday-edit-tag" data-holiday-id="${h.id}" title="Edit holiday">✦ ${escapeHtml(h.name||'Holiday')}</button>`:'';
   if(calendarView==='month'){
-    const y=currentMonth.getFullYear(),m=currentMonth.getMonth();$('#monthLabel').textContent=currentMonth.toLocaleDateString(undefined,{month:'long',year:'numeric'});const first=new Date(y,m,1),offset=(first.getDay()+6)%7,start=new Date(y,m,1-offset);let html='';
+    const y=currentMonth.getFullYear(),m=currentMonth.getMonth();$('#monthLabel').textContent=currentMonth.toLocaleDateString(uiLocale(),{month:'long',year:'numeric'});const first=new Date(y,m,1),offset=(first.getDay()+6)%7,start=new Date(y,m,1-offset);let html='';
     for(let i=0;i<42;i++){const d=new Date(start);d.setDate(start.getDate()+i);const ds=fmtDateInput(d),dayTasks=all.filter(t=>t.date===ds),outside=d.getMonth()!==m,today=ds===fmtDateInput(new Date()),holiday=holidayForDate(ds);html+=`<div class="day-cell ${outside?'outside':''} ${today?'today':''} ${holiday?'holiday-day':''}" data-date="${ds}"><div class="day-number"><span>${d.getDate()}</span>${holidayTag(holiday)}</div>${document.body.classList.contains('mobile-layout')?(dayTasks.length?`<div class="mobile-month-dots" aria-label="${dayTasks.length} tasks">${dayTasks.slice(0,4).map(t=>`<span class="mobile-task-dot ${isDurationEvent(t)?'duration-event':''} urgent${visualUrgency(t)}"></span>`).join('')}${dayTasks.length>4?`<span class="mobile-month-count">+${dayTasks.length-4}</span>`:''}</div>`:''):dayTasks.slice(0,5).map(t=>chip(t)).join('')}${!document.body.classList.contains('mobile-layout')&&dayTasks.length>5?`<div class="tiny">+${dayTasks.length-5} more</div>`:''}</div>`}
     grid.innerHTML=html;
   }else if(calendarView==='week'){
-    const start=weekStartFor(currentMonth),end=addDays(start,6);$('#monthLabel').textContent=`${start.toLocaleDateString(undefined,{month:'short',day:'numeric'})} – ${end.toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'})}`;grid.classList.add('calendar-grid-week');let html='';
-    for(let i=0;i<7;i++){const d=addDays(start,i),ds=fmtDateInput(d),dayTasks=all.filter(t=>t.date===ds),today=ds===fmtDateInput(new Date()),holiday=holidayForDate(ds);html+=`<div class="week-day ${today?'today':''} ${holiday?'holiday-day':''}" data-date="${ds}"><div class="week-date"><strong>${d.getDate()}</strong><span>${d.toLocaleDateString(undefined,{month:'short'})}</span>${holidayTag(holiday)}</div><div class="week-events">${dayTasks.length?dayTasks.map(t=>chip(t,'week-event')).join(''):'<div class="calendar-empty">No tasks</div>'}</div></div>`}
+    const start=weekStartFor(currentMonth),end=addDays(start,6);$('#monthLabel').textContent=`${start.toLocaleDateString(uiLocale(),{month:'short',day:'numeric'})} – ${end.toLocaleDateString(uiLocale(),{month:'short',day:'numeric',year:'numeric'})}`;grid.classList.add('calendar-grid-week');let html='';
+    for(let i=0;i<7;i++){const d=addDays(start,i),ds=fmtDateInput(d),dayTasks=all.filter(t=>t.date===ds),today=ds===fmtDateInput(new Date()),holiday=holidayForDate(ds);html+=`<div class="week-day ${today?'today':''} ${holiday?'holiday-day':''}" data-date="${ds}"><div class="week-date"><strong>${d.getDate()}</strong><span>${d.toLocaleDateString(uiLocale(),{month:'short'})}</span>${holidayTag(holiday)}</div><div class="week-events">${dayTasks.length?dayTasks.map(t=>chip(t,'week-event')).join(''):'<div class="calendar-empty">No tasks</div>'}</div></div>`}
     grid.innerHTML=html;
   }else{
-    weekdays.classList.add('hidden');const d=new Date(currentMonth.getFullYear(),currentMonth.getMonth(),currentMonth.getDate()),ds=fmtDateInput(d),dayTasks=all.filter(t=>t.date===ds),holiday=holidayForDate(ds);$('#monthLabel').textContent=d.toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric',year:'numeric'});grid.classList.add('calendar-grid-day');grid.innerHTML=`<div class="daily-view ${holiday?'holiday-day':''}" data-date="${ds}"><div class="daily-date"><div>${d.toLocaleDateString(undefined,{weekday:'long'})}</div><strong>${d.getDate()}</strong><span>${d.toLocaleDateString(undefined,{month:'long',year:'numeric'})}</span>${holidayTag(holiday)}</div><div class="daily-events">${dayTasks.length?dayTasks.map(t=>`<button class="daily-task-card ${isDurationEvent(t)?'duration-event':''} size-${t.calendarSize||'medium'} ${t.done?'done':''} urgent${visualUrgency(t)}" data-id="${t.id}"><span class="daily-task-time">${isDurationEvent(t)?`${new Date(`${t.date}T${t.startTime}:00`).toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'})}${t.endTime?`–${new Date(`${t.date}T${t.endTime}:00`).toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'})}`:''}`:(t.time?new Date(`${t.date}T${t.time}:00`).toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'}):'Any time')}</span><span class="daily-task-main">${calendarChipHtml(t)}</span></button>`).join(''):'<div class="daily-empty">Nothing scheduled for this day.<button class="soft-btn small" id="dailyAdd">+ Add task</button></div>'}</div></div>`;if($('#dailyAdd'))$('#dailyAdd').onclick=e=>{e.stopPropagation();openTaskModal(null,ds)};
+    weekdays.classList.add('hidden');const d=new Date(currentMonth.getFullYear(),currentMonth.getMonth(),currentMonth.getDate()),ds=fmtDateInput(d),dayTasks=all.filter(t=>t.date===ds),holiday=holidayForDate(ds);$('#monthLabel').textContent=d.toLocaleDateString(uiLocale(),{weekday:'long',month:'long',day:'numeric',year:'numeric'});grid.classList.add('calendar-grid-day');grid.innerHTML=`<div class="daily-view ${holiday?'holiday-day':''}" data-date="${ds}"><div class="daily-date"><div>${d.toLocaleDateString(uiLocale(),{weekday:'long'})}</div><strong>${d.getDate()}</strong><span>${d.toLocaleDateString(uiLocale(),{month:'long',year:'numeric'})}</span>${holidayTag(holiday)}</div><div class="daily-events">${dayTasks.length?dayTasks.map(t=>`<button class="daily-task-card ${isDurationEvent(t)?'duration-event':''} size-${t.calendarSize||'medium'} ${t.done?'done':''} urgent${visualUrgency(t)}" data-id="${t.id}"><span class="daily-task-time">${isDurationEvent(t)?`${new Date(`${t.date}T${t.startTime}:00`).toLocaleTimeString(uiLocale(),{hour:'numeric',minute:'2-digit'})}${t.endTime?`–${new Date(`${t.date}T${t.endTime}:00`).toLocaleTimeString(uiLocale(),{hour:'numeric',minute:'2-digit'})}`:''}`:(t.time?new Date(`${t.date}T${t.time}:00`).toLocaleTimeString(uiLocale(),{hour:'numeric',minute:'2-digit'}):'Any time')}</span><span class="daily-task-main">${calendarChipHtml(t)}</span></button>`).join(''):'<div class="daily-empty">Nothing scheduled for this day.<button class="soft-btn small" id="dailyAdd">+ Add task</button></div>'}</div></div>`;if($('#dailyAdd'))$('#dailyAdd').onclick=e=>{e.stopPropagation();openTaskModal(null,ds)};
   }
   document.querySelectorAll('.event-chip,[data-id].daily-task-card').forEach(el=>el.onclick=e=>{e.stopPropagation();openTaskDetails(tasks.find(t=>t.id===el.dataset.id))});
   document.querySelectorAll('[data-holiday-id]').forEach(el=>el.onclick=e=>{e.stopPropagation();openHolidayModal(holidays.find(h=>h.id===el.dataset.holidayId))});
@@ -389,8 +393,8 @@ function maybePromptEndedEvent(){
   const t=endedUnfinishedEvents()[0];if(!t)return;
 
   eventCompletionPromptOpen=true;
-  const start=t.startTime?new Date(`${t.date}T${t.startTime}:00`).toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'}):'';
-  const end=t.endTime?new Date(`${t.date}T${t.endTime}:00`).toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'}):'';
+  const start=t.startTime?new Date(`${t.date}T${t.startTime}:00`).toLocaleTimeString(uiLocale(),{hour:'numeric',minute:'2-digit'}):'';
+  const end=t.endTime?new Date(`${t.date}T${t.endTime}:00`).toLocaleTimeString(uiLocale(),{hour:'numeric',minute:'2-digit'}):'';
   showModal(`
     <div class="section-label">EVENT CHECK-IN</div>
     <h3>${escapeHtml(t.title||'This event')}</h3>
@@ -472,7 +476,7 @@ function openTaskDetails(task){
   if(!task)return;
   const link=normalizeTaskLink(task.link);
   const repeatText=task.repeat?.enabled
-    ? repeatDescription(task.date,task.repeat)+(task.repeat.until?` Ends ${dateFromInput(task.repeat.until).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'})}.`:'')
+    ? repeatDescription(task.date,task.repeat)+(task.repeat.until?` Ends ${dateFromInput(task.repeat.until).toLocaleDateString(uiLocale(),{month:'short',day:'numeric',year:'numeric'})}.`:'')
     :'';
   showModal(`<div class="task-detail">
     <div class="task-detail-top">
@@ -488,8 +492,8 @@ function openTaskDetails(task){
 
     <div class="task-detail-grid">
       ${task.course?`<div class="detail-block"><span>Course</span><strong>${escapeHtml(task.course)}</strong></div>`:''}
-      <div class="detail-block"><span>Date</span><strong>${escapeHtml(dateFromInput(task.date).toLocaleDateString(undefined,{weekday:'short',month:'long',day:'numeric',year:'numeric'}))}</strong></div>
-      <div class="detail-block"><span>${isDurationEvent(task)?'Time':'Due time'}</span><strong>${isDurationEvent(task)?`${task.startTime?new Date(`${task.date}T${task.startTime}:00`).toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'}):'—'} – ${task.endTime?new Date(`${task.date}T${task.endTime}:00`).toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'}):'—'}`:(task.time?new Date(`${task.date}T${task.time}:00`).toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'}):'No specific time')}</strong></div>
+      <div class="detail-block"><span>Date</span><strong>${escapeHtml(dateFromInput(task.date).toLocaleDateString(uiLocale(),{weekday:'short',month:'long',day:'numeric',year:'numeric'}))}</strong></div>
+      <div class="detail-block"><span>${isDurationEvent(task)?'Time':'Due time'}</span><strong>${isDurationEvent(task)?`${task.startTime?new Date(`${task.date}T${task.startTime}:00`).toLocaleTimeString(uiLocale(),{hour:'numeric',minute:'2-digit'}):'—'} – ${task.endTime?new Date(`${task.date}T${task.endTime}:00`).toLocaleTimeString(uiLocale(),{hour:'numeric',minute:'2-digit'}):'—'}`:(task.time?new Date(`${task.date}T${task.time}:00`).toLocaleTimeString(uiLocale(),{hour:'numeric',minute:'2-digit'}):'No specific time')}</strong></div>
       ${repeatText?`<div class="detail-block full"><span>Repeat</span><strong>${escapeHtml(repeatText)}</strong></div>`:''}
     </div>
 
@@ -539,7 +543,7 @@ function repeatDescription(date,repeat){
   if(!repeat?.enabled)return'';
   const d=dateFromInput(date),interval=Math.max(1,Number(repeat.interval)||1);
   if(repeat.unit==='day')return interval===1?'Repeats every day.':`Repeats every ${interval} days.`;
-  if(repeat.unit==='week'){const day=d.toLocaleDateString(undefined,{weekday:'long'});return interval===1?`Repeats every ${day}.`:`Repeats every ${interval} weeks on ${day}.`}
+  if(repeat.unit==='week'){const day=d.toLocaleDateString(uiLocale(),{weekday:'long'});return interval===1?`Repeats every ${day}.`:`Repeats every ${interval} weeks on ${day}.`}
   const day=d.getDate(),suffix=(day%10===1&&day%100!==11)?'st':(day%10===2&&day%100!==12)?'nd':(day%10===3&&day%100!==13)?'rd':'th';
   return interval===1?`Repeats monthly on the ${day}${suffix}.`:`Repeats every ${interval} months on the ${day}${suffix}.`
 }
@@ -558,7 +562,7 @@ function bindRepeatPreview(){
     $('#repeatOptions').classList.toggle('hidden',!enabled);
     if(enabled){
       const repeat={enabled:true,unit:$('#fRepeatUnit').value,interval:Math.max(1,Number($('#fRepeatInterval').value)||1),until:$('#fRepeatUntil').value};
-      $('#repeatSummary').textContent=repeatDescription($('#fDate').value,repeat)+(repeat.until?` Until ${dateFromInput(repeat.until).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'})}.`:'')
+      $('#repeatSummary').textContent=repeatDescription($('#fDate').value,repeat)+(repeat.until?` Until ${dateFromInput(repeat.until).toLocaleDateString(uiLocale(),{month:'short',day:'numeric',year:'numeric'})}.`:'')
     }
   };
   ['#fRepeat','#fRepeatUnit','#fRepeatInterval','#fRepeatUntil','#fDate'].forEach(sel=>{const el=$(sel);if(el)el.addEventListener('change',update)});
@@ -987,8 +991,8 @@ function celebrateAheadOfSchedule(task){
 
 function celebrateFutureDayCleared(date,count){
   const d=dateFromInput(date);
-  const dayName=d.toLocaleDateString(undefined,{weekday:'long'});
-  const pretty=d.toLocaleDateString(undefined,{month:'long',day:'numeric'});
+  const dayName=d.toLocaleDateString(uiLocale(),{weekday:'long'});
+  const pretty=d.toLocaleDateString(uiLocale(),{month:'long',day:'numeric'});
   megaConfettiCannons();
   celebrationOverlay({
     kicker:'WAY AHEAD OF SCHEDULE',
@@ -1618,6 +1622,101 @@ function renderAmbientEffect(){
 }
 function initPetalRain(){renderAmbientEffect()}
 
+const UI_ZH={
+  'Wardrobe':'衣橱','Garden color':'花园颜色','Flower size':'花朵大小','Flower density':'花朵密度',
+  'Rain drop size':'雨滴大小','Rain density':'雨滴密度','Tiny':'极小','Huge':'超大','Sparse':'稀疏','Dense':'密集','Stormy':'暴雨',
+  'Layout':'布局','Mobile layout: Auto':'手机布局：自动','Mobile layout: On':'手机布局：开启','Mobile layout: Off':'手机布局：关闭',
+  'Background':'后台','Background protection: Off':'后台保护：关闭','Background protection: On':'后台保护：开启',
+  'Background protection: Starting…':'后台保护：启动中…','Background protection: Tap to resume':'后台保护：点击恢复',
+  'Background protection: Unavailable':'后台保护：不可用','Notifications':'通知','Notifications: Off':'通知：关闭','Notifications: On':'通知：开启',
+  'Notifications: Enabling…':'通知：开启中…','Notifications: Blocked':'通知：已被阻止','Notifications: Unsupported':'通知：不支持',
+  'Test background notification':'测试后台通知','Confetti':'庆祝彩纸','Checklist color':'清单颜色','Checklist shape':'清单形状',
+  'Post-it':'便利贴','White':'白色','Theme':'跟随主题','Tall':'竖长方形','Wide':'横长方形','Circle':'圆形',
+  'Low':'低','Medium':'中','High':'高','DEADLINE GARDEN':'截止日期花园','Today':'今天','Batch Paste':'批量粘贴','Bulk Edit':'批量编辑',
+  '+ Add task':'+ 添加任务','Todo':'待办','NEXT DEADLINE':'下一个截止日期','Nothing due soon':'近期没有截止任务','Your calendar is clear.':'日历目前很轻松。',
+  '+ Holiday':'+ 假期','Month':'月','Week':'周','Day':'日','Display':'显示','TO DO':'待办','Nothing pending':'暂无待办',
+  'Todo badge shows':'待办数字显示','This week':'本周','All':'全部','CHECKLIST':'清单','Checklist':'清单',
+  'Welcome back':'欢迎回来','Create your account':'创建账号','Email':'邮箱','Password':'密码','Keep me signed in on this device':'在此设备保持登录',
+  'Sign in':'登录','Create account':'创建账号','Create an account instead':'改为创建账号','Already have an account? Sign in':'已有账号？登录',
+  'TASK DETAILS':'任务详情','COMPLETED TASK':'已完成任务','Completed':'已完成','Edit':'编辑','Course':'课程','Date':'日期','Time':'时间','Due time':'截止时间',
+  'Repeat':'重复','Description':'描述','No description added.':'尚未添加描述。','Open task link':'打开任务链接','Close':'关闭','Mark as done':'标记为完成',
+  'Return to To-do':'重新加入待办','CALENDAR APPEARANCE':'日历外观','Task display size':'任务显示大小','Small':'小','Large':'大','Back':'返回',
+  'EVENT CHECK-IN':'事件确认','Did you finish this event?':'这个事件完成了吗？','Ask me later':'稍后再问','Yes, completed':'是，已完成',
+  'DEADLINE':'截止日期','Already finished?':'已经完成了吗？','If you finished it but forgot to mark it done, mark it here.':'如果已经完成但忘了勾选，可以在这里标记。',
+  'Not yet':'还没有','✓ Yes, it\'s done':'✓ 是，已经完成','URGENT DEADLINE':'紧急截止日期','Keep working':'继续努力','DEADLINE APPROACHING':'截止时间临近',
+  'BULK EDIT':'批量编辑','Find and delete tasks':'查找并删除任务','Keyword':'关键词','Select all matches':'全选匹配项','Type a keyword.':'请输入关键词。',
+  'Cancel':'取消','Delete selected':'删除已选','CONFIRM DELETE':'确认删除','Delete':'删除','No matches.':'没有匹配项。',
+  'Batch Paste':'批量粘贴','Format example':'格式示例','You can use |, commas, semicolons, tabs, or natural wording.':'可以使用 |、逗号、分号、Tab 或自然语言。',
+  'Copy example':'复制示例','Paste or type your deadlines':'粘贴或输入截止日期','Backup / Restore':'备份 / 恢复','Preview':'预览',
+  'Optional calendar icon for this import':'此批次可选日历图标','Emoji takes priority over color.':'Emoji 优先于颜色。','No color':'无颜色','Import selected':'导入已选',
+  'Export JSON':'导出 JSON','Restore JSON':'恢复 JSON','Task name':'任务名称','Course (optional)':'课程（可选）','Event type':'事件类型','Due date':'截止日期',
+  'Time block / event':'时间段 / 事件','Exact due time (optional)':'精确截止时间（可选）','Starts':'开始','Ends':'结束','Emoji icon (optional)':'Emoji 图标（可选）',
+  'Icon color (if no emoji)':'图标颜色（无 Emoji 时）','Link (optional)':'链接（可选）','Notes':'备注','Save':'保存','Update':'更新','Add task':'添加任务',
+  'No specific time':'无具体时间','No course':'无课程','Date not recognized':'未识别日期','Possible duplicate':'可能重复','Could not identify task':'无法识别任务',
+  'All clear for today.':'今天已经全部完成。','No other tasks due this week.':'本周没有其他任务。','Nothing due next week.':'下周没有截止任务。','No later deadlines.':'之后没有截止任务。',
+  'Nothing scheduled for this day.':'这一天没有安排。','Any time':'任意时间','Holiday':'假期','Edit holiday':'编辑假期',
+  'Task name and date are required.':'任务名称和日期为必填项。','Choose both a start and end time.':'请选择开始和结束时间。','End time must be after start time.':'结束时间必须晚于开始时间。',
+  'Calendar size updated.':'日历显示大小已更新。','Event marked as completed.':'事件已标记为完成。','Notifications enabled.':'通知已开启。','Notifications turned off.':'通知已关闭。',
+  'Sign in first, then enable notifications.':'请先登录，再开启通知。','Not now':'暂不开启','Continue':'继续','Stay ahead of your deadlines':'提前掌握你的截止日期',
+  'Your device will ask for notification permission next.':'接下来设备会询问通知权限。','All done for today!':'今天全部完成！','enjoy the rest of your day':'享受今天剩下的时间吧',
+  'Nothing due today':'今天没有截止任务','No tasks':'没有任务','All later deadlines':'之后的所有截止任务'
+};
+const UI_SKIP_SELECTOR='.event-main-line,.event-desc-line,.todo-title,.todo-course,.quick-todo-item,.preview-raw,.bulk-row strong,.bulk-row small,.task-detail h3,.detail-block strong,.detail-description>div,.task-link-card small,.finish-prompt-task strong';
+function translateUiText(raw){
+  if(uiLanguage!=='zh')return raw;
+  const lead=raw.match(/^\s*/)?.[0]||'',trail=raw.match(/\s*$/)?.[0]||'',s=raw.trim();
+  if(!s)return raw;
+  if(UI_ZH[s])return lead+UI_ZH[s]+trail;
+  let m;
+  if((m=s.match(/^(\d+) tasks? to focus on today$/)))return `${m[1]} 项任务需要在今天完成`;
+  if((m=s.match(/^(\d+) for today(?: · includes overdue)?$/)))return `今天 ${m[1]} 项待办${s.includes('overdue')?' · 包含逾期':''}`;
+  if((m=s.match(/^Due in (.+)$/)))return `还剩 ${m[1]}`;
+  if((m=s.match(/^Overdue by (.+)$/)))return `已逾期 ${m[1]}`;
+  if((m=s.match(/^(\d+) tasks? complete · enjoy the rest of your day$/)))return `${m[1]} 项任务已完成 · 好好享受今天剩下的时间`;
+  if((m=s.match(/^Delete selected \((\d+)\)$/)))return `删除已选（${m[1]}）`;
+  if((m=s.match(/^(\d+) matches?$/)))return `${m[1]} 个匹配项`;
+  if((m=s.match(/^Delete (\d+) tasks?\?$/)))return `删除 ${m[1]} 项任务？`;
+  if((m=s.match(/^(\d+) lines? detected$/)))return `检测到 ${m[1]} 行`;
+  const weekdays={Monday:'星期一',Tuesday:'星期二',Wednesday:'星期三',Thursday:'星期四',Friday:'星期五',Saturday:'星期六',Sunday:'星期日'};
+  const months={January:'1月',February:'2月',March:'3月',April:'4月',May:'5月',June:'6月',July:'7月',August:'8月',September:'9月',October:'10月',November:'11月',December:'12月'};
+  if((m=s.match(/^(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday), (January|February|March|April|May|June|July|August|September|October|November|December) (\d{1,2})(?:, (\d{4}))?$/))){
+    return `${m[4]?m[4]+'年':''}${months[m[2]]}${m[3]}日 ${weekdays[m[1]]}`;
+  }
+  if((m=s.match(/^(January|February|March|April|May|June|July|August|September|October|November|December) (\d{4})$/)))return `${m[2]}年${months[m[1]]}`;
+  return raw;
+}
+function localizeUi(root=document.body){
+  if(uiLanguage!=='zh'||!root)return;
+  const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);
+  const nodes=[];while(walker.nextNode())nodes.push(walker.currentNode);
+  for(const n of nodes){
+    const p=n.parentElement;if(!p||p.closest(UI_SKIP_SELECTOR)||['SCRIPT','STYLE','TEXTAREA'].includes(p.tagName))continue;
+    const next=translateUiText(n.nodeValue);if(next!==n.nodeValue)n.nodeValue=next;
+  }
+  const attrMap={
+    'Your task name':'你的任务名称','Your course name (if applicable)':'你的课程名称（如适用）','e.g. CHIN 1122':'例如 CHIN 1122',
+    'Add instructions, details, or anything useful...':'添加说明、细节或其他有用信息…','Type one task per line…':'每行输入一项任务…','e.g. HDFS':'例如 HDFS',
+    'you@example.com':'you@example.com','Password':'密码','https://...':'https://...','e.g. Tidy the room':'例如：收拾房间'
+  };
+  root.querySelectorAll?.('input[placeholder],textarea[placeholder]').forEach(el=>{if(attrMap[el.placeholder])el.placeholder=attrMap[el.placeholder]});
+  root.querySelectorAll?.('[aria-label]').forEach(el=>{const a=el.getAttribute('aria-label');if(UI_ZH[a])el.setAttribute('aria-label',UI_ZH[a])});
+  root.querySelectorAll?.('[title]').forEach(el=>{const a=el.getAttribute('title');if(UI_ZH[a])el.setAttribute('title',UI_ZH[a])});
+}
+function initLanguage(){
+  document.documentElement.lang=uiLanguage==='zh'?'zh-CN':'en';
+  const b=$('#languageBtn');if(b){
+    b.textContent=uiLanguage==='en'?'简':'EN';
+    b.setAttribute('aria-label',uiLanguage==='en'?'切换到简体中文':'Switch to English');
+    b.title=uiLanguage==='en'?'切换到简体中文':'Switch to English';
+    b.onclick=e=>{e.preventDefault();e.stopPropagation();const next=uiLanguage==='en'?'zh':'en';try{localStorage.setItem(LANGUAGE_KEY,next)}catch{};location.reload()};
+  }
+  if(uiLanguage==='zh'){
+    localizeUi(document.body);
+    const observer=new MutationObserver(mutations=>{for(const m of mutations){for(const n of m.addedNodes){if(n.nodeType===Node.ELEMENT_NODE)localizeUi(n);else if(n.nodeType===Node.TEXT_NODE)localizeUi(n.parentElement)}}});
+    observer.observe(document.body,{childList:true,subtree:true});
+  }
+}
+
 $('#addBtn').onclick=(e)=>{e.preventDefault();e.stopPropagation();openTaskModal()};
 $('#accountBtn').onclick=openAuth;
 $('#authRoot').onclick=e=>{if(e.target===$('#authRoot'))closeAuth()};
@@ -1653,6 +1752,7 @@ $('#quickBubble').onclick=()=>setChecklistCollapsed(false);
 try{const savedChecklistState=localStorage.getItem(CHECKLIST_COLLAPSE_KEY);setChecklistCollapsed(savedChecklistState===null?true:savedChecklistState==='1')}catch{setChecklistCollapsed(true)};
 
 (async()=>{
+  try{initLanguage()}catch(err){console.error('Language initialization failed:',err)}
   try{initTheme()}catch(err){console.error('Theme initialization failed:',err)}
   try{initBackgroundProtection()}catch(err){console.error('Background protection initialization failed:',err)}
   try{initNotifications()}catch(err){console.error('Notification initialization failed:',err)}

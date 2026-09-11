@@ -12,7 +12,7 @@
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Deadline Garden" />
-  <link rel="stylesheet" href="styles.css?v=1612" />
+  <link rel="stylesheet" href="styles.css?v=1615" />
 </head>
 <body>
   <div id="petalRain" class="petal-rain" aria-hidden="true"></div>
@@ -24,7 +24,10 @@
     </div>
   </div>
 
-  <button id="accountBtn" class="soft-btn account-btn">Sign in</button>
+  <div id="utilityBar" class="utility-bar" aria-label="Account and language controls">
+    <button id="languageBtn" class="language-btn" type="button" aria-label="Switch language" title="Switch language">简</button>
+    <button id="accountBtn" class="soft-btn account-btn">Sign in</button>
+  </div>
 
   <div class="garden-frame">
     <header class="topbar">
@@ -182,6 +185,6 @@
   <canvas id="confettiCanvas"></canvas>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="./background-keepalive.js"></script>
-  <script src="app.js"></script>
+  <script src="app.js?v=1615"></script>
 </body>
 </html>

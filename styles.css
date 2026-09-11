@@ -2510,3 +2510,108 @@ html[data-theme="glass"] body.mobile-layout.urgent-global::after{
   backdrop-filter:blur(7px) saturate(105%)!important;
   -webkit-backdrop-filter:blur(7px) saturate(105%)!important;
 }
+
+
+/* v16.15 — viewport lock, fixed mobile Todo overlay, and language control */
+html,body{
+  width:100%;
+  max-width:100vw;
+  overflow-x:hidden;
+}
+body.mobile-layout{
+  width:100%!important;
+  max-width:100vw!important;
+  overflow-x:clip!important;
+  overscroll-behavior-x:none!important;
+  touch-action:pan-y!important;
+}
+body.mobile-layout .garden-frame{
+  left:auto!important;
+  right:auto!important;
+  max-width:calc(100vw - 12px)!important;
+  overflow:visible!important;
+}
+
+/* v16.13 accidentally made Todo relative in Glass mode. Force it back into
+   the viewport so opening Todo can never enlarge the page or sit off-screen. */
+html[data-theme="glass"] body.mobile-layout #todoPanel.todo-panel,
+body.mobile-layout #todoPanel.todo-panel{
+  position:fixed!important;
+  left:8px!important;
+  right:8px!important;
+  top:calc(env(safe-area-inset-top, 0px) + 58px)!important;
+  bottom:max(10px,env(safe-area-inset-bottom, 0px))!important;
+  width:auto!important;
+  min-width:0!important;
+  max-width:none!important;
+  max-height:none!important;
+  height:auto!important;
+  margin:0!important;
+  z-index:9000!important;
+  overflow:auto!important;
+  overscroll-behavior:contain!important;
+  transform:translate3d(calc(100vw + 32px),0,0)!important;
+  transition:transform .28s cubic-bezier(.2,.8,.2,1)!important;
+}
+html[data-theme="glass"] body.mobile-layout #todoPanel.todo-panel.open,
+body.mobile-layout #todoPanel.todo-panel.open{
+  transform:translate3d(0,0,0)!important;
+}
+
+.utility-bar{
+  position:fixed;
+  top:18px;
+  right:22px;
+  z-index:7600;
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+.utility-bar #accountBtn{
+  position:static!important;
+  inset:auto!important;
+  margin:0!important;
+}
+.language-btn{
+  width:40px;
+  height:40px;
+  flex:0 0 40px;
+  display:grid;
+  place-items:center;
+  border-radius:50%;
+  border:1px solid var(--border);
+  background:var(--paper);
+  color:var(--text);
+  font-size:13px;
+  font-weight:900;
+  box-shadow:0 8px 22px rgba(0,0,0,.10);
+  backdrop-filter:blur(14px);
+  -webkit-backdrop-filter:blur(14px);
+}
+html[data-theme="glass"] .language-btn{
+  color:#fff;
+  background:rgba(48,71,83,.72);
+  border-color:rgba(255,255,255,.5);
+  text-shadow:0 1px 2px rgba(0,0,0,.55);
+}
+
+body.mobile-layout .utility-bar{
+  top:calc(env(safe-area-inset-top, 0px) + 2px)!important;
+  right:10px!important;
+  gap:6px!important;
+}
+body.mobile-layout .utility-bar #accountBtn{
+  max-width:132px!important;
+  min-width:90px!important;
+  padding:8px 12px!important;
+  font-size:13px!important;
+}
+body.mobile-layout .language-btn{
+  width:34px!important;
+  height:34px!important;
+  flex-basis:34px!important;
+  font-size:12px!important;
+}
+body.mobile-layout .garden-frame{
+  margin-top:calc(env(safe-area-inset-top, 0px) + 50px)!important;
+}
