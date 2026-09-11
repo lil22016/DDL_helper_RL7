@@ -2367,3 +2367,146 @@ body.mobile-layout .brand-row{
     background:#526572;
   }
 }
+
+
+/* v16.13 — mobile modal width + tighter safe-area header + continuous glass */
+body.mobile-layout #modalCard .field,
+body.mobile-layout #modalCard .field.full{
+  width:100%!important;
+  min-width:0!important;
+  max-width:100%!important;
+  overflow:hidden!important;
+}
+
+body.mobile-layout #modalCard input[type="date"],
+body.mobile-layout #modalCard input[type="time"]{
+  display:block!important;
+  width:100%!important;
+  min-width:0!important;
+  max-width:100%!important;
+  box-sizing:border-box!important;
+  -webkit-appearance:none!important;
+  appearance:none!important;
+  overflow:hidden!important;
+}
+
+/* Move the account chip and the garden upward, but keep enough clearance
+   so the account chip cannot cover the heading. */
+body.mobile-layout #accountBtn{
+  top:calc(env(safe-area-inset-top, 0px) + 3px)!important;
+}
+
+body.mobile-layout .garden-frame{
+  margin-top:calc(env(safe-area-inset-top, 0px) + 52px)!important;
+}
+
+/* In Glass mode, give the whole phone viewport the same subtle glass veil.
+   This removes the obvious horizontal seam where the garden glass used to begin. */
+html[data-theme="glass"] body.mobile-layout::after{
+  content:"";
+  position:fixed;
+  inset:0;
+  z-index:1;
+  pointer-events:none;
+  background:rgba(211,225,239,.018);
+  backdrop-filter:blur(9px) saturate(108%);
+  -webkit-backdrop-filter:blur(9px) saturate(108%);
+}
+
+html[data-theme="glass"] body.mobile-layout .garden-frame,
+html[data-theme="glass"] body.mobile-layout #accountBtn,
+html[data-theme="glass"] body.mobile-layout .auth-root,
+html[data-theme="glass"] body.mobile-layout .modal-root,
+html[data-theme="glass"] body.mobile-layout .todo-panel,
+html[data-theme="glass"] body.mobile-layout #confettiCanvas,
+html[data-theme="glass"] body.mobile-layout .confetti-cannon-layer{
+  position:relative;
+  z-index:3;
+}
+
+html[data-theme="glass"] body.mobile-layout #accountBtn{
+  position:fixed!important;
+  z-index:7600!important;
+}
+
+html[data-theme="glass"] body.mobile-layout .modal-root{
+  position:fixed!important;
+  z-index:220!important;
+}
+
+html[data-theme="glass"] body.mobile-layout #confettiCanvas{
+  position:fixed!important;
+  z-index:100000!important;
+}
+
+html[data-theme="glass"] body.mobile-layout .confetti-cannon-layer{
+  position:fixed!important;
+  z-index:100001!important;
+}
+
+
+/* v16.14 — mobile urgent full-screen tint + tighter account/header spacing */
+
+/* Put the account chip directly under the iPhone status area. */
+body.mobile-layout #accountBtn{
+  top:max(2px, calc(env(safe-area-inset-top, 0px) - 6px))!important;
+  right:10px!important;
+}
+
+/* Pull the Deadline Garden body up so it begins shortly below the account chip. */
+body.mobile-layout .garden-frame{
+  margin-top:calc(env(safe-area-inset-top, 0px) + 34px)!important;
+}
+
+/* In urgent Glass mode the rain/background previously sat above the red body
+   background, which made only the lower garden area look red. Keep the rain
+   underneath one full-screen urgency wash instead. */
+html[data-theme="glass"] body.mobile-layout.urgent-global .petal-rain,
+html[data-theme="glass"] body.mobile-layout.urgent-global .petal-rain.rain-mode{
+  z-index:1!important;
+  opacity:.34!important;
+  filter:hue-rotate(315deg) saturate(1.3)!important;
+}
+
+/* Full viewport urgency tint, including the status/account area above the garden. */
+html[data-theme="glass"] body.mobile-layout.urgent-global::before{
+  content:"";
+  position:fixed;
+  inset:0;
+  z-index:2;
+  pointer-events:none;
+  background:
+    radial-gradient(circle at 50% 2%, rgba(238,73,89,.32), transparent 38%),
+    linear-gradient(180deg, rgba(110,27,39,.48) 0%, rgba(151,42,57,.52) 46%, rgba(92,25,36,.55) 100%);
+  backdrop-filter:saturate(118%);
+  -webkit-backdrop-filter:saturate(118%);
+}
+
+/* Stronger wash in the critical state. */
+html[data-theme="glass"] body.mobile-layout.urgent-global-critical::before{
+  background:
+    radial-gradient(circle at 50% 0%, rgba(255,78,92,.42), transparent 34%),
+    linear-gradient(180deg, rgba(116,16,30,.60) 0%, rgba(180,36,53,.62) 48%, rgba(92,11,23,.64) 100%);
+  animation:mobileUrgentWashPulse 1.15s ease-in-out infinite;
+}
+
+@keyframes mobileUrgentWashPulse{
+  50%{opacity:.82}
+}
+
+/* Keep the app content above the full-screen urgency wash. */
+html[data-theme="glass"] body.mobile-layout.urgent-global .garden-frame{
+  position:relative!important;
+  z-index:5!important;
+}
+html[data-theme="glass"] body.mobile-layout.urgent-global #accountBtn{
+  position:fixed!important;
+  z-index:7600!important;
+}
+
+/* Remove the visible viewport-wide seam at the garden start in urgent Glass mode. */
+html[data-theme="glass"] body.mobile-layout.urgent-global::after{
+  background:rgba(211,225,239,.012)!important;
+  backdrop-filter:blur(7px) saturate(105%)!important;
+  -webkit-backdrop-filter:blur(7px) saturate(105%)!important;
+}
