@@ -2685,3 +2685,63 @@ html body.mobile-layout #utilityBar.utility-bar #accountBtn.account-btn{
   transform:none!important;
   z-index:1!important;
 }
+
+
+/* v16.17 — centered mobile details/auth + course icon prompt */
+body.mobile-layout #modalRoot.modal-root.detail-modal-open{
+  align-items:center!important;
+  justify-content:center!important;
+  padding:max(12px,env(safe-area-inset-top)) 8px max(16px,env(safe-area-inset-bottom)) 8px!important;
+}
+body.mobile-layout #modalRoot.modal-root.detail-modal-open #modalCard.modal-card{
+  margin:auto!important;
+  max-height:calc(100dvh - max(28px,env(safe-area-inset-top)) - max(28px,env(safe-area-inset-bottom)))!important;
+  overflow:auto!important;
+  -webkit-overflow-scrolling:touch!important;
+}
+
+html[data-theme="glass"] body.mobile-layout #authRoot.auth-root,
+body.mobile-layout #authRoot.auth-root{
+  position:fixed!important;
+  inset:0!important;
+  z-index:9500!important;
+  display:grid!important;
+  place-items:center!important;
+  width:100vw!important;
+  height:100dvh!important;
+  margin:0!important;
+  padding:max(16px,env(safe-area-inset-top)) 14px max(16px,env(safe-area-inset-bottom)) 14px!important;
+  overflow:auto!important;
+  box-sizing:border-box!important;
+}
+html[data-theme="glass"] body.mobile-layout #authRoot.auth-root.hidden,
+body.mobile-layout #authRoot.auth-root.hidden{display:none!important}
+body.mobile-layout #authRoot .auth-card{
+  margin:auto!important;
+  width:min(430px,100%)!important;
+  max-height:calc(100dvh - max(32px,env(safe-area-inset-top)) - max(32px,env(safe-area-inset-bottom)))!important;
+  overflow:auto!important;
+  -webkit-overflow-scrolling:touch!important;
+}
+
+.course-icon-prompt-overlay{
+  position:fixed;inset:0;z-index:12000;display:grid;place-items:center;
+  padding:max(16px,env(safe-area-inset-top)) 14px max(16px,env(safe-area-inset-bottom)) 14px;
+  background:rgba(15,25,31,.34);
+  backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px);
+}
+.course-icon-prompt{
+  width:min(430px,100%);padding:22px;border-radius:24px;
+  background:rgba(255,255,255,.94);color:var(--text);
+}
+html[data-theme="glass"] .course-icon-prompt{
+  background:rgba(49,70,82,.92)!important;color:#fff!important;
+  border:1px solid rgba(255,255,255,.42)!important;
+}
+.course-icon-prompt h3{margin:6px 0 16px;font-size:22px}
+.course-icon-prompt-preview{
+  display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:15px;
+  background:rgba(255,255,255,.11);margin-bottom:14px;
+}
+.course-icon-remember{display:flex;align-items:flex-start;gap:9px;font-size:13px;line-height:1.35;margin:12px 0 16px}
+.course-icon-remember input{width:18px;height:18px;flex:0 0 18px;margin-top:1px}

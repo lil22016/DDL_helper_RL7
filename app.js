@@ -20,9 +20,12 @@ const uiLocale=()=>uiLanguage==='zh'?'zh-CN':'en-US';
 let backgroundKeepAlive=null;
 let backgroundKeepAlivePlaying=false;
 const COURSE_HISTORY_KEY='deadline-garden-course-history-v1';
+const COURSE_ICON_PREFS_KEY='deadline-garden-course-icon-prefs-v1';
+let courseIconPrefs={};
+try{courseIconPrefs=JSON.parse(localStorage.getItem(COURSE_ICON_PREFS_KEY)||'{}')||{}}catch{courseIconPrefs={}}
 let customize={flowerSize:'medium',flowerOpacity:'medium',rainDropSize:50,rainDensity:50,effectSize:50,effectDensity:50,confetti:'medium',checklistColor:'postit',checklistShape:'postit',todoCount:'today',mobileLayout:'auto'};
 const EVENT_PROMPT_SNOOZE_KEY='deadline-garden-event-prompt-snooze-v1';
-let eventCompletionPromptOpen=false;
+let eventCompletionPromptOpen=false,eventCompletionPromptTaskId=null;
 let holidays=[];
 try{Object.assign(customize,JSON.parse(localStorage.getItem(CUSTOMIZE_KEY)||'{}')||{})}catch{}
 if(customize.effectSize==null)customize.effectSize=Number(customize.rainDropSize??50);
@@ -44,7 +47,7 @@ try{
 // Put your Supabase project URL and public anon key here to activate login/sync.
 const SUPABASE_URL='https://lgjacbbdysmarqmvejzi.supabase.co';
 const SUPABASE_ANON_KEY='sb_publishable_aNka9UBED7hc5JF-Ugw4KA_E5saENef';
-let supabaseClient=null,currentCloudUser=null,cloudApplying=false,cloudSyncTimer=null,authMode='signin';
+let supabaseClient=null,currentCloudUser=null,cloudApplying=false,cloudSyncTimer=null,cloudPollTimer=null,lastCloudUpdatedAt=0,authMode='signin';
 const REMEMBER_LOGIN_KEY='deadline-garden-remember-login-v1';
 
 function authNotice(message,type='info'){
@@ -72,13 +75,15 @@ async function idbReplaceAll(items){
   });
 }
 async function collectGardenState(){
-  return {version:1,tasks:await idbGetAll(),holidays:[...holidays],customize:{...customize},theme:document.documentElement.dataset.theme||'green',calendarDisplay:{...calendarDisplay},calendarView,checklistCollapsed:localStorage.getItem(CHECKLIST_COLLAPSE_KEY)==='1',updatedAt:new Date().toISOString()};
+  return {version:1,tasks:await idbGetAll(),holidays:[...holidays],customize:{...customize},courseIconPrefs:{...courseIconPrefs},theme:document.documentElement.dataset.theme||'green',calendarDisplay:{...calendarDisplay},calendarView,checklistCollapsed:localStorage.getItem(CHECKLIST_COLLAPSE_KEY)==='1',updatedAt:new Date().toISOString()};
 }
 async function uploadGardenState(){
   if(!supabaseClient||!currentCloudUser||cloudApplying)return;
   const state=await collectGardenState();
-  const {error}=await supabaseClient.from('garden_state').upsert({user_id:currentCloudUser.id,state,updated_at:new Date().toISOString()},{onConflict:'user_id'});
+  const updatedAt=new Date().toISOString();
+  const {error}=await supabaseClient.from('garden_state').upsert({user_id:currentCloudUser.id,state,updated_at:updatedAt},{onConflict:'user_id'});
   if(error)console.error('Cloud sync failed:',error);
+  else lastCloudUpdatedAt=Math.max(lastCloudUpdatedAt,Date.parse(updatedAt)||0);
 }
 function queueCloudSync(){
   if(!supabaseClient||!currentCloudUser||cloudApplying)return;
@@ -91,19 +96,45 @@ async function applyCloudState(state){
     await idbReplaceAll(state.tasks);
     if(Array.isArray(state.holidays)){holidays=state.holidays;try{localStorage.setItem(HOLIDAY_KEY,JSON.stringify(holidays))}catch{}}
     if(state.customize&&typeof state.customize==='object'){Object.assign(customize,state.customize);try{localStorage.setItem(CUSTOMIZE_KEY,JSON.stringify(customize))}catch{}}
+    if(state.courseIconPrefs&&typeof state.courseIconPrefs==='object'){courseIconPrefs={...state.courseIconPrefs};try{localStorage.setItem(COURSE_ICON_PREFS_KEY,JSON.stringify(courseIconPrefs))}catch{}}
     if(state.calendarDisplay&&typeof state.calendarDisplay==='object'){calendarDisplay={...calendarDisplay,...state.calendarDisplay};try{localStorage.setItem(CAL_DISPLAY_KEY,JSON.stringify(calendarDisplay))}catch{}}
     if(['month','week','day'].includes(state.calendarView)){calendarView=state.calendarView;try{localStorage.setItem(CAL_VIEW_KEY,calendarView)}catch{}}
     if(typeof state.checklistCollapsed==='boolean')try{localStorage.setItem(CHECKLIST_COLLAPSE_KEY,state.checklistCollapsed?'1':'0')}catch{}
     if(THEMES.includes(state.theme))applyTheme(state.theme);else applyCustomize();
     await refresh();
+    if(eventCompletionPromptTaskId){
+      const latest=(state.tasks||[]).find(t=>String(t.id)===String(eventCompletionPromptTaskId));
+      if(!latest||latest.done){eventCompletionPromptOpen=false;eventCompletionPromptTaskId=null;closeModal()}
+    }
   }finally{cloudApplying=false}
 }
+async function pollCloudState(){
+  if(!supabaseClient||!currentCloudUser||cloudApplying)return;
+  const {data,error}=await supabaseClient.from('garden_state').select('state,updated_at').eq('user_id',currentCloudUser.id).maybeSingle();
+  if(error||!data?.state)return;
+  const remoteAt=Date.parse(data.updated_at||data.state?.updatedAt||'')||0;
+  if(remoteAt>lastCloudUpdatedAt+250){
+    lastCloudUpdatedAt=remoteAt;
+    await applyCloudState(data.state);
+  }
+}
+function startCloudPolling(){
+  clearInterval(cloudPollTimer);
+  cloudPollTimer=setInterval(()=>pollCloudState().catch(console.error),5000);
+}
+function stopCloudPolling(){clearInterval(cloudPollTimer);cloudPollTimer=null}
 async function syncAccountState(user){
-  currentCloudUser=user||null;updateAccountButton(currentCloudUser);if(!currentCloudUser)return;
+  currentCloudUser=user||null;updateAccountButton(currentCloudUser);
+  if(!currentCloudUser){stopCloudPolling();return}
   const {data,error}=await supabaseClient.from('garden_state').select('state,updated_at').eq('user_id',currentCloudUser.id).maybeSingle();
   if(error){console.error('Could not read cloud garden:',error);return}
-  if(data?.state){await applyCloudState(data.state);toast('Garden synced from your account.');}
-  else{await uploadGardenState();toast('Your current garden is now linked to this account.');}
+  if(data?.state){
+    lastCloudUpdatedAt=Date.parse(data.updated_at||data.state?.updatedAt||'')||0;
+    await applyCloudState(data.state);toast('Garden synced from your account.');
+  }else{
+    await uploadGardenState();toast('Your current garden is now linked to this account.');
+  }
+  startCloudPolling();
 }
 async function initSupabaseAuth(){
   if(!supabaseConfigured()||!window.supabase){updateAccountButton(null);return}
@@ -112,7 +143,7 @@ async function initSupabaseAuth(){
   const {data}=await supabaseClient.auth.getSession();
   if(data?.session?.user)await syncAccountState(data.session.user);else updateAccountButton(null);
   supabaseClient.auth.onAuthStateChange((event,session)=>{
-    if(event==='SIGNED_OUT'){currentCloudUser=null;updateAccountButton(null)}
+    if(event==='SIGNED_OUT'){currentCloudUser=null;updateAccountButton(null);stopCloudPolling()}
     else if(event==='SIGNED_IN'&&session?.user&&session.user.id!==currentCloudUser?.id)setTimeout(()=>syncAccountState(session.user).catch(console.error),0);
   });
 }
@@ -392,7 +423,7 @@ function maybePromptEndedEvent(){
   if(!$('#modalRoot')?.classList.contains('hidden'))return;
   const t=endedUnfinishedEvents()[0];if(!t)return;
 
-  eventCompletionPromptOpen=true;
+  eventCompletionPromptOpen=true;eventCompletionPromptTaskId=t.id;
   const start=t.startTime?new Date(`${t.date}T${t.startTime}:00`).toLocaleTimeString(uiLocale(),{hour:'numeric',minute:'2-digit'}):'';
   const end=t.endTime?new Date(`${t.date}T${t.endTime}:00`).toLocaleTimeString(uiLocale(),{hour:'numeric',minute:'2-digit'}):'';
   showModal(`
@@ -409,14 +440,14 @@ function maybePromptEndedEvent(){
   $('#eventDone').onclick=async()=>{
     clearEventPromptSnooze(t.id);
     await idbPut({...t,done:true,updatedAt:Date.now()});
-    eventCompletionPromptOpen=false;
+    eventCompletionPromptOpen=false;eventCompletionPromptTaskId=null;
     closeModal();
     await refresh();
     toast('Event marked as completed.');
   };
   $('#eventLater').onclick=()=>{
     setEventPromptSnooze(t.id,Date.now()+60*60e3);
-    eventCompletionPromptOpen=false;
+    eventCompletionPromptOpen=false;eventCompletionPromptTaskId=null;
     closeModal();
   };
 }
@@ -447,13 +478,16 @@ function showModal(html){
   const root=$('#modalRoot'),card=$('#modalCard');if(!root||!card)return;
   card.innerHTML=html;
   root.scrollTop=0;
+  root.classList.toggle('detail-modal-open',!!card.querySelector('.task-detail'));
   root.classList.remove('hidden');
   document.body.classList.add('modal-open');
   requestAnimationFrame(()=>root.classList.add('visible'))
 }
 function closeModal(){
-  eventCompletionPromptOpen=false;
+  eventCompletionPromptOpen=false;eventCompletionPromptTaskId=null;
   const root=$('#modalRoot');if(!root)return;
+  root.classList.remove('detail-modal-open');
+  $('#courseIconPromptOverlay')?.remove();
   document.body.classList.remove('modal-open');
   $('#courseSuggestionPortal')?.remove();
   root.classList.remove('visible');
@@ -553,7 +587,11 @@ function readTaskForm(){
   let time='',startTime='',endTime='';if(eventType==='duration'){startTime=$('#fStartTime').value;endTime=$('#fEndTime').value;if(!startTime||!endTime){toast('Choose both a start and end time.');return null}if(endTime<=startTime){toast('End time must be after start time.');return null}}else time=$('#fTime').value||'23:59';
   const enabled=$('#fRepeat').checked,repeat=enabled?{enabled:true,unit:$('#fRepeatUnit').value,interval:Math.max(1,Number($('#fRepeatInterval').value)||1),until:$('#fRepeatUntil').value}:null;if(enabled&&!repeat.until){toast('Choose a Repeat until date.');return null}if(enabled&&dateFromInput(repeat.until)<dateFromInput(date)){toast('Repeat until must be on or after the start date.');return null}
   const rawLink=$('#fLink').value.trim(),link=normalizeTaskLink(rawLink);if(rawLink&&!link){toast('Enter a valid http(s) link.');return null}
-  return{title,course:$('#fCourse').value.trim(),date,eventType,time,startTime,endTime,emoji:$('#fEmoji').value.trim(),iconColor:$('#fIconColor').value,link,notes:$('#fNotes').value.trim(),repeat}
+  const course=$('#fCourse').value.trim();
+  let emoji=$('#fEmoji').value.trim(),iconColor=$('#fIconColor').value;
+  const pref=courseIconPrefs[normalizedCourse(course)];
+  if(!emoji&&!iconColor&&pref){emoji=pref.emoji||'';iconColor=emoji?'':(pref.iconColor||'')}
+  return{title,course,date,eventType,time,startTime,endTime,emoji,iconColor,link,notes:$('#fNotes').value.trim(),repeat}
 }
 
 function bindRepeatPreview(){
@@ -581,6 +619,70 @@ function rememberCourse(course){
   const values=getCourseSuggestions().filter(x=>x.toLowerCase()!==c.toLowerCase());
   values.unshift(c);
   try{localStorage.setItem(COURSE_HISTORY_KEY,JSON.stringify(values.slice(0,100)))}catch{}
+}
+
+function saveCourseIconPrefs(){
+  try{localStorage.setItem(COURSE_ICON_PREFS_KEY,JSON.stringify(courseIconPrefs))}catch{}
+  queueCloudSync();
+}
+function courseIconCandidate(course){
+  const key=normalizedCourse(course);
+  if(!key)return null;
+  const saved=courseIconPrefs[key];
+  if(saved&&(saved.emoji||saved.iconColor))return {...saved,saved:true};
+  const source=sameCourseTasks(course).find(t=>(t.emoji||'').trim()||t.iconColor);
+  if(!source)return null;
+  return {emoji:(source.emoji||'').trim(),iconColor:source.iconColor||'',saved:false};
+}
+function applyCourseIconToForm(icon){
+  if(!icon)return;
+  const emoji=$('#fEmoji'),color=$('#fIconColor');
+  if(icon.emoji){
+    if(emoji)emoji.value=icon.emoji;
+    if(color)color.value='';
+  }else if(icon.iconColor){
+    if(color)color.value=icon.iconColor;
+    if(emoji)emoji.value='';
+  }
+}
+function offerCourseIconForForm(course){
+  const icon=courseIconCandidate(course);
+  if(!icon)return;
+  if(icon.saved){
+    applyCourseIconToForm(icon);
+    toast(uiLanguage==='zh'?'已自动使用该课程保存的图标。':'Saved course icon applied.');
+    return;
+  }
+  $('#courseIconPromptOverlay')?.remove();
+  const overlay=document.createElement('div');
+  overlay.id='courseIconPromptOverlay';
+  overlay.className='course-icon-prompt-overlay';
+  const preview=icon.emoji
+    ? `<span class="task-icon emoji">${escapeHtml(icon.emoji)}</span>`
+    : `<span class="task-icon color" style="--task-icon-color:${ICON_COLORS[icon.iconColor]}"></span>`;
+  const zh=uiLanguage==='zh';
+  overlay.innerHTML=`<div class="course-icon-prompt glass">
+    <div class="section-label">${zh?'课程图标':'COURSE ICON'}</div>
+    <h3>${zh?'使用该课程已有的图标吗？':'Use the same icon as this course?'}</h3>
+    <div class="course-icon-prompt-preview">${preview}<strong>${escapeHtml(course)}</strong></div>
+    <label class="course-icon-remember"><input id="rememberCourseIcon" type="checkbox"><span>${zh?'以后此课程的新任务都自动使用这个图标':'Always use this icon for future tasks in this course'}</span></label>
+    <div class="modal-actions">
+      <button id="courseIconSkip" class="soft-btn">${zh?'暂不使用':'Not now'}</button>
+      <button id="courseIconUse" class="primary-btn">${zh?'使用课程图标':'Use course icon'}</button>
+    </div>
+  </div>`;
+  document.body.appendChild(overlay);
+  $('#courseIconSkip').onclick=()=>overlay.remove();
+  $('#courseIconUse').onclick=()=>{
+    applyCourseIconToForm(icon);
+    if($('#rememberCourseIcon')?.checked){
+      courseIconPrefs[normalizedCourse(course)]={emoji:icon.emoji||'',iconColor:icon.emoji?'':icon.iconColor||''};
+      saveCourseIconPrefs();
+    }
+    overlay.remove();
+    toast(zh?'已使用课程图标。':'Course icon applied.');
+  };
+  overlay.onclick=e=>{if(e.target===overlay)overlay.remove()};
 }
 function bindCourseAutocomplete(){
   const input=$('#fCourse');if(!input)return;
@@ -636,6 +738,7 @@ function bindCourseAutocomplete(){
         input.value=b.dataset.courseSuggestion;
         hide();
         input.focus();
+        offerCourseIconForForm(input.value);
       };
     });
   };
@@ -1671,7 +1774,14 @@ const UI_ZH={
   'Icon kept for this task only.':'图标仅应用于此任务。','Only this occurrence was updated.':'仅更新了本次事件。',
   'Repeats every day.':'每天重复。','Choose a Repeat until date.':'请选择重复结束日期。','Repeat until must be on or after the start date.':'重复结束日期不能早于开始日期。',
   'Example copied.':'示例已复制。','Example placed in the text box.':'示例已放入输入框。','Could not create repeated dates.':'无法创建重复日期。',
-  'Could not load tasks. Your saved data has not been cleared.':'无法加载任务，但已保存的数据没有被清除。'
+  'Could not load tasks. Your saved data has not been cleared.':'无法加载任务，但已保存的数据没有被清除。',
+  'ACCOUNT':'账号','Signed in':'已登录','Your tasks and settings sync through this account.':'你的任务和设置会通过此账号同步。','Sign out':'退出登录',
+  'One account, the same garden everywhere.':'一个账号，在所有设备上使用同一个 Deadline Garden。','Sign in to open the same garden on every device.':'登录后可在所有设备打开同一个 Deadline Garden。',
+  'Cloud login needs the Supabase project URL and anon key first.':'云端登录需要先配置 Supabase 项目 URL 和公开密钥。',
+  'Enter your email and password.':'请输入邮箱和密码。','Creating account…':'正在创建账号…','Signing in…':'正在登录…',
+  'Account created. Check your email if confirmation is required.':'账号已创建。如需验证，请检查邮箱。','Could not sign in.':'无法登录。',
+  'COURSE ICON':'课程图标','Use course icon':'使用课程图标','Always use this icon for future tasks in this course':'以后此课程的新任务都自动使用这个图标',
+  'Use the same icon as this course?':'使用该课程已有的图标吗？','Course icon applied.':'已使用课程图标。',
 };
 const UI_SKIP_SELECTOR='.event-main-line,.event-desc-line,.todo-title,.todo-course,.quick-todo-item,.preview-raw,.bulk-row strong,.bulk-row small,.task-detail h3,.detail-block strong,.detail-description>div,.task-link-card small,.finish-prompt-task strong';
 function translateUiText(raw){
