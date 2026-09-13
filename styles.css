@@ -2835,3 +2835,98 @@ body.mobile-layout .task-edit-actions button{
   min-height:44px!important;
   font-size:13px!important;
 }
+
+
+/* v16.19 — all done for this week celebration */
+.mega-week-celebration{
+  position:fixed;
+  inset:0;
+  z-index:296;
+  pointer-events:none;
+  display:grid;
+  place-items:center;
+  padding:24px;
+  opacity:0;
+  background:
+    radial-gradient(circle at 50% 48%,rgba(255,255,255,.48),transparent 38%),
+    linear-gradient(135deg,rgba(255,219,120,.34),rgba(181,224,255,.27),rgba(224,199,255,.28));
+  transition:opacity .22s ease;
+}
+.mega-week-celebration.show{opacity:1}
+.mega-week-celebration.leaving{opacity:0}
+
+.mega-week-celebration .celebration-card{
+  width:min(1040px,95vw);
+  max-width:1040px;
+  padding:46px 52px;
+  border-radius:40px;
+  border:3px solid rgba(255,255,255,.88);
+  background:
+    radial-gradient(circle at 50% 0%,rgba(255,255,255,.98),rgba(255,255,255,.92) 45%,var(--accent-pale));
+  box-shadow:
+    0 0 0 12px rgba(255,255,255,.24),
+    0 0 100px rgba(213,184,90,.28),
+    0 32px 130px rgba(43,62,48,.32);
+  animation:weekAchievementPop .9s cubic-bezier(.16,1.38,.24,1) forwards;
+}
+
+.mega-week-celebration .celebration-kicker{
+  font-size:15px;
+  color:#b07b20;
+  letter-spacing:.22em;
+}
+
+.mega-week-celebration .celebration-title{
+  font-size:clamp(44px,7.8vw,100px);
+  line-height:.98;
+  background:linear-gradient(90deg,#d76a6f,#d58c42,#b9a33e,#5f9c71,#5f8fb5,#7770bd,#9a70b4);
+  -webkit-background-clip:text;
+  background-clip:text;
+  color:transparent;
+  filter:drop-shadow(0 5px 15px rgba(80,70,40,.12));
+}
+
+.mega-week-celebration .celebration-subtitle{
+  margin-top:16px;
+  font-size:clamp(16px,2.2vw,24px);
+  color:#53645a;
+}
+
+.mega-week-celebration::before,
+.mega-week-celebration::after{
+  content:"✦";
+  position:absolute;
+  font-size:clamp(58px,8vw,110px);
+  color:#e0b94d;
+  text-shadow:0 0 34px rgba(255,222,112,.55);
+  animation:weekSparkle 1.1s ease-in-out infinite alternate;
+}
+.mega-week-celebration::before{left:8%;top:18%;transform:rotate(-12deg)}
+.mega-week-celebration::after{right:8%;bottom:18%;animation-delay:.22s;transform:rotate(12deg)}
+
+@keyframes weekAchievementPop{
+  0%{opacity:0;transform:scale(.56) translateY(30px) rotate(-1.5deg)}
+  52%{opacity:1;transform:scale(1.075) translateY(-8px) rotate(.5deg)}
+  76%{transform:scale(.985)}
+  100%{opacity:1;transform:scale(1)}
+}
+@keyframes weekSparkle{
+  from{opacity:.32;scale:.72;rotate:-10deg}
+  to{opacity:1;scale:1.2;rotate:10deg}
+}
+
+@media(max-width:760px){
+  .mega-week-celebration{padding:14px}
+  .mega-week-celebration .celebration-card{
+    width:94vw;
+    padding:34px 22px;
+    border-radius:32px;
+  }
+  .mega-week-celebration .celebration-title{
+    font-size:clamp(38px,12vw,66px);
+  }
+  .mega-week-celebration .celebration-subtitle{
+    font-size:14px;
+    line-height:1.4;
+  }
+}

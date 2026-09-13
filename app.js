@@ -1120,6 +1120,29 @@ function megaConfettiCannons(){
   setTimeout(()=>layer.remove(),3600);
 }
 
+function currentWeekRange(now=new Date()){
+  const start=new Date(now.getFullYear(),now.getMonth(),now.getDate());
+  start.setDate(start.getDate()-((start.getDay()+6)%7));
+  const end=addDays(start,6);
+  return {start:fmtDateInput(start),end:fmtDateInput(end)};
+}
+
+function celebrateAllDoneThisWeek(count){
+  // Weekly completion is deliberately a tier above "All done for today":
+  // full-screen achievement card + both confetti cannons.
+  megaConfettiCannons();
+  const zh=uiLanguage==='zh';
+  celebrationOverlay({
+    kicker:zh?'本周全部完成':'WEEK COMPLETE',
+    title:zh?'这一周全部搞定了！':'YOU FINISHED THE WHOLE WEEK!',
+    subtitle:zh
+      ?`${count} 个任务全部完成。终于可以好好休息一下了 ✨`
+      :`${count} task${count===1?'':'s'} complete. You cleared the whole week — time to actually rest. ✨`,
+    className:'mega-week-celebration',
+    duration:4200
+  });
+}
+
 async function completeTask(id){
   const t=tasks.find(x=>x.id===id);if(!t)return;
   const previous=JSON.parse(JSON.stringify(t));
@@ -1130,13 +1153,22 @@ async function completeTask(id){
   const unfinishedOthers=sameDayBefore.filter(x=>!x.done&&x.id!==t.id);
   const completesWholeDay=sameDayBefore.length>0&&unfinishedOthers.length===0;
 
+  const week=currentWeekRange(new Date());
+  const taskIsThisWeek=!!t.date&&t.date>=week.start&&t.date<=week.end;
+  const sameWeekBefore=deadlineTasks().filter(x=>x.date>=week.start&&x.date<=week.end);
+  const unfinishedWeekOthers=sameWeekBefore.filter(x=>!x.done&&x.id!==t.id);
+  const completesWholeWeek=taskIsThisWeek&&sameWeekBefore.length>0&&unfinishedWeekOthers.length===0;
+
   t.done=true;
   t.completedAt=Date.now();
   await idbPut(t);
   await refresh();
 
   // Exactly ONE celebration tier per completion.
-  if(isFutureDay&&completesWholeDay){
+  // Weekly completion is the highest tier for the current week.
+  if(completesWholeWeek){
+    celebrateAllDoneThisWeek(sameWeekBefore.length);
+  }else if(isFutureDay&&completesWholeDay){
     celebrateFutureDayCleared(t.date,sameDayBefore.length);
   }else if(isFutureDay){
     celebrateAheadOfSchedule(t);
