@@ -2930,3 +2930,116 @@ body.mobile-layout .task-edit-actions button{
     line-height:1.4;
   }
 }
+
+
+/* v16.20 — Glass modal contrast audit
+   Prevent light cards + light text across Bulk Edit, Display, size picker,
+   batch preview, repeat settings, scope selectors, and similar modal panels. */
+
+html[data-theme="glass"] #modalCard .bulk-row,
+html[data-theme="glass"] #modalCard .display-choice,
+html[data-theme="glass"] #modalCard .size-choice,
+html[data-theme="glass"] #modalCard .preview-row,
+html[data-theme="glass"] #modalCard .batch-example,
+html[data-theme="glass"] #modalCard .batch-icon-options,
+html[data-theme="glass"] #modalCard .repeat-field,
+html[data-theme="glass"] #modalCard .repeat-summary,
+html[data-theme="glass"] #modalCard .finish-prompt-task,
+html[data-theme="glass"] #modalCard .scope-option,
+html[data-theme="glass"] #modalCard .scope-choice,
+html[data-theme="glass"] #modalCard .task-link-card{
+  background:rgba(44,64,75,.72)!important;
+  border-color:rgba(255,255,255,.28)!important;
+  color:#fff!important;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.10),
+    0 8px 24px rgba(0,0,0,.08)!important;
+}
+
+html[data-theme="glass"] #modalCard .preview-row.bad{
+  background:rgba(117,77,50,.72)!important;
+  border-color:rgba(255,206,157,.30)!important;
+}
+
+/* Primary copy in these cards */
+html[data-theme="glass"] #modalCard .bulk-row strong,
+html[data-theme="glass"] #modalCard .display-choice strong,
+html[data-theme="glass"] #modalCard .size-choice strong,
+html[data-theme="glass"] #modalCard .preview-row strong,
+html[data-theme="glass"] #modalCard .batch-example strong,
+html[data-theme="glass"] #modalCard .batch-icon-options strong,
+html[data-theme="glass"] #modalCard .repeat-field strong,
+html[data-theme="glass"] #modalCard .repeat-summary,
+html[data-theme="glass"] #modalCard .finish-prompt-task strong,
+html[data-theme="glass"] #modalCard .scope-option strong,
+html[data-theme="glass"] #modalCard .scope-choice strong,
+html[data-theme="glass"] #modalCard .task-link-card strong{
+  color:#fff!important;
+  text-shadow:0 1px 2px rgba(0,0,0,.44)!important;
+}
+
+/* Secondary copy: still clearly readable, but visually secondary */
+html[data-theme="glass"] #modalCard .bulk-row small,
+html[data-theme="glass"] #modalCard .display-choice small,
+html[data-theme="glass"] #modalCard .preview-row .tiny,
+html[data-theme="glass"] #modalCard .batch-example small,
+html[data-theme="glass"] #modalCard .batch-icon-options span,
+html[data-theme="glass"] #modalCard .repeat-row,
+html[data-theme="glass"] #modalCard .field-hint,
+html[data-theme="glass"] #modalCard .scope-option small,
+html[data-theme="glass"] #modalCard .scope-choice small,
+html[data-theme="glass"] #modalCard .task-link-card small{
+  color:rgba(238,247,251,.82)!important;
+  text-shadow:0 1px 2px rgba(0,0,0,.35)!important;
+}
+
+/* Inputs/selects embedded inside modal sub-panels should not jump back to pure white. */
+html[data-theme="glass"] #modalCard .batch-icon-options input,
+html[data-theme="glass"] #modalCard .batch-icon-options select,
+html[data-theme="glass"] #modalCard .repeat-row input,
+html[data-theme="glass"] #modalCard .repeat-row select{
+  background:rgba(35,55,67,.72)!important;
+  color:#fff!important;
+  border-color:rgba(255,255,255,.30)!important;
+}
+
+/* Size picker inactive cards and their demos */
+html[data-theme="glass"] #modalCard .size-choice.active{
+  background:rgba(100,143,163,.34)!important;
+  border-color:rgba(183,226,246,.72)!important;
+}
+html[data-theme="glass"] #modalCard .size-demo{
+  background:rgba(255,255,255,.12)!important;
+  color:#fff!important;
+}
+
+/* Display preview should remain distinct without becoming a white slab. */
+html[data-theme="glass"] #modalCard .display-preview{
+  background:rgba(112,154,174,.20)!important;
+  border:1px solid rgba(255,255,255,.20)!important;
+}
+html[data-theme="glass"] #modalCard .display-preview span{
+  color:rgba(235,246,251,.78)!important;
+}
+html[data-theme="glass"] #modalCard .display-preview strong{
+  color:#fff!important;
+  text-shadow:0 1px 2px rgba(0,0,0,.38)!important;
+}
+
+/* Bulk-edit toolbar and empty state */
+html[data-theme="glass"] #modalCard .bulk-toolbar,
+html[data-theme="glass"] #modalCard .bulk-empty{
+  color:rgba(238,247,251,.86)!important;
+}
+html[data-theme="glass"] #modalCard .bulk-row input[type="checkbox"],
+html[data-theme="glass"] #modalCard .display-choice input[type="checkbox"]{
+  accent-color:#9ed0e6!important;
+}
+
+/* Avoid bright white hover/focus flashes inside glass modals. */
+html[data-theme="glass"] #modalCard .field input:focus,
+html[data-theme="glass"] #modalCard .field textarea:focus,
+html[data-theme="glass"] #modalCard .field select:focus{
+  background:rgba(41,61,73,.86)!important;
+  color:#fff!important;
+}
