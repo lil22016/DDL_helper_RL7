@@ -3384,3 +3384,169 @@ html[data-theme="liquid"] .calendar-grid,
 html[data-theme="liquid"] .weekday-row{
   background:transparent!important;
 }
+
+
+/* v16.24 — header utilities, wardrobe frost, mobile top-edge, Add Task footer */
+
+/* Add Task has no Delete button: Cancel left, Save right on one row. */
+.task-edit-actions.task-edit-new{
+  display:grid!important;
+  grid-template-columns:1fr 1fr!important;
+  gap:10px!important;
+}
+.task-edit-actions.task-edit-new #cancelModal{
+  grid-column:1!important;
+  grid-row:1!important;
+  width:100%!important;
+  margin:0!important;
+}
+.task-edit-actions.task-edit-new #saveTask{
+  grid-column:2!important;
+  grid-row:1!important;
+  width:100%!important;
+  margin:0!important;
+}
+/* Existing task remains Delete | Save, then full-width Cancel. */
+.task-edit-actions.task-edit-existing #deleteTask{grid-column:1!important;grid-row:1!important}
+.task-edit-actions.task-edit-existing #saveTask{grid-column:2!important;grid-row:1!important}
+.task-edit-actions.task-edit-existing #cancelModal{grid-column:1 / -1!important;grid-row:2!important}
+
+/* Wardrobe gets the same readable frosted backing as Todo instead of looking
+   like text floating directly over the wallpaper. */
+html[data-theme="liquid"] #themeMenu.theme-menu{
+  background:rgba(24,24,24,.20)!important;
+  background-color:rgba(24,24,24,.20)!important;
+  backdrop-filter:blur(14px) saturate(100%)!important;
+  -webkit-backdrop-filter:blur(14px) saturate(100%)!important;
+  border:1px solid rgba(255,255,255,.40)!important;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.52),
+    inset 0 -1px 0 rgba(0,0,0,.15),
+    0 18px 48px rgba(0,0,0,.22)!important;
+}
+
+/* Desktop: account + language live beside the date instead of consuming a
+   separate row above the app. DOM stays unchanged, so auth/i18n JS is untouched. */
+@media(min-width:761px){
+  #utilityBar.utility-bar{
+    position:absolute!important;
+    top:96px!important;
+    right:auto!important;
+    left:clamp(390px,36vw,610px)!important;
+    display:flex!important;
+    flex-direction:row!important;
+    align-items:center!important;
+    gap:7px!important;
+    width:auto!important;
+    z-index:7700!important;
+  }
+  #utilityBar #accountBtn.account-btn{
+    order:1!important;
+    position:static!important;
+    width:36px!important;
+    min-width:36px!important;
+    max-width:36px!important;
+    height:36px!important;
+    padding:0!important;
+    border-radius:50%!important;
+    overflow:hidden!important;
+    white-space:nowrap!important;
+    text-indent:-9999px!important;
+  }
+  #utilityBar #accountBtn.account-btn::after{
+    content:"A";
+    display:grid;
+    place-items:center;
+    width:100%;
+    height:100%;
+    text-indent:0;
+    font-size:12px;
+    font-weight:900;
+  }
+  #utilityBar #languageBtn.language-btn{
+    order:2!important;
+    width:36px!important;
+    min-width:36px!important;
+    height:36px!important;
+    margin:0!important;
+  }
+}
+
+/* Mobile: compact circular account/language controls beside the heading area.
+   Remove the old 50px spacer that created the pale/blank band above the app. */
+body.mobile-layout .garden-frame{
+  margin-top:max(4px,env(safe-area-inset-top))!important;
+}
+html body.mobile-layout #utilityBar.utility-bar{
+  position:absolute!important;
+  top:calc(env(safe-area-inset-top,0px) + 74px)!important;
+  right:20px!important;
+  left:auto!important;
+  display:flex!important;
+  grid-template-columns:none!important;
+  gap:6px!important;
+  width:auto!important;
+  max-width:none!important;
+}
+html body.mobile-layout #utilityBar.utility-bar #languageBtn.language-btn{
+  order:2!important;
+  width:32px!important;
+  min-width:32px!important;
+  max-width:32px!important;
+  height:32px!important;
+  font-size:11px!important;
+}
+html body.mobile-layout #utilityBar.utility-bar #accountBtn.account-btn{
+  order:1!important;
+  width:32px!important;
+  min-width:32px!important;
+  max-width:32px!important;
+  height:32px!important;
+  padding:0!important;
+  border-radius:50%!important;
+  overflow:hidden!important;
+  white-space:nowrap!important;
+  text-indent:-9999px!important;
+}
+html body.mobile-layout #utilityBar.utility-bar #accountBtn.account-btn::after{
+  content:"A";
+  display:grid;
+  place-items:center;
+  width:100%;
+  height:100%;
+  text-indent:0;
+  font-size:11px;
+  font-weight:900;
+}
+
+/* Let the liquid wallpaper and app background extend through the iPhone safe
+   area instead of exposing a white document strip at the top. */
+html,
+body{
+  min-height:100%;
+}
+body.mobile-layout{
+  min-height:100dvh!important;
+  margin:0!important;
+  padding-top:0!important;
+  background-clip:border-box!important;
+}
+html[data-theme="liquid"],
+html[data-theme="liquid"] body.mobile-layout{
+  background-color:#777975!important;
+}
+html[data-theme="liquid"] body.mobile-layout::before{
+  content:"";
+  position:fixed;
+  z-index:-2;
+  inset:-80px 0 -80px 0;
+  background:inherit;
+  background-size:cover;
+  background-position:center;
+  pointer-events:none;
+}
+
+/* Give the mobile heading enough right-side room for the two tiny utility circles. */
+body.mobile-layout .brand-row>div:last-child{
+  padding-right:76px!important;
+}

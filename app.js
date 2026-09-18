@@ -949,7 +949,7 @@ function openTaskModal(task=null,prefillDate=''){
     </div>
   </div>
 
-  <div class="modal-actions task-edit-actions">
+  <div class="modal-actions task-edit-actions ${task?'task-edit-existing':'task-edit-new'}">
     ${task?'<button id="deleteTask" class="danger-btn">Delete</button>':''}
     <button id="cancelModal" class="soft-btn">Cancel</button>
     <button id="saveTask" class="primary-btn">Save</button>
@@ -1391,7 +1391,7 @@ function initLiquidBackgroundControls(){
   if(input)input.onchange=()=>{
     const file=input.files?.[0];if(!file)return;
     if(!file.type.startsWith('image/'))return toast(uiLanguage==='zh'?'请选择图片文件。':'Please choose an image file.');
-    if(file.size>3*1024*1024)return toast(uiLanguage==='zh'?'图片请控制在 3 MB 以内。':'Please keep the image under 3 MB.');
+    if(file.size>12*1024*1024)return toast(uiLanguage==='zh'?'图片请控制在 12 MB 以内。':'Please keep the image under 12 MB.');
     const r=new FileReader();
     r.onload=()=>{try{localStorage.setItem(LIQUID_BG_KEY,String(r.result));applyLiquidBackground();toast(uiLanguage==='zh'?'背景已更换。':'Background updated.')}catch{toast(uiLanguage==='zh'?'图片太大，无法保存。':'Image is too large to save.')}};
     r.readAsDataURL(file);
