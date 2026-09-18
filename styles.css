@@ -3096,3 +3096,160 @@ html[data-theme="liquid"] body.urgent-global .warning-backdrop{z-index:1}
 .background-upload-btn,.background-reset-btn{display:inline-flex;align-items:center;justify-content:center;min-height:36px;padding:8px 11px;margin:0 5px 7px 0;border-radius:12px;font-size:12px;font-weight:800;background:var(--accent-pale);color:var(--accent-strong);border:1px solid var(--border);cursor:pointer}
 .liquid-background-help{font-size:10px;line-height:1.35;color:var(--muted)}
 html[data-theme="liquid"] .background-upload-btn,html[data-theme="liquid"] .background-reset-btn{background:rgba(255,255,255,.10);color:#fff;border-color:rgba(255,255,255,.28)}
+
+
+/* v16.22 — Liquid Glass: neutral clear glass + performance pass */
+html[data-theme="liquid"]{
+  --accent:rgba(255,255,255,.92)!important;
+  --accent-strong:#fff!important;
+  --accent-soft:rgba(255,255,255,.12)!important;
+  --accent-pale:rgba(255,255,255,.085)!important;
+  --accent-wash:rgba(255,255,255,.06)!important;
+  --text:#fff!important;
+  --muted:rgba(255,255,255,.78)!important;
+  --paper:rgba(255,255,255,.055)!important;
+  --border:rgba(255,255,255,.38)!important;
+  --shadow:0 14px 38px rgba(0,0,0,.15),inset 0 1px 0 rgba(255,255,255,.42)!important;
+  --focus:rgba(255,255,255,.24)!important;
+}
+html[data-theme="liquid"] body{
+  color:#fff!important;
+  background-color:#666864!important;
+  background-image:
+    linear-gradient(rgba(0,0,0,.025),rgba(0,0,0,.025)),
+    var(--liquid-custom-bg,
+      radial-gradient(circle at 22% 18%,rgba(255,255,255,.20),transparent 28%),
+      radial-gradient(circle at 75% 66%,rgba(0,0,0,.14),transparent 36%),
+      linear-gradient(135deg,#7c7e79 0%,#a7a8a3 42%,#676965 100%)
+    )!important;
+  background-size:cover!important;
+  background-position:center!important;
+  background-attachment:scroll!important;
+}
+html[data-theme="liquid"] .garden-frame,
+html[data-theme="liquid"] .topbar,
+html[data-theme="liquid"] .hero-card,
+html[data-theme="liquid"] .calendar-card,
+html[data-theme="liquid"] .todo-panel,
+html[data-theme="liquid"] .modal-card,
+html[data-theme="liquid"] .theme-menu,
+html[data-theme="liquid"] .auth-card{
+  background:rgba(255,255,255,.032)!important;
+  border:1px solid rgba(255,255,255,.42)!important;
+  backdrop-filter:var(--hyalite,blur(7px))!important;
+  -webkit-backdrop-filter:var(--hyalite,blur(7px))!important;
+  box-shadow:var(--hyalite-edge,
+    inset 0 1px 0 rgba(255,255,255,.62),
+    inset 0 -1px 0 rgba(0,0,0,.12),
+    0 16px 42px rgba(0,0,0,.14))!important;
+}
+html[data-theme="liquid"] .garden-frame{
+  background:rgba(255,255,255,.012)!important;
+  backdrop-filter:none!important;
+  -webkit-backdrop-filter:none!important;
+}
+html[data-theme="liquid"] .soft-btn,
+html[data-theme="liquid"] .primary-btn,
+html[data-theme="liquid"] .todo-pill,
+html[data-theme="liquid"] .icon-btn,
+html[data-theme="liquid"] .theme-btn,
+html[data-theme="liquid"] .language-btn,
+html[data-theme="liquid"] .account-btn,
+html[data-theme="liquid"] .background-upload-btn,
+html[data-theme="liquid"] .background-reset-btn{
+  background:rgba(255,255,255,.07)!important;
+  border:1px solid rgba(255,255,255,.40)!important;
+  backdrop-filter:blur(4px)!important;
+  -webkit-backdrop-filter:blur(4px)!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.56),inset 0 -1px 0 rgba(0,0,0,.10),0 7px 18px rgba(0,0,0,.10)!important;
+  color:#fff!important;
+}
+html[data-theme="liquid"] .day-cell,
+html[data-theme="liquid"] .week-day,
+html[data-theme="liquid"] .daily-view,
+html[data-theme="liquid"] .display-choice,
+html[data-theme="liquid"] .bulk-row,
+html[data-theme="liquid"] .size-choice,
+html[data-theme="liquid"] .finish-prompt-task,
+html[data-theme="liquid"] .task-link-card{
+  background:rgba(255,255,255,.04)!important;
+  border-color:rgba(255,255,255,.22)!important;
+  color:#fff!important;
+}
+html[data-theme="liquid"] .event-chip{
+  background:rgba(255,255,255,.10)!important;
+  color:#fff!important;
+  border-color:rgba(255,255,255,.26)!important;
+}
+html[data-theme="liquid"] .field input,
+html[data-theme="liquid"] .field textarea,
+html[data-theme="liquid"] .field select,
+html[data-theme="liquid"] #modalCard input,
+html[data-theme="liquid"] #modalCard textarea,
+html[data-theme="liquid"] #modalCard select{
+  background:rgba(0,0,0,.09)!important;
+  border-color:rgba(255,255,255,.34)!important;
+  color:#fff!important;
+}
+html[data-theme="liquid"] body,
+html[data-theme="liquid"] button,
+html[data-theme="liquid"] input,
+html[data-theme="liquid"] textarea,
+html[data-theme="liquid"] select,
+html[data-theme="liquid"] .event-chip,
+html[data-theme="liquid"] .todo-title,
+html[data-theme="liquid"] .todo-course,
+html[data-theme="liquid"] .summary-line,
+html[data-theme="liquid"] .next-meta,
+html[data-theme="liquid"] .weekday-row,
+html[data-theme="liquid"] .theme-menu-title,
+html[data-theme="liquid"] .section-label,
+html[data-theme="liquid"] .eyebrow{
+  text-shadow:0 1px 3px rgba(0,0,0,.72)!important;
+}
+html[data-theme="liquid"] h1,
+html[data-theme="liquid"] h2,
+html[data-theme="liquid"] h3,
+html[data-theme="liquid"] strong,
+html[data-theme="liquid"] .next-title,
+html[data-theme="liquid"] .day-number{
+  color:#fff!important;
+  text-shadow:0 2px 5px rgba(0,0,0,.78),0 0 1px rgba(0,0,0,.85)!important;
+}
+html[data-theme="liquid"] .display-preview,
+html[data-theme="liquid"] .course-suggestions,
+html[data-theme="liquid"] .course-icon-prompt{
+  background:rgba(20,20,20,.16)!important;
+  border-color:rgba(255,255,255,.30)!important;
+}
+.theme-swatch.liquid{
+  background:radial-gradient(circle at 32% 24%,rgba(255,255,255,.92),rgba(255,255,255,.18) 28%,transparent 45%),linear-gradient(145deg,#7e807d,#c4c5c1 48%,#696b68)!important;
+  border:1px solid rgba(255,255,255,.92)!important;
+  box-shadow:inset 2px 2px 6px rgba(255,255,255,.72),inset -2px -2px 6px rgba(0,0,0,.15),0 3px 10px rgba(0,0,0,.18)!important;
+}
+.theme-swatch.liquid::after{
+  border-color:rgba(255,255,255,.70)!important;
+  box-shadow:inset 3px 0 5px rgba(255,255,255,.22),inset -3px 0 5px rgba(0,0,0,.12)!important;
+}
+@media(max-width:760px){
+  html[data-theme="liquid"] .topbar,
+  html[data-theme="liquid"] .hero-card,
+  html[data-theme="liquid"] .calendar-card,
+  html[data-theme="liquid"] .todo-panel,
+  html[data-theme="liquid"] .modal-card,
+  html[data-theme="liquid"] .theme-menu,
+  html[data-theme="liquid"] .auth-card{
+    backdrop-filter:blur(5px)!important;
+    -webkit-backdrop-filter:blur(5px)!important;
+  }
+  html[data-theme="liquid"] .soft-btn,
+  html[data-theme="liquid"] .primary-btn,
+  html[data-theme="liquid"] .todo-pill,
+  html[data-theme="liquid"] .icon-btn,
+  html[data-theme="liquid"] .theme-btn,
+  html[data-theme="liquid"] .language-btn,
+  html[data-theme="liquid"] .account-btn{
+    backdrop-filter:blur(2.5px)!important;
+    -webkit-backdrop-filter:blur(2.5px)!important;
+  }
+}

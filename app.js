@@ -1370,10 +1370,22 @@ function applyLiquidBackground(){
 }
 function setLiquidGlassEngine(on){
   try{liquidGlassWatcher?.stop?.()}catch{}
+  try{window.Hyalite?.unwatch?.()}catch{}
   liquidGlassWatcher=null;
-  if(!on||!window.Hyalite)return;
+  if(!on||!window.Hyalite||!Hyalite.supported?.())return;
   try{
-    liquidGlassWatcher=Hyalite.watch(document.body,'.glass, .soft-btn, .primary-btn, .todo-pill, .icon-btn, .theme-btn, .language-btn, .account-btn',{bevel:24,thickness:42,slope:1.35,shape:'squircle',blur:1.2,dispersion:1.15,shade:.38,rim:1.35,edgeW:7,sat:.92,edge:.42,light:-140,smooth:1,materialize:180,settle:80});
+    // Real refraction only on a small number of stable slabs.
+    // Each SVG backdrop filter is its own render surface, so attaching
+    // Hyalite to every button/card made the whole app GPU-heavy.
+    liquidGlassWatcher=Hyalite.watch(
+      document.body,
+      '.topbar, .hero-card, .calendar-card, .todo-panel, .modal-card, .theme-menu, .auth-card',
+      {
+        bevel:28,thickness:46,slope:2.15,shape:'squircle',
+        blur:.55,dispersion:0,shade:.26,rim:1.25,edgeW:7,
+        sat:1,edge:.38,light:-140,smooth:0,materialize:0,settle:160
+      }
+    );
   }catch(err){console.warn('Liquid glass engine fallback:',err)}
 }
 function initLiquidBackgroundControls(){
