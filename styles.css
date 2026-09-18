@@ -3691,3 +3691,115 @@ html[data-theme="liquid"] #themeMenu.theme-menu>*{position:relative;z-index:1}
     padding-block:24px!important;
   }
 }
+
+
+/* v16.26 — fix the actual Wardrobe compositor context; compact desktop month;
+   restore mobile safe-area spacing and pin utilities to the date line. */
+
+/* Wardrobe is now appended directly to body, exactly like a true overlay.
+   This is the key difference from the previous three CSS-only attempts. */
+#themeMenu.theme-menu{
+  position:fixed!important;
+  z-index:9000!important;
+  max-height:calc(100dvh - 86px)!important;
+  overflow:auto!important;
+  box-sizing:border-box!important;
+}
+html[data-theme="liquid"] #themeMenu.theme-menu{
+  background:rgba(20,20,20,.18)!important;
+  background-color:rgba(20,20,20,.18)!important;
+  background-image:none!important;
+  backdrop-filter:blur(18px) saturate(100%)!important;
+  -webkit-backdrop-filter:blur(18px) saturate(100%)!important;
+  border:1px solid rgba(255,255,255,.40)!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.52),inset 0 -1px 0 rgba(0,0,0,.12),0 18px 48px rgba(0,0,0,.22)!important;
+}
+
+/* Desktop Month: same compact calendar idea as mobile, but retain readable task
+   chips instead of dots. Six weeks now fit in roughly one normal viewport. */
+@media(min-width:761px){
+  .calendar-card{padding:18px 20px!important}
+  .calendar-toolbar{margin-bottom:12px!important}
+  .weekday-row{padding-bottom:5px!important}
+  .calendar-grid:not(.calendar-grid-week):not(.calendar-grid-day){
+    grid-template-columns:repeat(7,minmax(0,1fr))!important;
+    grid-template-rows:repeat(6,minmax(76px,1fr))!important;
+  }
+  .calendar-grid:not(.calendar-grid-week):not(.calendar-grid-day) .day-cell{
+    min-height:76px!important;
+    height:clamp(76px,10.5vh,108px)!important;
+    padding:6px!important;
+    overflow:hidden!important;
+  }
+  .calendar-grid:not(.calendar-grid-week):not(.calendar-grid-day) .day-number{
+    margin-bottom:3px!important;font-size:12px!important
+  }
+  .calendar-grid:not(.calendar-grid-week):not(.calendar-grid-day) .event-chip{
+    margin:2px 0!important;padding:4px 5px!important;border-left-width:3px!important;
+    border-radius:7px!important;font-size:9px!important;line-height:1.08!important
+  }
+  .calendar-grid:not(.calendar-grid-week):not(.calendar-grid-day) .event-desc-line{display:none!important}
+  .calendar-grid:not(.calendar-grid-week):not(.calendar-grid-day) .event-meta-line{
+    display:block!important;font-size:8px!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important
+  }
+  .calendar-grid:not(.calendar-grid-week):not(.calendar-grid-day) .event-main-line{
+    display:block!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important
+  }
+  /* Week/day stay content-sized rather than filling a tall artificial canvas. */
+  .calendar-grid-week .week-day{min-height:190px!important;height:auto!important}
+  .calendar-grid-day .daily-view{min-height:220px!important;height:auto!important}
+  .calendar-grid-day .daily-empty{min-height:110px!important;padding-block:22px!important}
+}
+
+/* Mobile was pushed into the iPhone status/notch area by v16.25. Give mobile its
+   own safe top spacing; desktop keeps the reclaimed compact top. */
+@media(max-width:760px){
+  body.mobile-layout{
+    padding-top:0!important;
+  }
+  body.mobile-layout .garden-frame{
+    margin-top:max(44px,calc(env(safe-area-inset-top) + 10px))!important;
+  }
+  body.mobile-layout .topbar{padding-top:14px!important}
+
+  /* Account/language are anchored to the heading itself, not the action grid. */
+  body.mobile-layout .brand-row{
+    position:relative!important;
+    display:grid!important;
+    grid-template-columns:auto minmax(0,1fr)!important;
+    align-items:start!important;
+    gap:8px!important;
+  }
+  body.mobile-layout .theme-wrap{grid-column:1!important;grid-row:1!important}
+  body.mobile-layout .brand-copy{
+    grid-column:2!important;grid-row:1!important;position:relative!important;
+    padding-right:72px!important;min-width:0!important
+  }
+  body.mobile-layout #utilityBar.utility-bar{
+    position:absolute!important;
+    top:28px!important;
+    right:0!important;
+    left:auto!important;
+    margin:0!important;
+    display:flex!important;
+    gap:5px!important;
+    width:auto!important;
+    z-index:5!important;
+  }
+  body.mobile-layout #utilityBar #accountBtn.account-btn,
+  body.mobile-layout #utilityBar #languageBtn.language-btn{
+    width:29px!important;min-width:29px!important;max-width:29px!important;height:29px!important;flex:0 0 29px!important
+  }
+  body.mobile-layout #utilityBar #accountBtn.account-btn::after,
+  body.mobile-layout #utilityBar #languageBtn.language-btn{font-size:9px!important}
+
+  #themeMenu.theme-menu{
+    max-height:calc(100dvh - max(82px,env(safe-area-inset-top)))!important;
+  }
+
+  /* Day view should stop shortly after its actual content on phones. */
+  body.mobile-layout .calendar-grid-day .daily-view{min-height:0!important;height:auto!important}
+  body.mobile-layout .calendar-grid-day .daily-empty{
+    min-height:180px!important;padding:28px 12px!important
+  }
+}
