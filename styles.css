@@ -3253,3 +3253,134 @@ html[data-theme="liquid"] .course-icon-prompt{
     -webkit-backdrop-filter:blur(2.5px)!important;
   }
 }
+
+
+/* v16.23 — Liquid Glass consistency fix
+   One rendering system for Todo, Wardrobe, every modal, and every editor. */
+html[data-theme="liquid"] body{
+  background-color:#777975!important;
+  background-image:
+    radial-gradient(circle at 18% 16%,rgba(255,255,255,.17),transparent 30%),
+    radial-gradient(circle at 78% 68%,rgba(0,0,0,.12),transparent 38%),
+    linear-gradient(135deg,#777975,#a4a59f 46%,#666863)!important;
+}
+
+/* Never let legacy green/blue theme variables paint a liquid panel. */
+html[data-theme="liquid"] .topbar,
+html[data-theme="liquid"] .hero-card,
+html[data-theme="liquid"] .calendar-card,
+html[data-theme="liquid"] .todo-panel,
+html[data-theme="liquid"] #modalCard.modal-card,
+html[data-theme="liquid"] #themeMenu.theme-menu,
+html[data-theme="liquid"] #authRoot .auth-card,
+html[data-theme="liquid"] .course-icon-prompt{
+  background:rgba(20,20,20,.12)!important;
+  background-color:rgba(20,20,20,.12)!important;
+  background-image:none!important;
+  color:#fff!important;
+  border:1px solid rgba(255,255,255,.40)!important;
+  backdrop-filter:blur(8px) saturate(100%)!important;
+  -webkit-backdrop-filter:blur(8px) saturate(100%)!important;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.58),
+    inset 0 -1px 0 rgba(0,0,0,.12),
+    0 16px 44px rgba(0,0,0,.16)!important;
+}
+
+/* Wardrobe: remove the white/black Hyalite artifact at its top edge. */
+html[data-theme="liquid"] #themeMenu.theme-menu{
+  overflow:auto!important;
+  isolation:isolate!important;
+  filter:none!important;
+}
+html[data-theme="liquid"] #themeMenu.theme-menu::before,
+html[data-theme="liquid"] #themeMenu.theme-menu::after{
+  display:none!important;
+  content:none!important;
+}
+
+/* Modal internals: no inherited green slabs. */
+html[data-theme="liquid"] #modalCard .display-choice,
+html[data-theme="liquid"] #modalCard .display-preview,
+html[data-theme="liquid"] #modalCard .bulk-row,
+html[data-theme="liquid"] #modalCard .batch-example,
+html[data-theme="liquid"] #modalCard .batch-icon-options,
+html[data-theme="liquid"] #modalCard .preview-row,
+html[data-theme="liquid"] #modalCard .size-choice,
+html[data-theme="liquid"] #modalCard .repeat-field,
+html[data-theme="liquid"] #modalCard .repeat-summary,
+html[data-theme="liquid"] #modalCard .scope-option,
+html[data-theme="liquid"] #modalCard .scope-choice,
+html[data-theme="liquid"] #modalCard .finish-prompt-task,
+html[data-theme="liquid"] #modalCard .task-link-card{
+  background:rgba(255,255,255,.055)!important;
+  background-color:rgba(255,255,255,.055)!important;
+  background-image:none!important;
+  color:#fff!important;
+  border-color:rgba(255,255,255,.27)!important;
+}
+
+/* Inputs/editors use a small neutral darkening only for legibility. */
+html[data-theme="liquid"] #modalCard input:not([type="checkbox"]):not([type="radio"]),
+html[data-theme="liquid"] #modalCard textarea,
+html[data-theme="liquid"] #modalCard select,
+html[data-theme="liquid"] .auth-card input{
+  background:rgba(0,0,0,.12)!important;
+  background-color:rgba(0,0,0,.12)!important;
+  color:#fff!important;
+  border-color:rgba(255,255,255,.34)!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.08)!important;
+}
+
+/* Buttons inside liquid modals all use the same clear-glass treatment. */
+html[data-theme="liquid"] #modalCard button,
+html[data-theme="liquid"] #authRoot button,
+html[data-theme="liquid"] #themeMenu button:not(.theme-swatch):not(.background-upload-btn){
+  background:rgba(255,255,255,.075)!important;
+  background-color:rgba(255,255,255,.075)!important;
+  background-image:none!important;
+  color:#fff!important;
+  border:1px solid rgba(255,255,255,.38)!important;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.42),
+    0 5px 16px rgba(0,0,0,.10)!important;
+}
+
+/* Preserve the intentional green Save action, but keep its layout exactly like
+   the other task-edit actions rather than turning it into a huge filled slab. */
+html[data-theme="liquid"] #modalCard .task-edit-actions #saveTask{
+  background:rgba(104,169,122,.78)!important;
+  background-color:rgba(104,169,122,.78)!important;
+  border-color:rgba(205,255,218,.55)!important;
+}
+html[data-theme="liquid"] #modalCard .task-edit-actions #cancelModal{
+  background:rgba(255,255,255,.065)!important;
+  background-color:rgba(255,255,255,.065)!important;
+}
+
+/* Calendar display modal save is glass, not green. */
+html[data-theme="liquid"] #modalCard #saveDisplay{
+  background:rgba(255,255,255,.085)!important;
+  background-color:rgba(255,255,255,.085)!important;
+}
+
+/* Strong text separation is what keeps truly clear glass readable. */
+html[data-theme="liquid"] #modalCard *,
+html[data-theme="liquid"] #themeMenu *,
+html[data-theme="liquid"] .todo-panel *{
+  text-shadow:0 1px 3px rgba(0,0,0,.72)!important;
+}
+
+/* Avoid an accidental opaque canvas created by old theme backgrounds. */
+html[data-theme="liquid"] .page-shell,
+html[data-theme="liquid"] .garden-frame{
+  background:transparent!important;
+  background-color:transparent!important;
+  background-image:none!important;
+}
+
+/* Keep wallpaper visible through the calendar instead of frosting the whole page. */
+html[data-theme="liquid"] .calendar-grid,
+html[data-theme="liquid"] .weekday-row{
+  background:transparent!important;
+}

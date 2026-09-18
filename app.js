@@ -1365,28 +1365,26 @@ let liquidGlassWatcher=null;
 function getLiquidBackground(){try{return localStorage.getItem(LIQUID_BG_KEY)||''}catch{return ''}}
 function applyLiquidBackground(){
   const bg=getLiquidBackground();
-  if(bg)document.documentElement.style.setProperty('--liquid-custom-bg',`url("${bg.replace(/"/g,'\\"')}")`);
-  else document.documentElement.style.removeProperty('--liquid-custom-bg');
+  const liquid=document.documentElement.dataset.theme==='liquid';
+  if(liquid&&bg){
+    document.body.style.setProperty('background-image',`url("${bg.replace(/"/g,'\\"')}")`,'important');
+    document.body.style.setProperty('background-size','cover','important');
+    document.body.style.setProperty('background-position','center','important');
+    document.body.style.setProperty('background-repeat','no-repeat','important');
+  }else{
+    document.body.style.removeProperty('background-image');
+    document.body.style.removeProperty('background-size');
+    document.body.style.removeProperty('background-position');
+    document.body.style.removeProperty('background-repeat');
+  }
 }
 function setLiquidGlassEngine(on){
+  // v16.23: use the same lightweight liquid-glass rendering path as Todo.
+  // Dynamic SVG backdrop filters caused black/white artifacts on Wardrobe and
+  // inconsistent tinting on modals, so they are intentionally not attached here.
   try{liquidGlassWatcher?.stop?.()}catch{}
   try{window.Hyalite?.unwatch?.()}catch{}
   liquidGlassWatcher=null;
-  if(!on||!window.Hyalite||!Hyalite.supported?.())return;
-  try{
-    // Real refraction only on a small number of stable slabs.
-    // Each SVG backdrop filter is its own render surface, so attaching
-    // Hyalite to every button/card made the whole app GPU-heavy.
-    liquidGlassWatcher=Hyalite.watch(
-      document.body,
-      '.topbar, .hero-card, .calendar-card, .todo-panel, .modal-card, .theme-menu, .auth-card',
-      {
-        bevel:28,thickness:46,slope:2.15,shape:'squircle',
-        blur:.55,dispersion:0,shade:.26,rim:1.25,edgeW:7,
-        sat:1,edge:.38,light:-140,smooth:0,materialize:0,settle:160
-      }
-    );
-  }catch(err){console.warn('Liquid glass engine fallback:',err)}
 }
 function initLiquidBackgroundControls(){
   const input=$('#liquidBackgroundInput'),reset=$('#liquidBackgroundReset');
@@ -1432,6 +1430,8 @@ function applyTheme(theme){
   renderAmbientEffect();
   setLiquidGlassEngine(theme==='liquid');
   queueCloudSync();
+
+  applyLiquidBackground();
 }
 
 function initTheme(){
