@@ -4,21 +4,18 @@ const $=s=>document.querySelector(s);
 const pad=n=>String(n).padStart(2,'0');
 const fmtDateInput=d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
 const THEME_KEY='deadline-garden-theme-v1';
-const THEMES=['red','orange','yellow','green','blue','indigo','purple','glass'];
+const THEMES=['red','orange','yellow','green','blue','indigo','purple','glass','liquid'];
 const CAL_DISPLAY_KEY='deadline-garden-calendar-display-v1';
 const CAL_VIEW_KEY='deadline-garden-calendar-view-v1';
 const CUSTOMIZE_KEY='deadline-garden-customize-v1';
 const HOLIDAY_KEY='deadline-garden-holidays-v1';
 const CHECKLIST_COLLAPSE_KEY='deadline-garden-checklist-collapsed-v1';
-const BACKGROUND_PROTECTION_KEY='deadline-garden-background-protection-v1';
 const VAPID_PUBLIC_KEY='BKks6hnXtY3MnQG30NzV4tI5Hh19UR4nDXy8YyhyJPgmdphmbTvxSUbYjANODABclv1q3MDBUg9y56KtStBgh0w';
 const NOTIFICATION_ENABLED_KEY='deadline-garden-notifications-v1';
 const LANGUAGE_KEY='deadline-garden-language-v1';
 let uiLanguage='en';
 try{uiLanguage=localStorage.getItem(LANGUAGE_KEY)==='zh'?'zh':'en'}catch{}
 const uiLocale=()=>uiLanguage==='zh'?'zh-CN':'en-US';
-let backgroundKeepAlive=null;
-let backgroundKeepAlivePlaying=false;
 const COURSE_HISTORY_KEY='deadline-garden-course-history-v1';
 const COURSE_ICON_PREFS_KEY='deadline-garden-course-icon-prefs-v1';
 let courseIconPrefs={};
@@ -1363,8 +1360,40 @@ bindWardrobeRange('#effectSizeSlider','effectSize','#effectSizeValue');
 bindWardrobeRange('#effectDensitySlider','effectDensity','#effectDensityValue');
 
 ;
+const LIQUID_BG_KEY='deadline-garden-liquid-background-v1';
+let liquidGlassWatcher=null;
+function getLiquidBackground(){try{return localStorage.getItem(LIQUID_BG_KEY)||''}catch{return ''}}
+function applyLiquidBackground(){
+  const bg=getLiquidBackground();
+  if(bg)document.documentElement.style.setProperty('--liquid-custom-bg',`url("${bg.replace(/"/g,'\\"')}")`);
+  else document.documentElement.style.removeProperty('--liquid-custom-bg');
+}
+function setLiquidGlassEngine(on){
+  try{liquidGlassWatcher?.stop?.()}catch{}
+  liquidGlassWatcher=null;
+  if(!on||!window.Hyalite)return;
+  try{
+    liquidGlassWatcher=Hyalite.watch(document.body,'.glass, .soft-btn, .primary-btn, .todo-pill, .icon-btn, .theme-btn, .language-btn, .account-btn',{bevel:24,thickness:42,slope:1.35,shape:'squircle',blur:1.2,dispersion:1.15,shade:.38,rim:1.35,edgeW:7,sat:.92,edge:.42,light:-140,smooth:1,materialize:180,settle:80});
+  }catch(err){console.warn('Liquid glass engine fallback:',err)}
+}
+function initLiquidBackgroundControls(){
+  const input=$('#liquidBackgroundInput'),reset=$('#liquidBackgroundReset');
+  if(input)input.onchange=()=>{
+    const file=input.files?.[0];if(!file)return;
+    if(!file.type.startsWith('image/'))return toast(uiLanguage==='zh'?'请选择图片文件。':'Please choose an image file.');
+    if(file.size>3*1024*1024)return toast(uiLanguage==='zh'?'图片请控制在 3 MB 以内。':'Please keep the image under 3 MB.');
+    const r=new FileReader();
+    r.onload=()=>{try{localStorage.setItem(LIQUID_BG_KEY,String(r.result));applyLiquidBackground();toast(uiLanguage==='zh'?'背景已更换。':'Background updated.')}catch{toast(uiLanguage==='zh'?'图片太大，无法保存。':'Image is too large to save.')}};
+    r.readAsDataURL(file);
+  };
+  if(reset)reset.onclick=e=>{e.stopPropagation();try{localStorage.removeItem(LIQUID_BG_KEY)}catch{};applyLiquidBackground();if(input)input.value='';toast(uiLanguage==='zh'?'已恢复默认背景。':'Default background restored.')};
+  applyLiquidBackground();
+}
 function updateWardrobeEffectLabels(){
-  const glass=document.documentElement.dataset.theme==='glass';
+  const theme=document.documentElement.dataset.theme;
+  const glass=theme==='glass';
+  const liquid=theme==='liquid';
+  const bgControl=$('#liquidBackgroundControl');if(bgControl)bgControl.classList.toggle('hidden',!liquid);
   if($('#effectSizeLabel'))$('#effectSizeLabel').textContent=glass?'Rain drop size':'Flower size';
   if($('#effectDensityLabel'))$('#effectDensityLabel').textContent=glass?'Rain density':'Flower density';
 
@@ -1389,6 +1418,7 @@ function applyTheme(theme){
   );
   updateWardrobeEffectLabels();
   renderAmbientEffect();
+  setLiquidGlassEngine(theme==='liquid');
   queueCloudSync();
 }
 
@@ -1441,94 +1471,11 @@ function initTheme(){
   });
 
   updateWardrobeEffectLabels();
+  initLiquidBackgroundControls();
 }
 
 const mobileLayoutMedia=window.matchMedia('(max-width: 700px)');
 try{mobileLayoutMedia.addEventListener('change',()=>{if((customize.mobileLayout||'auto')==='auto')applyCustomize()})}catch{}
-
-
-function setBackgroundProtectionButton(state,error=''){
-  const btn=$('#backgroundProtectionBtn');if(!btn)return;
-  btn.dataset.state=state;
-  if(state==='on')btn.textContent='Background protection: On';
-  else if(state==='starting')btn.textContent='Background protection: Starting…';
-  else if(state==='resume')btn.textContent='Background protection: Tap to resume';
-  else if(state==='unavailable')btn.textContent='Background protection: Unavailable';
-  else btn.textContent='Background protection: Off';
-  btn.title=error||'';
-}
-
-function backgroundProtectionWanted(){
-  try{return localStorage.getItem(BACKGROUND_PROTECTION_KEY)==='1'}catch{return false}
-}
-function saveBackgroundProtectionWanted(on){
-  try{localStorage.setItem(BACKGROUND_PROTECTION_KEY,on?'1':'0')}catch{}
-}
-
-async function requestBackgroundProtection(){
-  if(!backgroundKeepAlive){
-    setBackgroundProtectionButton('unavailable','Background keepalive module was not loaded.');
-    return false;
-  }
-  saveBackgroundProtectionWanted(true);
-  setBackgroundProtectionButton('starting');
-  const ok=await backgroundKeepAlive.enable();
-  if(ok){
-    backgroundKeepAlivePlaying=true;
-    setBackgroundProtectionButton('on');
-  }else{
-    backgroundKeepAlivePlaying=false;
-    setBackgroundProtectionButton('resume');
-  }
-  return !!ok;
-}
-
-function stopBackgroundProtection(){
-  saveBackgroundProtectionWanted(false);
-  backgroundKeepAlivePlaying=false;
-  try{backgroundKeepAlive?.disable()}catch{}
-  setBackgroundProtectionButton('off');
-}
-
-function initBackgroundProtection(){
-  const btn=$('#backgroundProtectionBtn');if(!btn)return;
-
-  if(typeof window.createBackgroundKeepAlive!=='function'){
-    setBackgroundProtectionButton('unavailable','background-keepalive.js could not be loaded.');
-    btn.disabled=true;
-    return;
-  }
-
-  backgroundKeepAlive=window.createBackgroundKeepAlive({
-    title:'Deadline Garden',
-    artist:'Background protection',
-    onStatus:state=>{
-      backgroundKeepAlivePlaying=!!state.playing;
-      if(!backgroundProtectionWanted()){
-        setBackgroundProtectionButton('off');
-        return;
-      }
-      if(state.playing)setBackgroundProtectionButton('on');
-      else setBackgroundProtectionButton('resume',state.error||'');
-    }
-  });
-
-  btn.onclick=async e=>{
-    e.stopPropagation();
-    if(backgroundProtectionWanted()&&backgroundKeepAlivePlaying){
-      stopBackgroundProtection();
-    }else{
-      await requestBackgroundProtection();
-    }
-  };
-
-  if(backgroundProtectionWanted()){
-    setBackgroundProtectionButton('starting');
-    setTimeout(()=>requestBackgroundProtection(),0);
-  }else{
-    setBackgroundProtectionButton('off');
-  }
-}
 
 
 function urlBase64ToUint8Array(base64String){
@@ -1701,6 +1648,8 @@ function renderAmbientEffect(){
   const sizeValue=Math.max(0,Math.min(100,Number(customize.effectSize ?? 50)));
   const densityValue=Math.max(0,Math.min(100,Number(customize.effectDensity ?? 50)));
 
+  if(theme==='liquid'){root.classList.remove('rain-mode');return;}
+
   if(theme==='glass'){
     root.classList.add('rain-mode');
 
@@ -1759,10 +1708,9 @@ function initPetalRain(){renderAmbientEffect()}
 
 const UI_ZH={
   'Wardrobe':'衣橱','Garden color':'花园颜色','Flower size':'花朵大小','Flower density':'花朵密度',
+  'Liquid background':'液态玻璃背景','Choose image':'选择图片','Use default':'使用默认背景','Choose the image visible through the liquid glass. Stored only on this device.':'选择透过液态玻璃显示的背景图片。图片仅保存在此设备。',
   'Rain drop size':'雨滴大小','Rain density':'雨滴密度','Tiny':'极小','Huge':'超大','Sparse':'稀疏','Dense':'密集','Stormy':'暴雨',
   'Layout':'布局','Mobile layout: Auto':'手机布局：自动','Mobile layout: On':'手机布局：开启','Mobile layout: Off':'手机布局：关闭',
-  'Background':'后台','Background protection: Off':'后台保护：关闭','Background protection: On':'后台保护：开启',
-  'Background protection: Starting…':'后台保护：启动中…','Background protection: Tap to resume':'后台保护：点击恢复',
   'Background protection: Unavailable':'后台保护：不可用','Notifications':'通知','Notifications: Off':'通知：关闭','Notifications: On':'通知：开启',
   'Notifications: Enabling…':'通知：开启中…','Notifications: Blocked':'通知：已被阻止','Notifications: Unsupported':'通知：不支持',
   'Test background notification':'测试后台通知','Confetti':'庆祝彩纸','Checklist color':'清单颜色','Checklist shape':'清单形状',
@@ -1910,7 +1858,6 @@ try{const savedChecklistState=localStorage.getItem(CHECKLIST_COLLAPSE_KEY);setCh
 (async()=>{
   try{initLanguage()}catch(err){console.error('Language initialization failed:',err)}
   try{initTheme()}catch(err){console.error('Theme initialization failed:',err)}
-  try{initBackgroundProtection()}catch(err){console.error('Background protection initialization failed:',err)}
   try{initNotifications()}catch(err){console.error('Notification initialization failed:',err)}
   try{initPetalRain()}catch(err){console.error('Ambient effect initialization failed:',err)}
   try{

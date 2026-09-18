@@ -3043,3 +3043,56 @@ html[data-theme="glass"] #modalCard .field select:focus{
   background:rgba(41,61,73,.86)!important;
   color:#fff!important;
 }
+
+/* v16.21 — Liquid Glass theme (Hyalite-backed where supported) */
+html[data-theme="liquid"]{
+  --accent:#d9f2ff;--accent-strong:#ffffff;--accent-soft:rgba(255,255,255,.17);
+  --accent-pale:rgba(255,255,255,.10);--accent-wash:#6e8292;--text:#fff;--muted:rgba(244,250,255,.78);
+  --paper:rgba(255,255,255,.085);--border:rgba(255,255,255,.34);
+  --shadow:0 18px 55px rgba(5,18,29,.18),inset 0 1px 0 rgba(255,255,255,.48);
+  --focus:rgba(220,245,255,.30);
+}
+html[data-theme="liquid"] body{
+  color:#fff;
+  background-image:linear-gradient(rgba(16,31,42,.10),rgba(16,31,42,.10)),var(--liquid-custom-bg,linear-gradient(135deg,#647f93 0%,#a3c0cd 35%,#647d91 67%,#344c5e 100%));
+  background-size:cover;background-position:center;background-attachment:fixed;
+}
+.theme-swatch.liquid{position:relative;overflow:hidden;background:linear-gradient(145deg,#eefbff 0%,#7fc2df 42%,#a889dc 72%,#e7fbff 100%);border:1px solid rgba(255,255,255,.95);box-shadow:inset 2px 2px 7px rgba(255,255,255,.9),inset -3px -3px 8px rgba(44,78,109,.24),0 3px 12px rgba(34,66,91,.25)}
+.theme-swatch.liquid::after{content:"";position:absolute;inset:3px;border-radius:50%;border:1px solid rgba(255,255,255,.72);box-shadow:inset 4px 0 6px rgba(93,211,255,.30),inset -4px 0 6px rgba(218,111,255,.22)}
+
+/* Hyalite writes --hyalite / --hyalite-edge. Safari/iOS automatically gets the blur fallback. */
+html[data-theme="liquid"] .glass,
+html[data-theme="liquid"] .soft-btn,
+html[data-theme="liquid"] .primary-btn,
+html[data-theme="liquid"] .todo-pill,
+html[data-theme="liquid"] .icon-btn,
+html[data-theme="liquid"] .theme-btn,
+html[data-theme="liquid"] .language-btn,
+html[data-theme="liquid"] .account-btn{
+  background:rgba(235,248,255,.075)!important;
+  border:1px solid rgba(255,255,255,.42)!important;
+  backdrop-filter:var(--hyalite,blur(17px) saturate(145%))!important;
+  -webkit-backdrop-filter:var(--hyalite,blur(17px) saturate(145%))!important;
+  box-shadow:var(--hyalite-edge, inset 0 1px 0 rgba(255,255,255,.70), inset 0 -1px 0 rgba(12,31,45,.18), 0 14px 38px rgba(5,20,31,.16))!important;
+  color:#fff!important;
+}
+html[data-theme="liquid"] .garden-frame,
+html[data-theme="liquid"] .topbar,
+html[data-theme="liquid"] .theme-menu,
+html[data-theme="liquid"] .auth-card{
+  background:rgba(224,242,252,.07)!important;border:1px solid rgba(255,255,255,.40)!important;
+  backdrop-filter:blur(22px) saturate(145%);-webkit-backdrop-filter:blur(22px) saturate(145%);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.68),inset 0 -1px 0 rgba(15,34,47,.18),0 24px 72px rgba(5,18,28,.20)!important;
+}
+html[data-theme="liquid"] .day-cell,html[data-theme="liquid"] .week-day,html[data-theme="liquid"] .daily-view{background:rgba(255,255,255,.035);border-color:rgba(255,255,255,.18)!important}
+html[data-theme="liquid"] .event-chip{background:rgba(240,249,255,.11);color:#fff;border-top:1px solid rgba(255,255,255,.30);border-right:1px solid rgba(255,255,255,.18);border-bottom:1px solid rgba(20,43,57,.12);text-shadow:0 1px 2px rgba(0,0,0,.38)}
+html[data-theme="liquid"] .field input,html[data-theme="liquid"] .field textarea,html[data-theme="liquid"] .field select{background:rgba(235,248,255,.10);border-color:rgba(255,255,255,.30);color:#fff}
+html[data-theme="liquid"] .field input::placeholder,html[data-theme="liquid"] .field textarea::placeholder{color:rgba(245,251,255,.60)}
+html[data-theme="liquid"] .eyebrow,html[data-theme="liquid"] .section-label,html[data-theme="liquid"] .summary-line,html[data-theme="liquid"] .next-meta,html[data-theme="liquid"] .todo-subtitle,html[data-theme="liquid"] .weekday-row,html[data-theme="liquid"] .theme-menu-title{color:rgba(247,252,255,.86);text-shadow:0 1px 2px rgba(0,0,0,.28)}
+html[data-theme="liquid"] .topbar h1,html[data-theme="liquid"] .next-title,html[data-theme="liquid"] .month-nav h2,html[data-theme="liquid"] .day-number,html[data-theme="liquid"] .modal-card h3,html[data-theme="liquid"] .wardrobe-title{color:#fff;text-shadow:0 2px 5px rgba(0,0,0,.30)}
+html[data-theme="liquid"] .petal-rain{display:none!important}
+html[data-theme="liquid"] body.urgent-global .warning-backdrop{z-index:1}
+
+.background-upload-btn,.background-reset-btn{display:inline-flex;align-items:center;justify-content:center;min-height:36px;padding:8px 11px;margin:0 5px 7px 0;border-radius:12px;font-size:12px;font-weight:800;background:var(--accent-pale);color:var(--accent-strong);border:1px solid var(--border);cursor:pointer}
+.liquid-background-help{font-size:10px;line-height:1.35;color:var(--muted)}
+html[data-theme="liquid"] .background-upload-btn,html[data-theme="liquid"] .background-reset-btn{background:rgba(255,255,255,.10);color:#fff;border-color:rgba(255,255,255,.28)}
