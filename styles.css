@@ -3803,3 +3803,125 @@ html[data-theme="liquid"] #themeMenu.theme-menu{
     min-height:180px!important;padding:28px 12px!important
   }
 }
+
+
+/* v16.27 — Desktop month prioritizes event COUNT, not one detailed event.
+   Every event becomes its own compact icon/color marker, so 4 events => 4 markers. */
+@media(min-width:761px){
+  body:not(.mobile-layout) .calendar-grid:not(.calendar-grid-week):not(.calendar-grid-day) .day-cell{
+    display:flex!important;
+    flex-direction:column!important;
+    align-items:stretch!important;
+  }
+  body:not(.mobile-layout) .calendar-grid:not(.calendar-grid-week):not(.calendar-grid-day) .day-events,
+  body:not(.mobile-layout) .calendar-grid:not(.calendar-grid-week):not(.calendar-grid-day) .events{
+    display:flex!important;
+    flex-flow:row wrap!important;
+    align-content:flex-start!important;
+    align-items:center!important;
+    gap:5px!important;
+    overflow:visible!important;
+    min-height:20px!important;
+  }
+  body:not(.mobile-layout) .calendar-grid:not(.calendar-grid-week):not(.calendar-grid-day) .event-chip{
+    display:inline-flex!important;
+    align-items:center!important;
+    justify-content:center!important;
+    flex:0 0 18px!important;
+    width:18px!important;
+    min-width:18px!important;
+    max-width:18px!important;
+    height:18px!important;
+    min-height:18px!important;
+    max-height:18px!important;
+    padding:0!important;
+    margin:0!important;
+    border-radius:50%!important;
+    border:1px solid rgba(255,255,255,.48)!important;
+    border-left-width:1px!important;
+    overflow:hidden!important;
+    box-shadow:0 2px 6px rgba(0,0,0,.14)!important;
+    font-size:0!important;
+    line-height:0!important;
+  }
+  body:not(.mobile-layout) .calendar-grid:not(.calendar-grid-week):not(.calendar-grid-day) .event-chip .event-icon,
+  body:not(.mobile-layout) .calendar-grid:not(.calendar-grid-week):not(.calendar-grid-day) .event-chip .task-icon{
+    display:grid!important;
+    place-items:center!important;
+    width:100%!important;
+    height:100%!important;
+    margin:0!important;
+    font-size:11px!important;
+    line-height:1!important;
+  }
+  body:not(.mobile-layout) .calendar-grid:not(.calendar-grid-week):not(.calendar-grid-day) .event-chip .event-main-line,
+  body:not(.mobile-layout) .calendar-grid:not(.calendar-grid-week):not(.calendar-grid-day) .event-chip .event-meta-line,
+  body:not(.mobile-layout) .calendar-grid:not(.calendar-grid-week):not(.calendar-grid-day) .event-chip .event-desc-line{
+    display:none!important;
+  }
+  /* If an event has no emoji element, its existing task color remains the marker color. */
+  body:not(.mobile-layout) .calendar-grid:not(.calendar-grid-week):not(.calendar-grid-day) .day-cell{
+    min-height:74px!important;
+    height:clamp(74px,9.5vh,98px)!important;
+  }
+}
+
+/* Mobile header: previous attempts positioned utilityBar relative to .brand-row,
+   but the action grid/legacy utility rules could still win. Anchor the controls
+   to the DATE COPY itself and reserve their space there. */
+@media(max-width:760px){
+  body.mobile-layout .topbar .brand-row{
+    display:grid!important;
+    grid-template-columns:auto minmax(0,1fr)!important;
+    grid-template-rows:auto!important;
+    align-items:center!important;
+    position:relative!important;
+  }
+  body.mobile-layout .topbar .brand-copy{
+    position:relative!important;
+    grid-column:2!important;
+    grid-row:1!important;
+    padding-right:68px!important;
+    min-width:0!important;
+  }
+  body.mobile-layout .topbar #utilityBar.utility-bar{
+    position:absolute!important;
+    top:50%!important;
+    right:8px!important;
+    left:auto!important;
+    bottom:auto!important;
+    transform:translateY(-50%)!important;
+    display:flex!important;
+    flex-direction:row!important;
+    align-items:center!important;
+    gap:4px!important;
+    width:62px!important;
+    height:29px!important;
+    margin:0!important;
+    padding:0!important;
+    z-index:20!important;
+    pointer-events:auto!important;
+  }
+  body.mobile-layout .topbar #utilityBar #accountBtn.account-btn,
+  body.mobile-layout .topbar #utilityBar #languageBtn.language-btn{
+    position:static!important;
+    inset:auto!important;
+    transform:none!important;
+    width:29px!important;
+    min-width:29px!important;
+    max-width:29px!important;
+    height:29px!important;
+    min-height:29px!important;
+    max-height:29px!important;
+    flex:0 0 29px!important;
+    margin:0!important;
+    padding:0!important;
+    border-radius:50%!important;
+  }
+  /* Explicitly keep them out of the action-button grid. */
+  body.mobile-layout .top-actions #utilityBar,
+  body.mobile-layout .top-actions #accountBtn,
+  body.mobile-layout .top-actions #languageBtn{
+    position:static!important;
+  }
+}
