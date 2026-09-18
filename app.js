@@ -221,6 +221,8 @@ function renderAll(){renderHeader();renderCalendar();renderTodo();renderQuickTod
 
 function getTodoBadgeCount(pending){const g=getTodoGroups(pending);if(customize.todoCount==='all')return pending.length;if(customize.todoCount==='week')return g.today.length+g.week.length;return g.today.length}
 function renderHeader(){
+  const accountBtn=$('#accountBtn');
+  if(accountBtn){const raw=(accountBtn.textContent||'A').trim();accountBtn.dataset.initial=(raw&&raw.toLowerCase()!=='sign in'&&raw.toLowerCase()!=='登录')?raw.charAt(0).toUpperCase():'A'}
   const now=new Date();$('#todayHeading').textContent=now.toLocaleDateString(uiLocale(),{weekday:'long',month:'long',day:'numeric'});
   const pending=deadlineTasks().filter(t=>!t.done),focus=getTodoGroups(pending).today.length,badge=getTodoBadgeCount(pending);
   $('#summaryLine').textContent=focus?`${focus} task${focus===1?'':'s'} to focus on today`:'Nothing due today';$('#todoCount').textContent=badge;

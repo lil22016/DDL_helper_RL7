@@ -3550,3 +3550,144 @@ html[data-theme="liquid"] body.mobile-layout::before{
 body.mobile-layout .brand-row>div:last-child{
   padding-right:76px!important;
 }
+
+
+/* v16.25 — compact header utilities + adaptive calendar height + wardrobe parity */
+
+/* Account/language are genuinely part of the heading row now, not floating over it. */
+.brand-row{position:relative!important;flex:1 1 auto!important}
+.brand-copy{min-width:0!important}
+#utilityBar.utility-bar{
+  position:static!important;
+  inset:auto!important;
+  transform:none!important;
+  display:flex!important;
+  flex-direction:row!important;
+  align-items:center!important;
+  gap:6px!important;
+  width:auto!important;
+  margin-left:8px!important;
+  z-index:auto!important;
+}
+#utilityBar #accountBtn.account-btn,
+#utilityBar #languageBtn.language-btn{
+  position:static!important;
+  inset:auto!important;
+  margin:0!important;
+  width:34px!important;
+  min-width:34px!important;
+  max-width:34px!important;
+  height:34px!important;
+  padding:0!important;
+  border-radius:50%!important;
+  overflow:hidden!important;
+  white-space:nowrap!important;
+  flex:0 0 34px!important;
+}
+#utilityBar #accountBtn.account-btn{font-size:0!important;color:transparent!important;text-indent:0!important}
+#utilityBar #accountBtn.account-btn::after{
+  content:attr(data-initial)!important;
+  display:grid!important;
+  place-items:center!important;
+  width:100%!important;height:100%!important;
+  color:#fff!important;
+  font-size:12px!important;font-weight:900!important;
+  text-indent:0!important;
+  text-shadow:0 1px 3px rgba(0,0,0,.72)!important;
+}
+#utilityBar #languageBtn.language-btn{font-size:11px!important}
+
+/* There is no longer a utility row above the app, so reclaim that vertical space. */
+body{padding-top:8px!important}
+.garden-frame{margin-top:0!important}
+.page-shell{gap:14px!important}
+
+/* Desktop month must always remain the classic 7-column calendar. */
+@media(min-width:761px){
+  .calendar-grid:not(.calendar-grid-week):not(.calendar-grid-day){
+    display:grid!important;
+    grid-template-columns:repeat(7,minmax(0,1fr))!important;
+    grid-auto-flow:row!important;
+    overflow:visible!important;
+  }
+  .calendar-grid:not(.calendar-grid-week):not(.calendar-grid-day) .day-cell{
+    width:auto!important;min-width:0!important;flex:none!important;
+  }
+  .weekday-row{display:grid!important;grid-template-columns:repeat(7,minmax(0,1fr))!important}
+  .calendar-grid-week{display:grid!important;grid-template-columns:repeat(7,minmax(0,1fr))!important;overflow:visible!important}
+  .calendar-grid-week .week-day{
+    min-height:clamp(205px,31vh,330px)!important;
+    height:auto!important;
+  }
+  .calendar-grid-day .daily-view{
+    min-height:clamp(230px,38vh,390px)!important;
+    height:auto!important;
+  }
+}
+
+/* Week/day should fit the viewport when there is little content instead of
+   manufacturing a long scroll area. Content can still grow naturally. */
+.calendar-grid-week .week-day{min-height:clamp(210px,34vh,350px)!important}
+.calendar-grid-day .daily-view{min-height:clamp(235px,40vh,400px)!important}
+.daily-events,.week-events{min-height:0!important}
+.daily-empty{min-height:120px!important;padding-block:28px!important}
+
+/* Wardrobe uses the same frosted slab recipe as Todo. The previous rule only
+   changed its colour; this also forces a real isolated backdrop for blur. */
+html[data-theme="liquid"] #themeMenu.theme-menu{
+  background:rgba(18,18,18,.16)!important;
+  background-color:rgba(18,18,18,.16)!important;
+  background-image:none!important;
+  backdrop-filter:blur(18px) saturate(105%)!important;
+  -webkit-backdrop-filter:blur(18px) saturate(105%)!important;
+  border:1px solid rgba(255,255,255,.40)!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.50),0 16px 42px rgba(0,0,0,.18)!important;
+  isolation:isolate!important;
+  opacity:1!important;
+}
+html[data-theme="liquid"] #themeMenu.theme-menu>*{position:relative;z-index:1}
+
+/* Mobile: keep utilities immediately beside the date heading and compact. */
+@media(max-width:760px){
+  body{padding-top:max(2px,env(safe-area-inset-top))!important}
+  body.mobile-layout .garden-frame{margin-top:0!important}
+  body.mobile-layout .topbar{padding-top:10px!important}
+  body.mobile-layout .brand-row{
+    display:grid!important;
+    grid-template-columns:auto minmax(0,1fr) auto!important;
+    align-items:center!important;
+    gap:8px!important;
+    padding-right:0!important;
+  }
+  body.mobile-layout .theme-wrap{grid-column:1!important}
+  body.mobile-layout .brand-copy{grid-column:2!important;min-width:0!important}
+  body.mobile-layout #utilityBar.utility-bar{
+    grid-column:3!important;
+    position:static!important;
+    inset:auto!important;
+    margin:0!important;
+    gap:5px!important;
+  }
+  body.mobile-layout #utilityBar #accountBtn.account-btn,
+  body.mobile-layout #utilityBar #languageBtn.language-btn{
+    width:30px!important;min-width:30px!important;max-width:30px!important;height:30px!important;flex-basis:30px!important;
+  }
+  body.mobile-layout #utilityBar #accountBtn.account-btn::after{font-size:10px!important}
+  body.mobile-layout #utilityBar #languageBtn.language-btn{font-size:10px!important}
+  body.mobile-layout .brand-row>div:last-child{padding-right:0!important}
+
+  /* Mobile month keeps its intentionally compact/mobile presentation only on mobile. */
+  body.mobile-layout .calendar-grid-week .week-day{
+    min-height:clamp(165px,27vh,230px)!important;
+    height:auto!important;
+  }
+  body.mobile-layout .calendar-grid-day .daily-view{
+    min-height:0!important;
+    height:auto!important;
+  }
+  body.mobile-layout .daily-events{min-height:0!important}
+  body.mobile-layout .daily-empty{
+    min-height:clamp(150px,28vh,260px)!important;
+    padding-block:24px!important;
+  }
+}
