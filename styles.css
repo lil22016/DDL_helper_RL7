@@ -4025,3 +4025,27 @@ html[data-theme="liquid"] body.has-liquid-wallpaper{background-image:none!import
 html[data-theme="liquid"] body.has-liquid-wallpaper::before{content:""!important;position:fixed!important;inset:0!important;width:100vw!important;height:100dvh!important;z-index:-2!important;pointer-events:none!important;background-image:var(--liquid-wallpaper)!important;background-size:cover!important;background-position:center center!important;background-repeat:no-repeat!important;transform:none!important}
 @media(max-width:760px){html[data-theme="liquid"] body.mobile-layout.has-liquid-wallpaper::before{inset:0!important;width:100vw!important;height:100dvh!important;background:var(--liquid-wallpaper) center center / cover no-repeat!important;transform:none!important}}
 html[data-theme="liquid"],html[data-theme="liquid"] body{background-color:#777975!important}
+
+
+/* v16.30 — fix v16.29 wallpaper visibility without reintroducing Week/Day jumping.
+   The fixed wallpaper layer must sit above the neutral page backing, not behind it. */
+html[data-theme="liquid"] body.has-liquid-wallpaper::before{
+  z-index:0!important;
+}
+html[data-theme="liquid"] body.has-liquid-wallpaper > .garden-frame,
+html[data-theme="liquid"] body.has-liquid-wallpaper > .utility-bar,
+html[data-theme="liquid"] body.has-liquid-wallpaper > .todo-panel,
+html[data-theme="liquid"] body.has-liquid-wallpaper > .quick-note,
+html[data-theme="liquid"] body.has-liquid-wallpaper > #modalRoot,
+html[data-theme="liquid"] body.has-liquid-wallpaper > #authRoot,
+html[data-theme="liquid"] body.has-liquid-wallpaper > #celebrationRoot{
+  position:relative;
+  z-index:1;
+}
+/* Fixed/overlay components keep their own higher z-index values. */
+html[data-theme="liquid"] body.has-liquid-wallpaper > .utility-bar,
+html[data-theme="liquid"] body.has-liquid-wallpaper > .todo-panel,
+html[data-theme="liquid"] body.has-liquid-wallpaper > #modalRoot,
+html[data-theme="liquid"] body.has-liquid-wallpaper > #authRoot{
+  position:fixed;
+}
