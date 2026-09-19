@@ -4049,3 +4049,16 @@ html[data-theme="liquid"] body.has-liquid-wallpaper > #modalRoot,
 html[data-theme="liquid"] body.has-liquid-wallpaper > #authRoot{
   position:fixed;
 }
+
+/* v16.31 — authoritative wallpaper reset.
+   Retire the v16.29/v16.30 ::before layer completely. */
+html[data-theme="liquid"] body::before,
+html[data-theme="liquid"] body.has-liquid-wallpaper::before{
+  content:none!important;
+  display:none!important;
+  background:none!important;
+}
+html[data-theme="liquid"] body{
+  background-color:#777975!important;
+  background-attachment:fixed!important;
+}
