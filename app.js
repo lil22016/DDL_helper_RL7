@@ -1387,23 +1387,24 @@ function getLiquidBackground(){try{return localStorage.getItem(LIQUID_BG_KEY)||'
 function applyLiquidBackground(){
   const bg=getLiquidBackground();
   const liquid=document.documentElement.dataset.theme==='liquid';
-  // v16.31: paint the wallpaper directly on body again, but anchor it to
-  // the viewport with background-attachment:fixed. This avoids both the
-  // Week/Day cover-resize jump and the pseudo-element stacking bug.
+  const layer=document.getElementById('liquidWallpaperLayer');
+  // v16.32: wallpaper is a real fixed viewport element. Its cover calculation
+  // never depends on Month/Week/Day document height.
   document.documentElement.style.removeProperty('--liquid-wallpaper');
   document.body.classList.remove('has-liquid-wallpaper');
-  if(liquid&&bg){
-    document.body.style.setProperty('background-image',`url("${bg.replace(/"/g,'\\"')}")`,'important');
-    document.body.style.setProperty('background-size','cover','important');
-    document.body.style.setProperty('background-position','center center','important');
-    document.body.style.setProperty('background-repeat','no-repeat','important');
-    document.body.style.setProperty('background-attachment','fixed','important');
-  }else{
-    document.body.style.removeProperty('background-image');
-    document.body.style.removeProperty('background-size');
-    document.body.style.removeProperty('background-position');
-    document.body.style.removeProperty('background-repeat');
-    document.body.style.removeProperty('background-attachment');
+  document.body.style.removeProperty('background-image');
+  document.body.style.removeProperty('background-size');
+  document.body.style.removeProperty('background-position');
+  document.body.style.removeProperty('background-repeat');
+  document.body.style.removeProperty('background-attachment');
+  if(layer){
+    if(liquid&&bg){
+      layer.style.backgroundImage=`url("${bg.replace(/"/g,'\\"')}")`;
+      layer.classList.add('visible');
+    }else{
+      layer.style.backgroundImage='none';
+      layer.classList.remove('visible');
+    }
   }
 }
 function setLiquidGlassEngine(on){

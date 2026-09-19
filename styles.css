@@ -4062,3 +4062,37 @@ html[data-theme="liquid"] body{
   background-color:#777975!important;
   background-attachment:fixed!important;
 }
+
+/* v16.32 — real fixed wallpaper plane. No body-cover math, no pseudo-element stacking. */
+.liquid-wallpaper-layer{
+  display:none;
+  position:fixed!important;
+  inset:0!important;
+  width:100vw!important;
+  height:100vh!important;
+  height:100dvh!important;
+  z-index:0!important;
+  pointer-events:none!important;
+  background-size:cover!important;
+  background-position:center center!important;
+  background-repeat:no-repeat!important;
+  transform:translateZ(0)!important;
+}
+html[data-theme="liquid"] .liquid-wallpaper-layer.visible{display:block!important}
+/* The actual app is one plane above the wallpaper. */
+html[data-theme="liquid"] .garden-frame{position:relative!important;z-index:1!important}
+html[data-theme="liquid"] #petalRain,
+html[data-theme="liquid"] #warningBackdrop{z-index:2}
+/* Liquid page backing is transparent; only html supplies an emergency neutral backing. */
+html[data-theme="liquid"]{background:#777975!important}
+html[data-theme="liquid"] body{
+  background-image:none!important;
+  background-color:transparent!important;
+  background-attachment:scroll!important;
+}
+/* Kill every historical wallpaper pseudo-layer authoritatively. */
+html[data-theme="liquid"] body::before,
+html[data-theme="liquid"] body.mobile-layout::before,
+html[data-theme="liquid"] body.has-liquid-wallpaper::before{
+  content:none!important;display:none!important;background:none!important
+}
