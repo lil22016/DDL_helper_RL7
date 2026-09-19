@@ -4019,3 +4019,9 @@ html[data-theme="liquid"] #themeMenu.theme-menu{
   body.mobile-layout .month-task-marker.plain .month-marker-dot{width:5px!important;height:5px!important}
   body.mobile-layout .month-marker-more{height:12px!important;min-width:16px!important;padding:0 2px!important;font-size:7px!important}
 }
+
+/* v16.29 — lock Liquid wallpaper to viewport across Month/Week/Day. */
+html[data-theme="liquid"] body.has-liquid-wallpaper{background-image:none!important;background-color:#777975!important}
+html[data-theme="liquid"] body.has-liquid-wallpaper::before{content:""!important;position:fixed!important;inset:0!important;width:100vw!important;height:100dvh!important;z-index:-2!important;pointer-events:none!important;background-image:var(--liquid-wallpaper)!important;background-size:cover!important;background-position:center center!important;background-repeat:no-repeat!important;transform:none!important}
+@media(max-width:760px){html[data-theme="liquid"] body.mobile-layout.has-liquid-wallpaper::before{inset:0!important;width:100vw!important;height:100dvh!important;background:var(--liquid-wallpaper) center center / cover no-repeat!important;transform:none!important}}
+html[data-theme="liquid"],html[data-theme="liquid"] body{background-color:#777975!important}

@@ -1388,16 +1388,16 @@ function applyLiquidBackground(){
   const bg=getLiquidBackground();
   const liquid=document.documentElement.dataset.theme==='liquid';
   if(liquid&&bg){
-    document.body.style.setProperty('background-image',`url("${bg.replace(/"/g,'\\"')}")`,'important');
-    document.body.style.setProperty('background-size','cover','important');
-    document.body.style.setProperty('background-position','center','important');
-    document.body.style.setProperty('background-repeat','no-repeat','important');
+    document.documentElement.style.setProperty('--liquid-wallpaper',`url("${bg.replace(/"/g,'\\"')}")`);
+    document.body.classList.add('has-liquid-wallpaper');
   }else{
-    document.body.style.removeProperty('background-image');
-    document.body.style.removeProperty('background-size');
-    document.body.style.removeProperty('background-position');
-    document.body.style.removeProperty('background-repeat');
+    document.documentElement.style.removeProperty('--liquid-wallpaper');
+    document.body.classList.remove('has-liquid-wallpaper');
   }
+  document.body.style.removeProperty('background-image');
+  document.body.style.removeProperty('background-size');
+  document.body.style.removeProperty('background-position');
+  document.body.style.removeProperty('background-repeat');
 }
 function setLiquidGlassEngine(on){
   // v16.23: use the same lightweight liquid-glass rendering path as Todo.
