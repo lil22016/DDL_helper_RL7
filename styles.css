@@ -4096,3 +4096,20 @@ html[data-theme="liquid"] body.mobile-layout::before,
 html[data-theme="liquid"] body.has-liquid-wallpaper::before{
   content:none!important;display:none!important;background:none!important
 }
+
+/* v16.33 — Liquid readability control + theme-specific ambient controls. */
+html[data-theme="liquid"] .topbar,
+html[data-theme="liquid"] .hero-card,
+html[data-theme="liquid"] .calendar-card,
+html[data-theme="liquid"] .todo-panel,
+html[data-theme="liquid"] #modalCard.modal-card,
+html[data-theme="liquid"] #themeMenu.theme-menu,
+html[data-theme="liquid"] #authRoot .auth-card,
+html[data-theme="liquid"] .course-icon-prompt{
+  background:rgba(20,20,20,var(--liquid-panel-alpha,.133))!important;
+  background-color:rgba(20,20,20,var(--liquid-panel-alpha,.133))!important;
+  backdrop-filter:blur(var(--liquid-panel-blur,11.5px)) saturate(100%)!important;
+  -webkit-backdrop-filter:blur(var(--liquid-panel-blur,11.5px)) saturate(100%)!important;
+}
+/* Keep hidden wardrobe sections truly absent despite older section layout rules. */
+#themeMenu .wardrobe-section.hidden{display:none!important}

@@ -20,7 +20,7 @@ const COURSE_HISTORY_KEY='deadline-garden-course-history-v1';
 const COURSE_ICON_PREFS_KEY='deadline-garden-course-icon-prefs-v1';
 let courseIconPrefs={};
 try{courseIconPrefs=JSON.parse(localStorage.getItem(COURSE_ICON_PREFS_KEY)||'{}')||{}}catch{courseIconPrefs={}}
-let customize={flowerSize:'medium',flowerOpacity:'medium',rainDropSize:50,rainDensity:50,effectSize:50,effectDensity:50,confetti:'medium',checklistColor:'postit',checklistShape:'postit',todoCount:'today',mobileLayout:'auto'};
+let customize={flowerSize:'medium',flowerOpacity:'medium',rainDropSize:50,rainDensity:50,effectSize:50,effectDensity:50,liquidBlur:50,confetti:'medium',checklistColor:'postit',checklistShape:'postit',todoCount:'today',mobileLayout:'auto'};
 const EVENT_PROMPT_SNOOZE_KEY='deadline-garden-event-prompt-snooze-v1';
 let eventCompletionPromptOpen=false,eventCompletionPromptTaskId=null;
 let holidays=[];
@@ -1379,6 +1379,8 @@ const bindWardrobeRange=(selector,key,valueSelector)=>{
 };
 bindWardrobeRange('#effectSizeSlider','effectSize','#effectSizeValue');
 bindWardrobeRange('#effectDensitySlider','effectDensity','#effectDensityValue');
+bindWardrobeRange('#liquidBlurSlider','liquidBlur','#liquidBlurValue');
+$('#liquidBlurSlider')?.addEventListener('input',()=>applyLiquidReadability());
 
 ;
 const LIQUID_BG_KEY='deadline-garden-liquid-background-v1';
@@ -1428,13 +1430,29 @@ function initLiquidBackgroundControls(){
   if(reset)reset.onclick=e=>{e.stopPropagation();try{localStorage.removeItem(LIQUID_BG_KEY)}catch{};applyLiquidBackground();if(input)input.value='';toast(uiLanguage==='zh'?'已恢复默认背景。':'Default background restored.')};
   applyLiquidBackground();
 }
+function applyLiquidReadability(){
+  const v=Math.max(0,Math.min(100,Number(customize.liquidBlur ?? 50)));
+  // 0 = very transparent/clear; 100 = stronger blur + slightly denser neutral veil.
+  const blur=(3 + v*.17).toFixed(1);
+  const alpha=(.055 + v*.00155).toFixed(3);
+  document.documentElement.style.setProperty('--liquid-panel-blur',`${blur}px`);
+  document.documentElement.style.setProperty('--liquid-panel-alpha',alpha);
+}
 function updateWardrobeEffectLabels(){
   const theme=document.documentElement.dataset.theme;
   const glass=theme==='glass';
   const liquid=theme==='liquid';
+  const flower=!glass&&!liquid;
+  const sizeControl=$('#effectSizeControl'),densityControl=$('#effectDensityControl');
+  if(sizeControl)sizeControl.classList.toggle('hidden',liquid);
+  if(densityControl)densityControl.classList.toggle('hidden',liquid);
+  const blurControl=$('#liquidBlurControl');if(blurControl)blurControl.classList.toggle('hidden',!liquid);
   const bgControl=$('#liquidBackgroundControl');if(bgControl)bgControl.classList.toggle('hidden',!liquid);
   if($('#effectSizeLabel'))$('#effectSizeLabel').textContent=glass?'Rain drop size':'Flower size';
   if($('#effectDensityLabel'))$('#effectDensityLabel').textContent=glass?'Rain density':'Flower density';
+  if($('#liquidBlurSlider'))$('#liquidBlurSlider').value=String(Number(customize.liquidBlur ?? 50));
+  if($('#liquidBlurValue'))$('#liquidBlurValue').textContent=String(Number(customize.liquidBlur ?? 50));
+  applyLiquidReadability();
 
   const s=Number(customize.effectSize ?? 50);
   const d=Number(customize.effectDensity ?? 50);
@@ -1457,6 +1475,7 @@ function applyTheme(theme){
   );
   updateWardrobeEffectLabels();
   renderAmbientEffect();
+  applyLiquidReadability();
   setLiquidGlassEngine(theme==='liquid');
   queueCloudSync();
 
@@ -1751,7 +1770,7 @@ function initPetalRain(){renderAmbientEffect()}
 const UI_ZH={
   'Wardrobe':'衣橱','Garden color':'花园颜色','Flower size':'花朵大小','Flower density':'花朵密度',
   'Liquid background':'液态玻璃背景','Choose image':'选择图片','Use default':'使用默认背景','Choose the image visible through the liquid glass. Stored only on this device.':'选择透过液态玻璃显示的背景图片。图片仅保存在此设备。',
-  'Rain drop size':'雨滴大小','Rain density':'雨滴密度','Tiny':'极小','Huge':'超大','Sparse':'稀疏','Dense':'密集','Stormy':'暴雨',
+  'Rain drop size':'雨滴大小','Rain density':'雨滴密度','Glass blur':'玻璃模糊度','Clear':'清晰','Blurred':'更模糊','Tiny':'极小','Huge':'超大','Sparse':'稀疏','Dense':'密集','Stormy':'暴雨',
   'Layout':'布局','Mobile layout: Auto':'手机布局：自动','Mobile layout: On':'手机布局：开启','Mobile layout: Off':'手机布局：关闭',
   'Background protection: Unavailable':'后台保护：不可用','Notifications':'通知','Notifications: Off':'通知：关闭','Notifications: On':'通知：开启',
   'Notifications: Enabling…':'通知：开启中…','Notifications: Blocked':'通知：已被阻止','Notifications: Unsupported':'通知：不支持',

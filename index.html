@@ -12,7 +12,7 @@
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Deadline Garden" />
-  <link rel="stylesheet" href="styles.css?v=1632" />
+  <link rel="stylesheet" href="styles.css?v=1633" />
 </head>
 <body>
   <div id="liquidWallpaperLayer" class="liquid-wallpaper-layer" aria-hidden="true"></div>
@@ -52,6 +52,11 @@
   <div class="theme-menu-title">Layout</div>
   <button id="mobileLayoutBtn" class="mobile-layout-btn" type="button">Mobile layout: Auto</button>
   <div class="mobile-layout-help">Auto uses the phone layout on narrow screens. Tap to switch Auto → On → Off.</div>
+</div>
+<div class="wardrobe-section hidden" id="liquidBlurControl">
+  <div class="theme-menu-title wardrobe-range-title"><span>Glass blur</span><strong id="liquidBlurValue">50</strong></div>
+  <input id="liquidBlurSlider" class="wardrobe-range" type="range" min="0" max="100" step="1" value="50" aria-label="Liquid glass blur">
+  <div class="range-ends"><span>Clear</span><span>Blurred</span></div>
 </div>
 <div class="wardrobe-section hidden" id="liquidBackgroundControl">
   <div class="theme-menu-title">Liquid background</div>
@@ -185,6 +190,6 @@
   <canvas id="confettiCanvas"></canvas>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/gh/VII-Cae/hyalite--liquid-glass@main/hyalite.js"></script>
-  <script src="app.js?v=1632"></script>
+  <script src="app.js?v=1633"></script>
 </body>
 </html>
