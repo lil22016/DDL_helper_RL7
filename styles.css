@@ -3312,13 +3312,25 @@ html[data-theme="liquid"] #modalCard .repeat-summary,
 html[data-theme="liquid"] #modalCard .scope-option,
 html[data-theme="liquid"] #modalCard .scope-choice,
 html[data-theme="liquid"] #modalCard .finish-prompt-task,
-html[data-theme="liquid"] #modalCard .task-link-card{
+html[data-theme="liquid"] #modalCard .task-link-card,
+html[data-theme="liquid"] #modalCard .detail-block,
+html[data-theme="liquid"] #modalCard .detail-description,
+html[data-theme="liquid"] #modalCard .event-type-switch{
   background:rgba(255,255,255,.055)!important;
   background-color:rgba(255,255,255,.055)!important;
   background-image:none!important;
   color:#fff!important;
   border-color:rgba(255,255,255,.27)!important;
 }
+
+html[data-theme="liquid"] #modalCard .event-type-btn{
+  background:transparent!important;color:#fff!important;text-shadow:0 1px 3px rgba(0,0,0,.72)!important;
+}
+html[data-theme="liquid"] #modalCard .event-type-btn.active{
+  background:rgba(0,0,0,.18)!important;color:#fff!important;border-color:rgba(255,255,255,.46)!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.16),0 4px 14px rgba(0,0,0,.12)!important;
+}
+html[data-theme="liquid"] #modalCard .detail-block span,html[data-theme="liquid"] #modalCard .detail-description>span{color:rgba(247,252,255,.80)!important}
+html[data-theme="liquid"] #modalCard .detail-block strong,html[data-theme="liquid"] #modalCard .detail-description>div,html[data-theme="liquid"] #modalCard .detail-description em{color:#fff!important}
 
 /* Inputs/editors use a small neutral darkening only for legibility. */
 html[data-theme="liquid"] #modalCard input:not([type="checkbox"]):not([type="radio"]),
@@ -3357,6 +3369,12 @@ html[data-theme="liquid"] #modalCard .task-edit-actions #cancelModal{
   background:rgba(255,255,255,.065)!important;
   background-color:rgba(255,255,255,.065)!important;
 }
+
+html[data-theme="liquid"] .view-switch{background:rgba(255,255,255,.075)!important;border:1px solid rgba(255,255,255,.38)!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.35),0 5px 16px rgba(0,0,0,.10)!important}
+html[data-theme="liquid"] .view-btn{background:transparent!important;color:#fff!important;text-shadow:0 1px 3px rgba(0,0,0,.68)!important}
+html[data-theme="liquid"] .view-btn.active{background:rgba(0,0,0,.18)!important;color:#fff!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.14),0 3px 10px rgba(0,0,0,.10)!important}
+html[data-theme="liquid"] .todo-item{background:rgba(255,255,255,.075)!important;border:1px solid rgba(255,255,255,.28)!important;color:#fff!important}
+html[data-theme="liquid"] .todo-title,html[data-theme="liquid"] .todo-course,html[data-theme="liquid"] .todo-meta,html[data-theme="liquid"] .todo-timer{color:#fff!important}
 
 /* Calendar display modal save is glass, not green. */
 html[data-theme="liquid"] #modalCard #saveDisplay{
@@ -4113,3 +4131,12 @@ html[data-theme="liquid"] .course-icon-prompt{
 }
 /* Keep hidden wardrobe sections truly absent despite older section layout rules. */
 #themeMenu .wardrobe-section.hidden{display:none!important}
+
+/* Account reminder editor */
+.account-reminders{margin:18px 0;padding:16px;border:1px solid var(--border);border-radius:18px;background:rgba(255,255,255,.46)}
+.account-reminders-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:12px}.account-reminders-head>div{display:grid;gap:4px}.account-reminders-head strong{font-size:14px}.account-reminders-head span,.account-reminder-note{font-size:11px;line-height:1.45;color:var(--muted)}
+.reminder-rules-list{display:grid;gap:8px}.reminder-rule-row{display:grid;grid-template-columns:minmax(150px,.9fr) minmax(170px,1.1fr) 36px;gap:8px;align-items:center}.reminder-value{display:grid;grid-template-columns:1fr auto;gap:7px}.reminder-value:has(.reminder-time){grid-template-columns:1fr}.reminder-rule-row select,.reminder-rule-row input{width:100%;min-width:0;padding:9px 10px;border:1px solid var(--border);border-radius:11px;background:rgba(255,255,255,.72);color:var(--text)}.reminder-delete{width:36px;height:36px;border-radius:11px;font-size:20px;line-height:1}.reminder-delete:disabled{opacity:.3;cursor:not-allowed}.reminder-add{white-space:nowrap}.account-reminder-note{margin:10px 0}.reminder-save{width:100%}
+@media(max-width:620px){.account-reminders-head{display:grid}.reminder-add{width:100%}.reminder-rule-row{grid-template-columns:1fr 36px}.reminder-type{grid-column:1}.reminder-value{grid-column:1}.reminder-delete{grid-column:2;grid-row:1/3}.account-reminders{padding:13px}}
+html[data-theme="glass"] .account-reminders,html[data-theme="liquid"] .account-reminders{background:rgba(255,255,255,.075)!important;border-color:rgba(255,255,255,.30)!important;color:#fff!important}
+html[data-theme="glass"] .account-reminders-head span,html[data-theme="glass"] .account-reminder-note,html[data-theme="liquid"] .account-reminders-head span,html[data-theme="liquid"] .account-reminder-note{color:rgba(247,252,255,.82)!important}
+html[data-theme="glass"] .reminder-rule-row input,html[data-theme="glass"] .reminder-rule-row select,html[data-theme="liquid"] .reminder-rule-row input,html[data-theme="liquid"] .reminder-rule-row select{background:rgba(0,0,0,.13)!important;color:#fff!important;border-color:rgba(255,255,255,.32)!important}

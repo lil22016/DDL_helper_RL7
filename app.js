@@ -12,6 +12,8 @@ const HOLIDAY_KEY='deadline-garden-holidays-v1';
 const CHECKLIST_COLLAPSE_KEY='deadline-garden-checklist-collapsed-v1';
 const VAPID_PUBLIC_KEY='BKks6hnXtY3MnQG30NzV4tI5Hh19UR4nDXy8YyhyJPgmdphmbTvxSUbYjANODABclv1q3MDBUg9y56KtStBgh0w';
 const NOTIFICATION_ENABLED_KEY='deadline-garden-notifications-v1';
+const REMINDER_RULES_KEY='deadline-garden-reminder-rules-v1';
+const DEFAULT_REMINDER_RULES=[{type:'time',time:'08:00'},{type:'before',minutes:300},{type:'before',minutes:120},{type:'before',minutes:60},{type:'before',minutes:15}];
 const LANGUAGE_KEY='deadline-garden-language-v1';
 let uiLanguage='en';
 try{uiLanguage=localStorage.getItem(LANGUAGE_KEY)==='zh'?'zh':'en'}catch{}
@@ -24,6 +26,7 @@ let customize={flowerSize:'medium',flowerOpacity:'medium',rainDropSize:50,rainDe
 const EVENT_PROMPT_SNOOZE_KEY='deadline-garden-event-prompt-snooze-v1';
 let eventCompletionPromptOpen=false,eventCompletionPromptTaskId=null;
 let holidays=[];
+let reminderRules=loadReminderRules();
 try{Object.assign(customize,JSON.parse(localStorage.getItem(CUSTOMIZE_KEY)||'{}')||{})}catch{}
 if(customize.effectSize==null)customize.effectSize=Number(customize.rainDropSize??50);
 if(customize.effectDensity==null)customize.effectDensity=Number(customize.rainDensity??50);
@@ -39,6 +42,40 @@ try{
   for(const key of Object.keys(calendarDisplay))if(typeof savedDisplay[key]==='boolean')calendarDisplay[key]=savedDisplay[key];
 }catch{}
 
+
+
+function normalizeReminderRules(value){
+  const src=Array.isArray(value)?value:DEFAULT_REMINDER_RULES;
+  const out=[];
+  for(const r of src){
+    if(r?.type==='time'&&/^([01]\d|2[0-3]):[0-5]\d$/.test(r.time||''))out.push({type:'time',time:r.time});
+    else if(r?.type==='before'&&Number.isFinite(Number(r.minutes))&&Number(r.minutes)>0)out.push({type:'before',minutes:Math.round(Number(r.minutes))});
+  }
+  return out.length?out:DEFAULT_REMINDER_RULES.map(r=>({...r}));
+}
+function loadReminderRules(){try{return normalizeReminderRules(JSON.parse(localStorage.getItem(REMINDER_RULES_KEY)||'null'))}catch{return DEFAULT_REMINDER_RULES.map(r=>({...r}))}}
+function saveReminderRules(rules){reminderRules=normalizeReminderRules(rules);try{localStorage.setItem(REMINDER_RULES_KEY,JSON.stringify(reminderRules))}catch{}queueCloudSync();return reminderRules}
+function reminderRuleLabel(r){
+  if(r.type==='time')return `Every day at ${new Date(`2000-01-01T${r.time}:00`).toLocaleTimeString(uiLocale(),{hour:'numeric',minute:'2-digit'})}`;
+  const m=Number(r.minutes)||0;if(m%1440===0)return `${m/1440} day${m===1440?'':'s'} before deadline`;if(m%60===0)return `${m/60} hour${m===60?'':'s'} before deadline`;return `${m} minutes before deadline`;
+}
+function renderReminderSettings(){
+  const list=$('#reminderRulesList');if(!list)return;
+  list.innerHTML=reminderRules.map((r,i)=>`<div class="reminder-rule-row" data-reminder-row="${i}"><select class="reminder-type" aria-label="Reminder type"><option value="time" ${r.type==='time'?'selected':''}>At a specific time</option><option value="before" ${r.type==='before'?'selected':''}>Before deadline</option></select><div class="reminder-value">${r.type==='time'?`<input class="reminder-time" type="time" value="${r.time}">`:`<input class="reminder-amount" type="number" min="1" step="1" value="${r.minutes%60===0?r.minutes/60:r.minutes}"><select class="reminder-unit"><option value="minutes" ${r.minutes%60?'selected':''}>minutes</option><option value="hours" ${r.minutes%60===0?'selected':''}>hours</option></select>`}</div><button class="reminder-delete" type="button" aria-label="Delete reminder" ${reminderRules.length<=1?'disabled':''}>×</button></div>`).join('');
+  list.querySelectorAll('.reminder-type').forEach((el,i)=>el.onchange=()=>{const old=reminderRules[i];reminderRules[i]=el.value==='time'?{type:'time',time:old.type==='time'?old.time:'08:00'}:{type:'before',minutes:old.type==='before'?old.minutes:60};renderReminderSettings()});
+  list.querySelectorAll('.reminder-delete').forEach((el,i)=>el.onclick=()=>{if(reminderRules.length<=1)return;reminderRules.splice(i,1);renderReminderSettings()});
+}
+function readReminderSettings(){
+  const rows=[...document.querySelectorAll('[data-reminder-row]')];const rules=[];
+  for(const row of rows){const type=row.querySelector('.reminder-type')?.value;if(type==='time'){const time=row.querySelector('.reminder-time')?.value;if(time)rules.push({type:'time',time})}else{const amount=Math.max(1,Number(row.querySelector('.reminder-amount')?.value)||1),unit=row.querySelector('.reminder-unit')?.value;rules.push({type:'before',minutes:Math.round(amount*(unit==='hours'?60:1))})}}
+  return normalizeReminderRules(rules);
+}
+function bindReminderSettings(){
+  renderReminderSettings();
+  const add=$('#addReminderRule'),save=$('#saveReminderRules');
+  if(add)add.onclick=()=>{reminderRules.push({type:'before',minutes:60});renderReminderSettings()};
+  if(save)save.onclick=async()=>{saveReminderRules(readReminderSettings());await uploadGardenState();renderReminderSettings();authNotice('Reminder schedule saved.','success')};
+}
 
 // ---- Optional Supabase account + cloud sync ----
 // Put your Supabase project URL and public anon key here to activate login/sync.
@@ -72,7 +109,7 @@ async function idbReplaceAll(items){
   });
 }
 async function collectGardenState(){
-  return {version:1,tasks:await idbGetAll(),holidays:[...holidays],customize:{...customize},courseIconPrefs:{...courseIconPrefs},theme:document.documentElement.dataset.theme||'green',calendarDisplay:{...calendarDisplay},calendarView,checklistCollapsed:localStorage.getItem(CHECKLIST_COLLAPSE_KEY)==='1',updatedAt:new Date().toISOString()};
+  return {version:1,tasks:await idbGetAll(),holidays:[...holidays],reminderRules:reminderRules.map(r=>({...r})),customize:{...customize},courseIconPrefs:{...courseIconPrefs},theme:document.documentElement.dataset.theme||'green',calendarDisplay:{...calendarDisplay},calendarView,checklistCollapsed:localStorage.getItem(CHECKLIST_COLLAPSE_KEY)==='1',updatedAt:new Date().toISOString()};
 }
 async function uploadGardenState(){
   if(!supabaseClient||!currentCloudUser||cloudApplying)return;
@@ -92,6 +129,7 @@ async function applyCloudState(state){
   try{
     await idbReplaceAll(state.tasks);
     if(Array.isArray(state.holidays)){holidays=state.holidays;try{localStorage.setItem(HOLIDAY_KEY,JSON.stringify(holidays))}catch{}}
+    if(Array.isArray(state.reminderRules)){reminderRules=normalizeReminderRules(state.reminderRules);try{localStorage.setItem(REMINDER_RULES_KEY,JSON.stringify(reminderRules))}catch{}}
     if(state.customize&&typeof state.customize==='object'){Object.assign(customize,state.customize);try{localStorage.setItem(CUSTOMIZE_KEY,JSON.stringify(customize))}catch{}}
     if(state.courseIconPrefs&&typeof state.courseIconPrefs==='object'){courseIconPrefs={...state.courseIconPrefs};try{localStorage.setItem(COURSE_ICON_PREFS_KEY,JSON.stringify(courseIconPrefs))}catch{}}
     if(state.calendarDisplay&&typeof state.calendarDisplay==='object'){calendarDisplay={...calendarDisplay,...state.calendarDisplay};try{localStorage.setItem(CAL_DISPLAY_KEY,JSON.stringify(calendarDisplay))}catch{}}
@@ -153,7 +191,7 @@ function renderAuthForm(){
 function openAuth(){
   const root=$('#authRoot');if(!root)return;root.classList.remove('hidden');root.setAttribute('aria-hidden','false');
   if(currentCloudUser){
-    const card=$('#authRoot .auth-card');card.innerHTML=`<button id="authClose" class="auth-close" type="button">×</button><div class="section-label">ACCOUNT</div><h2>Signed in</h2><p class="account-email">${escapeHtml(currentCloudUser.email||'')}</p><p>Your tasks and settings sync through this account.</p><button id="authSignOut" class="soft-btn auth-submit">Sign out</button>`;$('#authClose').onclick=closeAuth;$('#authSignOut').onclick=async()=>{if(supabaseClient)await supabaseClient.auth.signOut();currentCloudUser=null;updateAccountButton(null);closeAuth()};
+    const card=$('#authRoot .auth-card');card.innerHTML=`<button id="authClose" class="auth-close" type="button">×</button><div class="section-label">ACCOUNT</div><h2>Signed in</h2><p class="account-email">${escapeHtml(currentCloudUser.email||'')}</p><p>Your tasks and settings sync through this account.</p><div class="account-reminders"><div class="account-reminders-head"><div><strong>Reminder schedule</strong><span>Add daily check-ins or countdown reminders before each deadline.</span></div><button id="addReminderRule" class="soft-btn reminder-add" type="button">+ Add reminder</button></div><div id="reminderRulesList" class="reminder-rules-list"></div><div class="account-reminder-note">Specific-time reminders summarize unfinished tasks due that day. Before-deadline reminders apply to each unfinished due-date task.</div><button id="saveReminderRules" class="primary-btn reminder-save" type="button">Save reminders</button></div><button id="authSignOut" class="soft-btn auth-submit">Sign out</button>`;$('#authClose').onclick=closeAuth;$('#authSignOut').onclick=async()=>{if(supabaseClient)await supabaseClient.auth.signOut();currentCloudUser=null;updateAccountButton(null);closeAuth()};bindReminderSettings();
   }else{authMode='signin';renderAuthForm()}
 }
 function closeAuth(){const r=$('#authRoot');if(r){r.classList.add('hidden');r.setAttribute('aria-hidden','true')}}
@@ -760,6 +798,13 @@ function sameCourseTasks(course){
   const c=normalizedCourse(course);
   return c?deadlineTasks().filter(t=>normalizedCourse(t.course)===c):[];
 }
+
+function courseIconChanged(previous,updated){
+  if(!previous)return true;
+  const a=(previous.emoji||'').trim(),b=(updated.emoji||'').trim();
+  return a!==b || (previous.iconColor||'')!==(updated.iconColor||'');
+}
+
 function askApplyCourseIcon(task){
   const matching=sameCourseTasks(task.course);
   const emoji=(task.emoji||'').trim(),color=task.iconColor||'';
@@ -985,7 +1030,7 @@ function openTaskModal(task=null,prefillDate=''){
       closeModal();
       await refresh();
 
-      if(!askApplyCourseIcon(updated)){
+      if(!courseIconChanged(task,updated)||!askApplyCourseIcon(updated)){
         toast('Task updated.');
       }
       return;
@@ -1025,7 +1070,7 @@ function chooseSeriesSaveScope(task,form){
     const updated={...task,title:form.title,course:form.course,date:form.date,eventType:form.eventType,time:form.time,startTime:form.startTime,endTime:form.endTime,emoji:form.emoji,iconColor:form.iconColor,link:form.link,notes:form.notes,updatedAt:Date.now()};
     await idbPut(updated);
     closeModal();await refresh();
-    if(!askApplyCourseIcon(updated))toast('Only this occurrence was updated.')
+    if(!courseIconChanged(task,updated)||!askApplyCourseIcon(updated))toast('Only this occurrence was updated.')
   };
   $('#scopeFuture').onclick=async()=>applySeriesFromHere(task,form)
 }
@@ -1582,7 +1627,7 @@ async function showNotificationPrimer(){
     showModal(`
       <div class="section-label">NOTIFICATIONS</div>
       <h3>Stay ahead of your deadlines</h3>
-      <p class="notification-primer-copy">Deadline Garden can send a daily 8:00 AM summary and reminders 5 hours, 2 hours, 1 hour, and 15 minutes before unfinished due dates.</p>
+      <p class="notification-primer-copy">Deadline Garden can send the reminder schedule you choose in Account settings. The default is a daily 8:00 AM summary plus reminders 5 hours, 2 hours, 1 hour, and 15 minutes before unfinished due dates.</p>
       <p class="notification-primer-copy">Your device will ask for notification permission next.</p>
       <div class="modal-actions">
         <button id="notificationPrimerCancel" class="soft-btn">Not now</button>
