@@ -4140,3 +4140,9 @@ html[data-theme="liquid"] .course-icon-prompt{
 html[data-theme="glass"] .account-reminders,html[data-theme="liquid"] .account-reminders{background:rgba(255,255,255,.075)!important;border-color:rgba(255,255,255,.30)!important;color:#fff!important}
 html[data-theme="glass"] .account-reminders-head span,html[data-theme="glass"] .account-reminder-note,html[data-theme="liquid"] .account-reminders-head span,html[data-theme="liquid"] .account-reminder-note{color:rgba(247,252,255,.82)!important}
 html[data-theme="glass"] .reminder-rule-row input,html[data-theme="glass"] .reminder-rule-row select,html[data-theme="liquid"] .reminder-rule-row input,html[data-theme="liquid"] .reminder-rule-row select{background:rgba(0,0,0,.13)!important;color:#fff!important;border-color:rgba(255,255,255,.32)!important}
+
+/* v16.15 — Reminder settings live in their own Account sub-tab. */
+.account-settings-btn{margin-top:14px!important;margin-bottom:8px!important}
+.reminder-settings-card{width:min(560px,100%)!important;max-height:min(86vh,760px);overflow:auto}
+.reminder-settings-card .account-reminders{margin-bottom:0}
+@media(max-width:620px){.reminder-settings-card{width:100%!important;max-height:88vh}}
