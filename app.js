@@ -62,8 +62,8 @@ function reminderRuleLabel(r){
 function renderReminderSettings(){
   const list=$('#reminderRulesList');if(!list)return;
   list.innerHTML=reminderRules.map((r,i)=>`<div class="reminder-rule-row" data-reminder-row="${i}"><select class="reminder-type" aria-label="Reminder type"><option value="time" ${r.type==='time'?'selected':''}>At a specific time</option><option value="before" ${r.type==='before'?'selected':''}>Before deadline</option></select><div class="reminder-value">${r.type==='time'?`<input class="reminder-time" type="time" value="${r.time}">`:`<input class="reminder-amount" type="number" min="1" step="1" value="${r.minutes%60===0?r.minutes/60:r.minutes}"><select class="reminder-unit"><option value="minutes" ${r.minutes%60?'selected':''}>minutes</option><option value="hours" ${r.minutes%60===0?'selected':''}>hours</option></select>`}</div><button class="reminder-delete" type="button" aria-label="Delete reminder" ${reminderRules.length<=1?'disabled':''}>×</button></div>`).join('');
-  list.querySelectorAll('.reminder-type').forEach((el,i)=>el.onchange=()=>{const old=reminderRules[i];reminderRules[i]=el.value==='time'?{type:'time',time:old.type==='time'?old.time:'08:00'}:{type:'before',minutes:old.type==='before'?old.minutes:60};renderReminderSettings()});
-  list.querySelectorAll('.reminder-delete').forEach((el,i)=>el.onclick=()=>{if(reminderRules.length<=1)return;reminderRules.splice(i,1);renderReminderSettings()});
+  list.querySelectorAll('.reminder-type').forEach((el,i)=>el.onchange=()=>{reminderRules=readReminderSettings();const old=reminderRules[i];reminderRules[i]=el.value==='time'?{type:'time',time:old.type==='time'?old.time:'08:00'}:{type:'before',minutes:old.type==='before'?old.minutes:60};renderReminderSettings()});
+  list.querySelectorAll('.reminder-delete').forEach((el,i)=>el.onclick=()=>{reminderRules=readReminderSettings();if(reminderRules.length<=1)return;reminderRules.splice(i,1);renderReminderSettings()});
 }
 function readReminderSettings(){
   const rows=[...document.querySelectorAll('[data-reminder-row]')];const rules=[];
@@ -73,8 +73,8 @@ function readReminderSettings(){
 function bindReminderSettings(){
   renderReminderSettings();
   const add=$('#addReminderRule'),save=$('#saveReminderRules');
-  if(add)add.onclick=()=>{reminderRules.push({type:'before',minutes:60});renderReminderSettings()};
-  if(save)save.onclick=async()=>{saveReminderRules(readReminderSettings());await uploadGardenState();renderReminderSettings();authNotice('Reminder schedule saved.','success')};
+  if(add)add.onclick=()=>{reminderRules=readReminderSettings();reminderRules.push({type:'before',minutes:60});renderReminderSettings()};
+  if(save)save.onclick=async()=>{const edited=readReminderSettings();saveReminderRules(edited);await uploadGardenState();renderReminderSettings();authNotice('Reminder schedule saved.','success')};
 }
 
 // ---- Optional Supabase account + cloud sync ----
