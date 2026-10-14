@@ -4146,3 +4146,38 @@ html[data-theme="glass"] .reminder-rule-row input,html[data-theme="glass"] .remi
 .reminder-settings-card{width:min(560px,100%)!important;max-height:min(86vh,760px);overflow:auto}
 .reminder-settings-card .account-reminders{margin-bottom:0}
 @media(max-width:620px){.reminder-settings-card{width:100%!important;max-height:88vh}}
+
+
+/* ---- v16.40: ☰ sidebar + Loki read-only mirror ---- */
+.sidebar-btn{font-size:20px;line-height:1;flex:0 0 auto}
+.sidebar-root{position:fixed;inset:0;z-index:880;display:flex}
+.sidebar-root.hidden{display:none}
+.sidebar-scrim{position:absolute;inset:0;background:rgba(16,25,31,.34);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)}
+.sidebar-panel{position:relative;width:min(340px,88vw);height:100%;overflow-y:auto;padding:calc(18px + env(safe-area-inset-top)) 18px 24px;background:rgba(250,252,250,.97);border-right:1px solid var(--border);box-shadow:0 0 60px rgba(0,0,0,.2);animation:sbIn .22s ease both}
+@keyframes sbIn{from{transform:translateX(-14px);opacity:0}to{transform:none;opacity:1}}
+.sidebar-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;font-size:18px}
+.sidebar-item{width:100%;text-align:left;padding:13px 14px;margin-bottom:6px}
+.sidebar-section{margin-top:22px;padding-top:16px;border-top:1px solid var(--border)}
+.sidebar-row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:12px 0}
+.sidebar-row label{font-size:13px;font-weight:800;color:var(--muted)}
+.sidebar-row input[type=color]{width:54px;height:36px;padding:2px;border:1px solid var(--border);border-radius:10px;background:#fff}
+.sidebar-row input[type=text],.sidebar-input{width:100%;box-sizing:border-box;padding:11px 12px;border-radius:12px;border:1px solid var(--border);background:rgba(255,255,255,.8);font:inherit;color:var(--text)}
+.sidebar-row input[type=text]{width:110px;text-align:center;font-size:18px}
+.sidebar-help{font-size:12px;line-height:1.45;color:var(--muted);margin:8px 0}
+.sidebar-save{width:100%;margin-top:10px;padding:12px 14px}
+.sidebar-preview{margin:12px 0 4px;max-width:220px}
+:root{--loki:#8b7bd8;--loki-bg:rgba(139,123,216,.16);--loki-ink:#4a3f7d}
+.event-chip.loki-chip{position:relative;background:var(--loki-bg)!important;border-left:4px solid var(--loki)!important;color:var(--loki-ink)!important;padding-right:56px!important;animation:none!important}
+.daily-task-card.loki-chip{position:relative;background:var(--loki-bg)!important;border-left:4px solid var(--loki)!important;color:var(--loki-ink)!important;animation:none!important}
+.loki-badge{position:absolute;top:3px;right:5px;max-width:52px;padding:1px 6px;border-radius:999px;background:var(--loki);color:#fff;font-size:9px;font-weight:800;line-height:1.4;letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.loki-struck .loki-title{text-decoration:line-through;opacity:.62}
+.loki-status{font-weight:760!important;opacity:.9!important}
+.loki-chip.loki-done,.loki-chip.loki-failed,.loki-chip.loki-changed,.loki-chip.loki-cancelled{opacity:1}
+.loki-marker{background:var(--loki-bg)!important;box-shadow:0 0 0 1.5px var(--loki) inset;border-radius:999px}
+.loki-marker.loki-struck{opacity:.55}
+.loki-struck-title{text-decoration:line-through}
+.loki-status-line{display:inline-block;margin:8px 0;padding:3px 10px;border-radius:999px;background:var(--loki-bg);color:var(--loki-ink);font-size:12px;font-weight:800}
+.loki-todo{margin-top:6px}
+.loki-todo-item .todo-title-btn{display:flex;flex-wrap:wrap;gap:6px;align-items:baseline;width:100%;text-align:left;background:none;border:0;padding:8px 6px;font:inherit;color:var(--loki-ink,var(--text));cursor:pointer}
+.loki-todo-item small{color:var(--muted);font-size:11px}
+.loki-todo-section summary{color:var(--loki-ink,var(--text))}

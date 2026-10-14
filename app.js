@@ -109,7 +109,7 @@ async function idbReplaceAll(items){
   });
 }
 async function collectGardenState(){
-  return {version:1,tasks:await idbGetAll(),holidays:[...holidays],reminderRules:reminderRules.map(r=>({...r})),customize:{...customize},courseIconPrefs:{...courseIconPrefs},theme:document.documentElement.dataset.theme||'green',calendarDisplay:{...calendarDisplay},calendarView,checklistCollapsed:localStorage.getItem(CHECKLIST_COLLAPSE_KEY)==='1',updatedAt:new Date().toISOString()};
+  return {version:1,tasks:await idbGetAll(),holidays:[...holidays],reminderRules:reminderRules.map(r=>({...r})),customize:{...customize},courseIconPrefs:{...courseIconPrefs},theme:document.documentElement.dataset.theme||'green',calendarDisplay:{...calendarDisplay},calendarView,checklistCollapsed:localStorage.getItem(CHECKLIST_COLLAPSE_KEY)==='1',loki:{url:lokiCfg.url,token:lokiCfg.token,color:lokiCfg.color,emoji:lokiCfg.emoji},updatedAt:new Date().toISOString()};
 }
 async function uploadGardenState(){
   if(!supabaseClient||!currentCloudUser||cloudApplying)return;
@@ -135,6 +135,11 @@ async function applyCloudState(state){
     if(state.calendarDisplay&&typeof state.calendarDisplay==='object'){calendarDisplay={...calendarDisplay,...state.calendarDisplay};try{localStorage.setItem(CAL_DISPLAY_KEY,JSON.stringify(calendarDisplay))}catch{}}
     if(['month','week','day'].includes(state.calendarView)){calendarView=state.calendarView;try{localStorage.setItem(CAL_VIEW_KEY,calendarView)}catch{}}
     if(typeof state.checklistCollapsed==='boolean')try{localStorage.setItem(CHECKLIST_COLLAPSE_KEY,state.checklistCollapsed?'1':'0')}catch{}
+    if(state.loki&&typeof state.loki==='object'){
+      const l=state.loki,changed=l.url!==lokiCfg.url||l.token!==lokiCfg.token;
+      lokiCfg={...lokiCfg,url:String(l.url||''),token:String(l.token||''),color:/^#[0-9a-f]{6}$/i.test(l.color||'')?l.color:lokiCfg.color,emoji:typeof l.emoji==='string'?l.emoji.slice(0,8):lokiCfg.emoji};
+      saveLokiCfg();applyLokiAppearance();if(changed)setTimeout(()=>fetchLoki().catch(()=>{}),0);else renderLoki();
+    }
     if(THEMES.includes(state.theme))applyTheme(state.theme);else applyCustomize();
     await refresh();
     if(eventCompletionPromptTaskId){
@@ -192,17 +197,17 @@ function openReminderSettings(){
   const card=$('#authRoot .auth-card');if(!card)return;
   card.classList.add('reminder-settings-card');
   card.innerHTML=`<button id="reminderSettingsClose" class="auth-close" type="button" aria-label="Back to account">×</button><div class="section-label">REMINDERS</div><h2>Reminder settings</h2><p>Choose when Deadline Garden should remind you about unfinished tasks.</p><div class="account-reminders reminder-settings-panel"><div class="account-reminders-head"><div><strong>Reminder schedule</strong><span>Add daily check-ins or countdown reminders before each deadline.</span></div><button id="addReminderRule" class="soft-btn reminder-add" type="button">+ Add reminder</button></div><div id="reminderRulesList" class="reminder-rules-list"></div><div class="account-reminder-note">Specific-time reminders summarize unfinished tasks due that day. Before-deadline reminders apply to each unfinished due-date task.</div><button id="saveReminderRules" class="primary-btn reminder-save" type="button">Save reminders</button></div>`;
-  $('#reminderSettingsClose').onclick=()=>{card.classList.remove('reminder-settings-card');openAuth()};
+  $('#reminderSettingsClose').onclick=()=>{card.classList.remove('reminder-settings-card');closeAuth()};
   bindReminderSettings();
 }
 
 function openAuth(){
   const root=$('#authRoot');if(!root)return;root.classList.remove('hidden');root.setAttribute('aria-hidden','false');
   if(currentCloudUser){
-    const card=$('#authRoot .auth-card');card.innerHTML=`<button id="authClose" class="auth-close" type="button">×</button><div class="section-label">ACCOUNT</div><h2>Signed in</h2><p class="account-email">${escapeHtml(currentCloudUser.email||'')}</p><p>Your tasks and settings sync through this account.</p><button id="openReminderSettings" class="soft-btn auth-submit account-settings-btn" type="button">Reminder settings</button><button id="authSignOut" class="soft-btn auth-submit">Sign out</button>`;$('#authClose').onclick=closeAuth;$('#authSignOut').onclick=async()=>{if(supabaseClient)await supabaseClient.auth.signOut();currentCloudUser=null;updateAccountButton(null);closeAuth()};$('#openReminderSettings').onclick=openReminderSettings;
+    const card=$('#authRoot .auth-card');card.innerHTML=`<button id="authClose" class="auth-close" type="button">×</button><div class="section-label">ACCOUNT</div><h2>Signed in</h2><p class="account-email">${escapeHtml(currentCloudUser.email||'')}</p><p>Your tasks and settings sync through this account. Reminder settings now live in the ☰ menu.</p><button id="authSignOut" class="soft-btn auth-submit">Sign out</button>`;$('#authClose').onclick=closeAuth;$('#authSignOut').onclick=async()=>{if(supabaseClient)await supabaseClient.auth.signOut();currentCloudUser=null;updateAccountButton(null);closeAuth()};
   }else{authMode='signin';renderAuthForm()}
 }
-function closeAuth(){const r=$('#authRoot');if(r){r.classList.add('hidden');r.setAttribute('aria-hidden','true')}}
+function closeAuth(){const r=$('#authRoot');if(r){const cd=r.querySelector('.auth-card');if(cd)cd.classList.remove('reminder-settings-card');r.classList.add('hidden');r.setAttribute('aria-hidden','true')}}
 async function submitAuth(){
   if(!supabaseConfigured()||!window.supabase){$('#authMessage').textContent='Supabase is not configured yet.';return}
   const email=$('#authEmail').value.trim(),password=$('#authPassword').value,remember=$('#authRemember').checked;
@@ -321,18 +326,18 @@ function renderCalendar(){
   const all=deadlineTasks(),grid=$('#calendarGrid'),weekdays=$('.weekday-row');grid.className='calendar-grid';weekdays.classList.remove('hidden');document.querySelectorAll('[data-cal-view]').forEach(b=>b.classList.toggle('active',b.dataset.calView===calendarView));
   const chip=(t,extra='')=>`<button class="event-chip ${extra} ${isDurationEvent(t)?'duration-event':''} size-${t.calendarSize||'medium'} ${t.done?'done':''} urgent${visualUrgency(t)}" data-id="${t.id}" title="${escapeHtml([t.course,t.title,formatDue(t),t.notes].filter(Boolean).join(' · '))}">${calendarChipHtml(t)}</button>`;
   const monthMarker=t=>{const emoji=(t.emoji||'').trim(),color=t.iconColor&&ICON_COLORS[t.iconColor]?ICON_COLORS[t.iconColor]:'';return `<button class="month-task-marker ${emoji?'has-emoji':color?'has-color':'plain'} ${t.done?'done':''}" data-id="${t.id}" ${color?`style="--marker-color:${color}"`:''} title="${escapeHtml([t.course,t.title,formatDue(t),t.notes].filter(Boolean).join(' · '))}">${emoji?`<span class="month-marker-emoji">${escapeHtml(emoji)}</span>`:`<span class="month-marker-dot"></span>`}</button>`};
-  const monthMarkers=(dayTasks,limit,mobile=false)=>{const shown=dayTasks.slice(0,limit).map(monthMarker).join(''),extra=dayTasks.length-limit;return dayTasks.length?`<div class="month-marker-row ${mobile?'mobile-month-markers':''}" aria-label="${dayTasks.length} tasks">${shown}${extra>0?`<span class="month-marker-more">+${extra}</span>`:''}</div>`:''};
+  const monthMarkers=(dayTasks,limit,mobile=false,lk=[])=>{const marks=[...dayTasks.map(monthMarker),...lk.map(lokiMarkerHtml)],shown=marks.slice(0,limit).join(''),extra=marks.length-limit;return marks.length?`<div class="month-marker-row ${mobile?'mobile-month-markers':''}" aria-label="${marks.length} items">${shown}${extra>0?`<span class="month-marker-more">+${extra}</span>`:''}</div>`:''};
   const holidayTag=h=>h?`<button class="holiday-mini holiday-edit-tag" data-holiday-id="${h.id}" title="Edit holiday">✦ ${escapeHtml(h.name||'Holiday')}</button>`:'';
   if(calendarView==='month'){
     const y=currentMonth.getFullYear(),m=currentMonth.getMonth();$('#monthLabel').textContent=currentMonth.toLocaleDateString(uiLocale(),{month:'long',year:'numeric'});const first=new Date(y,m,1),offset=(first.getDay()+6)%7,start=new Date(y,m,1-offset);let html='';
-    for(let i=0;i<42;i++){const d=new Date(start);d.setDate(start.getDate()+i);const ds=fmtDateInput(d),dayTasks=all.filter(t=>t.date===ds),outside=d.getMonth()!==m,today=ds===fmtDateInput(new Date()),holiday=holidayForDate(ds);html+=`<div class="day-cell ${outside?'outside':''} ${today?'today':''} ${holiday?'holiday-day':''}" data-date="${ds}"><div class="day-number"><span>${d.getDate()}</span>${holidayTag(holiday)}</div>${document.body.classList.contains('mobile-layout')?monthMarkers(dayTasks,4,true):monthMarkers(dayTasks,12,false)}</div>`}
+    for(let i=0;i<42;i++){const d=new Date(start);d.setDate(start.getDate()+i);const ds=fmtDateInput(d),dayTasks=all.filter(t=>t.date===ds),outside=d.getMonth()!==m,today=ds===fmtDateInput(new Date()),holiday=holidayForDate(ds);html+=`<div class="day-cell ${outside?'outside':''} ${today?'today':''} ${holiday?'holiday-day':''}" data-date="${ds}"><div class="day-number"><span>${d.getDate()}</span>${holidayTag(holiday)}</div>${document.body.classList.contains('mobile-layout')?monthMarkers(dayTasks,4,true,lokiOn(ds)):monthMarkers(dayTasks,12,false,lokiOn(ds))}</div>`}
     grid.innerHTML=html;
   }else if(calendarView==='week'){
     const start=weekStartFor(currentMonth),end=addDays(start,6);$('#monthLabel').textContent=`${start.toLocaleDateString(uiLocale(),{month:'short',day:'numeric'})} – ${end.toLocaleDateString(uiLocale(),{month:'short',day:'numeric',year:'numeric'})}`;grid.classList.add('calendar-grid-week');let html='';
-    for(let i=0;i<7;i++){const d=addDays(start,i),ds=fmtDateInput(d),dayTasks=all.filter(t=>t.date===ds),today=ds===fmtDateInput(new Date()),holiday=holidayForDate(ds);html+=`<div class="week-day ${today?'today':''} ${holiday?'holiday-day':''}" data-date="${ds}"><div class="week-date"><strong>${d.getDate()}</strong><span>${d.toLocaleDateString(uiLocale(),{month:'short'})}</span>${holidayTag(holiday)}</div><div class="week-events">${dayTasks.length?dayTasks.map(t=>chip(t,'week-event')).join(''):'<div class="calendar-empty">No tasks</div>'}</div></div>`}
+    for(let i=0;i<7;i++){const d=addDays(start,i),ds=fmtDateInput(d),dayTasks=all.filter(t=>t.date===ds),today=ds===fmtDateInput(new Date()),holiday=holidayForDate(ds);html+=`<div class="week-day ${today?'today':''} ${holiday?'holiday-day':''}" data-date="${ds}"><div class="week-date"><strong>${d.getDate()}</strong><span>${d.toLocaleDateString(uiLocale(),{month:'short'})}</span>${holidayTag(holiday)}</div><div class="week-events">${(dayTasks.length||lokiOn(ds).length)?dayTasks.map(t=>chip(t,'week-event')).join('')+lokiOn(ds).map(lokiChipHtml).join(''):'<div class="calendar-empty">No tasks</div>'}</div></div>`}
     grid.innerHTML=html;
   }else{
-    weekdays.classList.add('hidden');const d=new Date(currentMonth.getFullYear(),currentMonth.getMonth(),currentMonth.getDate()),ds=fmtDateInput(d),dayTasks=all.filter(t=>t.date===ds),holiday=holidayForDate(ds);$('#monthLabel').textContent=d.toLocaleDateString(uiLocale(),{weekday:'long',month:'long',day:'numeric',year:'numeric'});grid.classList.add('calendar-grid-day');grid.innerHTML=`<div class="daily-view ${holiday?'holiday-day':''}" data-date="${ds}"><div class="daily-date"><div>${d.toLocaleDateString(uiLocale(),{weekday:'long'})}</div><strong>${d.getDate()}</strong><span>${d.toLocaleDateString(uiLocale(),{month:'long',year:'numeric'})}</span>${holidayTag(holiday)}</div><div class="daily-events">${dayTasks.length?dayTasks.map(t=>`<button class="daily-task-card ${isDurationEvent(t)?'duration-event':''} size-${t.calendarSize||'medium'} ${t.done?'done':''} urgent${visualUrgency(t)}" data-id="${t.id}"><span class="daily-task-time">${isDurationEvent(t)?`${new Date(`${t.date}T${t.startTime}:00`).toLocaleTimeString(uiLocale(),{hour:'numeric',minute:'2-digit'})}${t.endTime?`–${new Date(`${t.date}T${t.endTime}:00`).toLocaleTimeString(uiLocale(),{hour:'numeric',minute:'2-digit'})}`:''}`:(t.time?new Date(`${t.date}T${t.time}:00`).toLocaleTimeString(uiLocale(),{hour:'numeric',minute:'2-digit'}):'Any time')}</span><span class="daily-task-main">${calendarChipHtml(t)}</span></button>`).join(''):'<div class="daily-empty">Nothing scheduled for this day.<button class="soft-btn small" id="dailyAdd">+ Add task</button></div>'}</div></div>`;if($('#dailyAdd'))$('#dailyAdd').onclick=e=>{e.stopPropagation();openTaskModal(null,ds)};
+    weekdays.classList.add('hidden');const d=new Date(currentMonth.getFullYear(),currentMonth.getMonth(),currentMonth.getDate()),ds=fmtDateInput(d),dayTasks=all.filter(t=>t.date===ds),holiday=holidayForDate(ds);$('#monthLabel').textContent=d.toLocaleDateString(uiLocale(),{weekday:'long',month:'long',day:'numeric',year:'numeric'});grid.classList.add('calendar-grid-day');grid.innerHTML=`<div class="daily-view ${holiday?'holiday-day':''}" data-date="${ds}"><div class="daily-date"><div>${d.toLocaleDateString(uiLocale(),{weekday:'long'})}</div><strong>${d.getDate()}</strong><span>${d.toLocaleDateString(uiLocale(),{month:'long',year:'numeric'})}</span>${holidayTag(holiday)}</div><div class="daily-events">${(dayTasks.length||lokiOn(ds).length)?dayTasks.map(t=>`<button class="daily-task-card ${isDurationEvent(t)?'duration-event':''} size-${t.calendarSize||'medium'} ${t.done?'done':''} urgent${visualUrgency(t)}" data-id="${t.id}"><span class="daily-task-time">${isDurationEvent(t)?`${new Date(`${t.date}T${t.startTime}:00`).toLocaleTimeString(uiLocale(),{hour:'numeric',minute:'2-digit'})}${t.endTime?`–${new Date(`${t.date}T${t.endTime}:00`).toLocaleTimeString(uiLocale(),{hour:'numeric',minute:'2-digit'})}`:''}`:(t.time?new Date(`${t.date}T${t.time}:00`).toLocaleTimeString(uiLocale(),{hour:'numeric',minute:'2-digit'}):'Any time')}</span><span class="daily-task-main">${calendarChipHtml(t)}</span></button>`).join('')+lokiOn(ds).map(lokiDayHtml).join(''):'<div class="daily-empty">Nothing scheduled for this day.<button class="soft-btn small" id="dailyAdd">+ Add task</button></div>'}</div></div>`;if($('#dailyAdd'))$('#dailyAdd').onclick=e=>{e.stopPropagation();openTaskModal(null,ds)};
   }
   document.querySelectorAll('.event-chip,.month-task-marker,[data-id].daily-task-card').forEach(el=>el.onclick=e=>{e.stopPropagation();openTaskDetails(tasks.find(t=>t.id===el.dataset.id))});
   document.querySelectorAll('[data-holiday-id]').forEach(el=>el.onclick=e=>{e.stopPropagation();openHolidayModal(holidays.find(h=>h.id===el.dataset.holidayId))});
@@ -1968,6 +1973,146 @@ function setChecklistCollapsed(collapsed){
 $('#quickCollapse').onclick=()=>setChecklistCollapsed(true);
 $('#quickBubble').onclick=()=>setChecklistCollapsed(false);
 try{const savedChecklistState=localStorage.getItem(CHECKLIST_COLLAPSE_KEY);setChecklistCollapsed(savedChecklistState===null?true:savedChecklistState==='1')}catch{setChecklistCollapsed(true)};
+
+// ---- Loki mirror: read-only activities pulled from Companion (kept OUT of `tasks`) ----
+const LOKI_CFG_KEY='deadline-garden-loki-cfg-v1',LOKI_CACHE_KEY='deadline-garden-loki-cache-v1';
+let lokiCfg={url:'',token:'',color:'#8b7bd8',emoji:'✨'},lokiData={name:'',items:[],fetchedAt:0,error:''},lokiSig='';
+try{Object.assign(lokiCfg,JSON.parse(localStorage.getItem(LOKI_CFG_KEY)||'{}'))}catch{}
+try{const c=JSON.parse(localStorage.getItem(LOKI_CACHE_KEY)||'null');if(c&&Array.isArray(c.items))lokiData={...lokiData,...c,error:''}}catch{}
+function saveLokiCfg(){try{localStorage.setItem(LOKI_CFG_KEY,JSON.stringify(lokiCfg))}catch{}}
+function lokiName(){return lokiData.name||'Loki'}
+function lokiParseLink(raw){
+  const text=String(raw||'').trim();if(!text)return null;
+  try{const u=new URL(text);return {url:u.origin,token:u.searchParams.get('t')||''}}catch{return null}
+}
+function lokiDueMs(it){return new Date(`${it.date}T${it.time||'23:59'}:00`).getTime()}
+/* Display-layer only. Untimed + still "planned" after 23:59 shows as Complete; this never writes back to Companion,
+   and the moment Companion reports done/failed/changed/cancelled that real status wins. */
+function lokiEffective(it){
+  const st=it.status||'planned';
+  if(st==='planned'&&!it.time&&Date.now()>new Date(`${it.date}T23:59:59`).getTime())return {status:'done',auto:true};
+  return {status:st,auto:false};
+}
+const LOKI_LABEL={done:'Complete',failed:'Not completed',changed:'Changed plan',cancelled:'Cancelled',planned:''};
+function lokiOn(ds){return lokiData.items.filter(i=>i.date===ds).sort((a,b)=>String(a.time||'99:99').localeCompare(String(b.time||'99:99')))}
+function lokiTimeText(it){
+  const f=v=>new Date(`${it.date}T${v}:00`).toLocaleTimeString(uiLocale(),{hour:'numeric',minute:'2-digit'});
+  return it.time?(it.end?`${f(it.time)}–${f(it.end)}`:f(it.time)):'';
+}
+function lokiClasses(it){const e=lokiEffective(it);return `loki-item loki-${e.status}${['failed','changed','cancelled'].includes(e.status)?' loki-struck':''}`}
+function lokiBadge(){return `<span class="loki-badge" title="${escapeHtml(lokiName())}">${escapeHtml(lokiName())}</span>`}
+function lokiChipHtml(it){
+  const e=lokiEffective(it),label=LOKI_LABEL[e.status],time=lokiTimeText(it);
+  return `<button class="event-chip loki-chip ${lokiClasses(it)}" data-loki="${escapeHtml(it.id)}" title="${escapeHtml(`${lokiName()} · ${it.title}${label?' · '+label:''}`)}">${lokiBadge()}<span class="event-main-line"><span class="task-icon emoji">${escapeHtml(lokiCfg.emoji||'✨')}</span><span class="loki-title">${escapeHtml(it.title)}</span></span>${time?`<span class="event-meta-line">${escapeHtml(time)}</span>`:''}${label?`<span class="event-meta-line loki-status">${e.status==='done'?'✓ ':''}${label}</span>`:''}</button>`;
+}
+function lokiDayHtml(it){
+  const e=lokiEffective(it),label=LOKI_LABEL[e.status];
+  return `<button class="daily-task-card loki-chip ${lokiClasses(it)}" data-loki="${escapeHtml(it.id)}"><span class="daily-task-time">${escapeHtml(lokiTimeText(it)||'Any time')}</span><span class="daily-task-main">${lokiBadge()}<span class="event-main-line"><span class="task-icon emoji">${escapeHtml(lokiCfg.emoji||'✨')}</span><span class="loki-title">${escapeHtml(it.title)}</span></span>${label?`<span class="event-meta-line loki-status">${e.status==='done'?'✓ ':''}${label}</span>`:''}</span></button>`;
+}
+function lokiMarkerHtml(it){
+  const e=lokiEffective(it);
+  return `<button class="month-task-marker has-emoji loki-marker ${lokiClasses(it)}" data-loki="${escapeHtml(it.id)}" title="${escapeHtml(`${lokiName()} · ${it.title}${LOKI_LABEL[e.status]?' · '+LOKI_LABEL[e.status]:''}`)}"><span class="month-marker-emoji">${escapeHtml(lokiCfg.emoji||'✨')}</span></button>`;
+}
+function openLokiDetails(id){
+  const it=lokiData.items.find(x=>x.id===id);if(!it)return;
+  const e=lokiEffective(it),label=LOKI_LABEL[e.status],struck=['failed','changed','cancelled'].includes(e.status);
+  const when=new Date(`${it.date}T12:00:00`).toLocaleDateString(uiLocale(),{weekday:'long',month:'long',day:'numeric'}),time=lokiTimeText(it);
+  showModal(`<div class="section-label">${escapeHtml(lokiName().toUpperCase())} · READ ONLY</div><h3 class="${struck?'loki-struck-title':''}">${escapeHtml(lokiCfg.emoji||'✨')} ${escapeHtml(it.title)}</h3><div class="next-meta">${escapeHtml(when)} · ${time?escapeHtml(time):'Any time'}</div>${label?`<div class="loki-status-line loki-${e.status}">${e.status==='done'?'✓ ':''}${label}</div>`:''}${it.desc&&e.status!=='changed'?`<div class="task-notes">${escapeHtml(it.desc)}</div>`:''}${e.auto?`<div class="next-meta" style="margin-top:10px">Shown as Complete by Garden after 11:59 PM. ${escapeHtml(lokiName())} has not confirmed this in Companion.</div>`:''}<div class="next-meta" style="margin-top:10px">Managed in Companion. It can’t be edited here and doesn’t affect your own tasks or reminders.</div><div class="modal-actions"><button id="lokiDetailClose" class="soft-btn">Close</button></div>`);
+  const b=$('#lokiDetailClose');if(b)b.onclick=closeModal;
+}
+function bindLokiClicks(){
+  document.querySelectorAll('[data-loki]').forEach(el=>el.onclick=e=>{e.stopPropagation();openLokiDetails(el.dataset.loki)});
+}
+function renderLokiTodo(){
+  const root=$('#lokiTodo');if(!root)return;
+  if(!lokiCfg.url||!lokiCfg.token||!lokiData.items.length){root.innerHTML='';return}
+  const today=fmtDateInput(new Date()),end=fmtDateInput(addDays(new Date(),7));
+  const items=lokiData.items.filter(i=>i.date>=today&&i.date<=end).sort((a,b)=>String(a.date+(a.time||'99:99')).localeCompare(String(b.date+(b.time||'99:99'))));
+  root.innerHTML=`<details class="todo-section loki-todo-section" open><summary><span class="todo-arrow">›</span><span class="todo-section-label">${escapeHtml(lokiName())} · next 7 days</span><span class="todo-section-count">${items.length}</span></summary><div class="todo-section-items">${items.length?items.map(it=>{const e=lokiEffective(it),label=LOKI_LABEL[e.status];return `<div class="todo-item loki-todo-item ${lokiClasses(it)}"><button class="todo-title-btn" data-loki="${escapeHtml(it.id)}">${escapeHtml(lokiCfg.emoji||'✨')} <span class="loki-title">${escapeHtml(it.title)}</span><small>${escapeHtml(new Date(`${it.date}T12:00:00`).toLocaleDateString(uiLocale(),{month:'short',day:'numeric'}))}${lokiTimeText(it)?' · '+escapeHtml(lokiTimeText(it)):''}${label?' · '+label:''}</small></button></div>`}).join(''):'<div class="todo-empty">Nothing planned.</div>'}</div></details>`;
+  bindLokiClicks();
+}
+function applyLokiAppearance(){
+  const c=String(lokiCfg.color||'#8b7bd8'),m=/^#([0-9a-f]{6})$/i.exec(c)||/^#([0-9a-f]{6})$/i.exec('#8b7bd8'),n=parseInt(m[1],16),r=n>>16&255,g=n>>8&255,b=n&255;
+  const st=document.documentElement.style;
+  st.setProperty('--loki',`rgb(${r},${g},${b})`);st.setProperty('--loki-bg',`rgba(${r},${g},${b},.16)`);
+  st.setProperty('--loki-ink',`rgb(${Math.round(r*.45+30*.55)},${Math.round(g*.45+30*.55)},${Math.round(b*.45+30*.55)})`);
+}
+function lokiSignature(){return JSON.stringify([fmtDateInput(new Date()),lokiData.items.map(i=>[i.id,lokiEffective(i).status,i.date,i.time,i.title]),lokiCfg.emoji,lokiCfg.color,lokiData.name])}
+function renderLoki(){lokiSig=lokiSignature();renderCalendar();renderLokiTodo()}
+async function fetchLoki(){
+  if(!lokiCfg.url||!lokiCfg.token){lokiData.error='';return}
+  try{
+    const r=await fetch(`${lokiCfg.url.replace(/\/+$/,'')}/garden/feed?t=${encodeURIComponent(lokiCfg.token)}`,{cache:'no-store'});
+    const o=await r.json().catch(()=>null);
+    if(!r.ok||!o?.ok)throw new Error(o?.error||`HTTP ${r.status}`);
+    lokiData={name:String(o.characterName||'Loki'),items:Array.isArray(o.items)?o.items.filter(i=>i&&i.id&&/^\d{4}-\d{2}-\d{2}$/.test(i.date||'')):[],fetchedAt:Date.now(),error:''};
+    try{localStorage.setItem(LOKI_CACHE_KEY,JSON.stringify({name:lokiData.name,items:lokiData.items,fetchedAt:lokiData.fetchedAt}))}catch{}
+  }catch(e){lokiData.error=String(e?.message||e)}
+  renderLoki();updateLokiStatus();
+}
+function updateLokiStatus(){
+  const el=$('#lokiConnStatus');if(!el)return;
+  if(!lokiCfg.url||!lokiCfg.token){el.textContent='Not connected.';return}
+  el.textContent=lokiData.error?`Can’t reach Companion: ${lokiData.error}`:(lokiData.fetchedAt?`Connected · ${lokiData.items.length} items · updated ${new Date(lokiData.fetchedAt).toLocaleTimeString(uiLocale(),{hour:'numeric',minute:'2-digit'})}`:'Connecting…');
+}
+// ---- ☰ sidebar ----
+function closeSidebar(){const r=$('#sidebarRoot');if(r){r.classList.add('hidden');r.setAttribute('aria-hidden','true')}}
+function openSidebar(){
+  const r=$('#sidebarRoot');if(!r)return;
+  const link=lokiCfg.url&&lokiCfg.token?`${lokiCfg.url}/garden/feed?t=${lokiCfg.token}`:'';
+  $('#sidebarBody').innerHTML=`<button id="sbReminders" class="soft-btn sidebar-item" type="button">⏰ Reminder settings</button>
+  <div class="sidebar-section"><div class="section-label">LOKI APPEARANCE</div>
+    <div class="sidebar-row"><label for="lokiColor">Color</label><input id="lokiColor" type="color" value="${escapeHtml(/^#[0-9a-f]{6}$/i.test(lokiCfg.color)?lokiCfg.color:'#8b7bd8')}"></div>
+    <div class="sidebar-row"><label for="lokiEmoji">Emoji</label><input id="lokiEmoji" type="text" maxlength="8" value="${escapeHtml(lokiCfg.emoji||'')}" placeholder="✨"></div>
+    <div class="sidebar-preview"><span class="event-chip loki-chip loki-item loki-planned" style="pointer-events:none">${lokiBadge()}<span class="event-main-line"><span class="task-icon emoji" id="lokiPreviewEmoji">${escapeHtml(lokiCfg.emoji||'✨')}</span><span>Sample plan</span></span></span></div>
+    <div class="sidebar-help">Used for every ${escapeHtml(lokiName())} item in Garden. Status never changes the color.</div>
+  </div>
+  <div class="sidebar-section"><div class="section-label">COMPANION LINK</div>
+    <div class="sidebar-help">Companion → Settings → “DDL Garden connection”: generate, copy the link, paste it here once.</div>
+    <input id="lokiLink" class="sidebar-input" type="text" autocomplete="off" spellcheck="false" placeholder="https://…/garden/feed?t=…" value="${escapeHtml(link)}">
+    <button id="lokiLinkSave" class="primary-btn sidebar-save" type="button">Save &amp; sync</button>
+    <div id="lokiConnStatus" class="sidebar-help"></div>
+  </div>`;
+  r.classList.remove('hidden');r.setAttribute('aria-hidden','false');
+  $('#sbReminders').onclick=()=>{closeSidebar();const root=$('#authRoot');root.classList.remove('hidden');root.setAttribute('aria-hidden','false');openReminderSettings()};
+  const color=$('#lokiColor'),emoji=$('#lokiEmoji');
+  color.oninput=()=>{lokiCfg.color=color.value;saveLokiCfg();applyLokiAppearance();queueCloudSync();renderLoki()};
+  emoji.oninput=()=>{lokiCfg.emoji=emoji.value.trim().slice(0,8);saveLokiCfg();$('#lokiPreviewEmoji').textContent=lokiCfg.emoji||'✨';queueCloudSync();renderLoki()};
+  $('#lokiLinkSave').onclick=async()=>{
+    const raw=$('#lokiLink').value.trim();
+    if(!raw){lokiCfg.url='';lokiCfg.token='';lokiData={name:'',items:[],fetchedAt:0,error:''};saveLokiCfg();try{localStorage.removeItem(LOKI_CACHE_KEY)}catch{}queueCloudSync();renderLoki();updateLokiStatus();toast('Disconnected from Companion.');return}
+    const p=lokiParseLink(raw);if(!p||!p.token){$('#lokiConnStatus').textContent='That doesn’t look like a Companion link (it needs ?t=…).';return}
+    lokiCfg.url=p.url;lokiCfg.token=p.token;saveLokiCfg();queueCloudSync();
+    $('#lokiConnStatus').textContent='Connecting…';await fetchLoki();if(!lokiData.error)pushDdlSnapshot(true).catch(()=>{});
+  };
+  updateLokiStatus();
+}
+// Garden → Companion: read-only snapshot of the user's own DDL tasks (lets Loki *see* them; never edited or written back)
+let ddlPushSig='',ddlPushAt=0,ddlPushTimer=null;
+async function pushDdlSnapshot(force){
+  if(!lokiCfg.url||!lokiCfg.token)return;
+  const list=tasks.filter(t=>!t.quick&&t.date).map(t=>({id:t.id,title:t.title||'',course:t.course||'',date:t.date,time:t.time||'',startTime:t.startTime||'',endTime:t.endTime||'',eventType:t.eventType||'due',done:!!t.done,notes:(t.notes||'').slice(0,200)}));
+  const sig=JSON.stringify(list);
+  if(!force&&sig===ddlPushSig&&Date.now()-ddlPushAt<30*60000)return;
+  try{
+    const r=await fetch(`${lokiCfg.url.replace(/\/+$/,'')}/garden/ingest?t=${encodeURIComponent(lokiCfg.token)}`,{method:'POST',headers:{'content-type':'text/plain'},body:JSON.stringify({tasks:list})});
+    if(r.ok){ddlPushSig=sig;ddlPushAt=Date.now()}
+  }catch{}
+}
+function scheduleDdlPush(){clearTimeout(ddlPushTimer);ddlPushTimer=setTimeout(()=>pushDdlSnapshot().catch(()=>{}),4000)}
+(function initLoki(){
+  applyLokiAppearance();
+  const b=$('#sidebarBtn');if(b)b.onclick=openSidebar;
+  const sc=$('#sidebarScrim');if(sc)sc.onclick=closeSidebar;
+  const cl=$('#sidebarClose');if(cl)cl.onclick=closeSidebar;
+  document.addEventListener('keydown',e=>{if(e.key==='Escape')closeSidebar()});
+  const _renderAll=renderAll;renderAll=function(){_renderAll();renderLokiTodo();scheduleDdlPush()};
+  const _renderCalendar=renderCalendar;renderCalendar=function(){_renderCalendar();bindLokiClicks()};
+  setInterval(()=>{try{if(lokiSignature()!==lokiSig)renderLoki()}catch{}},30000);
+  setInterval(()=>{if(!document.hidden)fetchLoki().catch(()=>{})},45000);
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden)fetchLoki().catch(()=>{})});
+  setTimeout(()=>fetchLoki().catch(()=>{}),600);
+})();
 
 (async()=>{
   try{initLanguage()}catch(err){console.error('Language initialization failed:',err)}

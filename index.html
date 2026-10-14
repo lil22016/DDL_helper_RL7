@@ -12,7 +12,7 @@
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Deadline Garden" />
-  <link rel="stylesheet" href="styles.css?v=1633" />
+  <link rel="stylesheet" href="styles.css?v=1640" />
 </head>
 <body>
   <div id="liquidWallpaperLayer" class="liquid-wallpaper-layer" aria-hidden="true"></div>
@@ -26,6 +26,7 @@
   </div><div class="garden-frame">
     <header class="topbar">
       <div class="brand-row">
+        <button id="sidebarBtn" class="theme-btn sidebar-btn" type="button" aria-label="Open menu" title="Menu">☰</button>
         <div class="theme-wrap">
           <button id="themeBtn" class="theme-btn" aria-label="Change color theme" title="Change theme">
             <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -147,6 +148,7 @@
       <label><input type="radio" name="todoBadge" data-todo-badge value="all"> All</label>
     </div>
     <div id="todoList" class="todo-list"></div>
+    <div id="lokiTodo" class="todo-list loki-todo"></div>
   </aside>
 
   <aside class="quick-note collapsed-away" aria-label="Quick to-do note">
@@ -182,6 +184,14 @@
     </div>
   </div>
 
+  <div id="sidebarRoot" class="sidebar-root hidden" aria-hidden="true">
+    <div id="sidebarScrim" class="sidebar-scrim"></div>
+    <aside class="sidebar-panel" role="dialog" aria-label="Menu">
+      <div class="sidebar-head"><strong>Menu</strong><button id="sidebarClose" class="icon-btn" type="button" aria-label="Close menu">×</button></div>
+      <div id="sidebarBody" class="sidebar-body"></div>
+    </aside>
+  </div>
+
   <div id="modalRoot" class="modal-root hidden" role="dialog" aria-modal="true">
     <div id="modalCard" class="modal-card glass"></div>
   </div>
@@ -190,6 +200,6 @@
   <canvas id="confettiCanvas"></canvas>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/gh/VII-Cae/hyalite--liquid-glass@main/hyalite.js"></script>
-  <script src="app.js?v=1633"></script>
+  <script src="app.js?v=1640"></script>
 </body>
 </html>
