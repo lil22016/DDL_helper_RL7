@@ -4148,36 +4148,59 @@ html[data-theme="glass"] .reminder-rule-row input,html[data-theme="glass"] .remi
 @media(max-width:620px){.reminder-settings-card{width:100%!important;max-height:88vh}}
 
 
-/* ---- v16.40: ☰ sidebar + Loki read-only mirror ---- */
+/* ---- v16.41: ☰ sidebar + Loki read-only mirror (theme-aware) ---- */
+:root{--loki:#8b7bd8;--loki-bg:rgba(139,123,216,.16);--loki-ink:#4a3f7d;--loki-glass:rgba(139,123,216,.34);--loki-on:#fff}
 .sidebar-btn{font-size:20px;line-height:1;flex:0 0 auto}
 .sidebar-root{position:fixed;inset:0;z-index:880;display:flex}
 .sidebar-root.hidden{display:none}
 .sidebar-scrim{position:absolute;inset:0;background:rgba(16,25,31,.34);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)}
-.sidebar-panel{position:relative;width:min(340px,88vw);height:100%;overflow-y:auto;padding:calc(18px + env(safe-area-inset-top)) 18px 24px;background:rgba(250,252,250,.97);border-right:1px solid var(--border);box-shadow:0 0 60px rgba(0,0,0,.2);animation:sbIn .22s ease both}
+.sidebar-panel{position:relative;width:min(340px,88vw);height:100%;overflow-y:auto;padding:calc(18px + env(safe-area-inset-top)) 18px 24px;background:rgba(250,252,250,.97);border-right:1px solid var(--border);box-shadow:0 0 60px rgba(0,0,0,.2);animation:sbIn .22s ease both;color:var(--text)}
 @keyframes sbIn{from{transform:translateX(-14px);opacity:0}to{transform:none;opacity:1}}
 .sidebar-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;font-size:18px}
 .sidebar-item{width:100%;text-align:left;padding:13px 14px;margin-bottom:6px}
 .sidebar-section{margin-top:22px;padding-top:16px;border-top:1px solid var(--border)}
 .sidebar-row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:12px 0}
 .sidebar-row label{font-size:13px;font-weight:800;color:var(--muted)}
-.sidebar-row input[type=color]{width:54px;height:36px;padding:2px;border:1px solid var(--border);border-radius:10px;background:#fff}
+.sidebar-row input[type=color]{width:54px;height:36px;padding:2px;border:1px solid var(--border);border-radius:10px;background:#fff;cursor:pointer}
 .sidebar-row input[type=text],.sidebar-input{width:100%;box-sizing:border-box;padding:11px 12px;border-radius:12px;border:1px solid var(--border);background:rgba(255,255,255,.8);font:inherit;color:var(--text)}
 .sidebar-row input[type=text]{width:110px;text-align:center;font-size:18px}
 .sidebar-help{font-size:12px;line-height:1.45;color:var(--muted);margin:8px 0}
 .sidebar-save{width:100%;margin-top:10px;padding:12px 14px}
-.sidebar-preview{margin:12px 0 4px;max-width:220px}
-:root{--loki:#8b7bd8;--loki-bg:rgba(139,123,216,.16);--loki-ink:#4a3f7d}
-.event-chip.loki-chip{position:relative;background:var(--loki-bg)!important;border-left:4px solid var(--loki)!important;color:var(--loki-ink)!important;padding-right:56px!important;animation:none!important}
-.daily-task-card.loki-chip{position:relative;background:var(--loki-bg)!important;border-left:4px solid var(--loki)!important;color:var(--loki-ink)!important;animation:none!important}
-.loki-badge{position:absolute;top:3px;right:5px;max-width:52px;padding:1px 6px;border-radius:999px;background:var(--loki);color:#fff;font-size:9px;font-weight:800;line-height:1.4;letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.loki-struck .loki-title{text-decoration:line-through;opacity:.62}
-.loki-status{font-weight:760!important;opacity:.9!important}
-.loki-chip.loki-done,.loki-chip.loki-failed,.loki-chip.loki-changed,.loki-chip.loki-cancelled{opacity:1}
+.sidebar-preview{margin:12px 0 4px;max-width:240px}
+/* Liquid Glass + Glass: same recipe as the other panels (todo / account / wardrobe) so it matches the theme */
+html[data-theme="liquid"] .sidebar-scrim,html[data-theme="glass"] .sidebar-scrim{background:rgba(0,0,0,.16);backdrop-filter:none;-webkit-backdrop-filter:none}
+html[data-theme="liquid"] .sidebar-panel{background:rgba(20,20,20,var(--liquid-panel-alpha,.133))!important;background-image:none!important;color:#fff!important;border:0!important;border-right:1px solid rgba(255,255,255,.40)!important;backdrop-filter:blur(var(--liquid-panel-blur,11.5px)) saturate(100%)!important;-webkit-backdrop-filter:blur(var(--liquid-panel-blur,11.5px)) saturate(100%)!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.58),inset -1px 0 0 rgba(255,255,255,.18),0 16px 44px rgba(0,0,0,.22)!important}
+html[data-theme="glass"] .sidebar-panel{background:rgba(55,76,89,.86)!important;color:#fff!important;border-right:1px solid rgba(255,255,255,.45)!important;backdrop-filter:blur(25px) saturate(120%)!important;-webkit-backdrop-filter:blur(25px) saturate(120%)!important}
+html[data-theme="liquid"] .sidebar-panel *,html[data-theme="glass"] .sidebar-panel *{color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.72)}
+html[data-theme="liquid"] .sidebar-panel .sidebar-help,html[data-theme="glass"] .sidebar-panel .sidebar-help,html[data-theme="liquid"] .sidebar-panel .sidebar-row label,html[data-theme="glass"] .sidebar-panel .sidebar-row label{color:rgba(255,255,255,.86)}
+html[data-theme="liquid"] .sidebar-panel .sidebar-section,html[data-theme="glass"] .sidebar-panel .sidebar-section{border-top-color:rgba(255,255,255,.28)}
+html[data-theme="liquid"] .sidebar-panel input[type=text],html[data-theme="glass"] .sidebar-panel input[type=text],html[data-theme="liquid"] .sidebar-panel .sidebar-input,html[data-theme="glass"] .sidebar-panel .sidebar-input{background:rgba(0,0,0,.16)!important;border-color:rgba(255,255,255,.34)!important;color:#fff!important}
+html[data-theme="liquid"] .sidebar-panel input::placeholder,html[data-theme="glass"] .sidebar-panel input::placeholder{color:rgba(255,255,255,.55)}
+html[data-theme="liquid"] .sidebar-panel input[type=color],html[data-theme="glass"] .sidebar-panel input[type=color]{background:rgba(255,255,255,.2);border-color:rgba(255,255,255,.4)}
+/* Loki cards — light themes: tinted card, dark ink */
+.loki-badge{position:absolute;top:3px;right:5px;max-width:52px;padding:1px 6px;border-radius:999px;background:var(--loki)!important;color:var(--loki-on)!important;font-size:9px;font-weight:800;line-height:1.4;letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:none!important}
+.event-chip.loki-chip,.daily-task-card.loki-chip{position:relative;animation:none!important}
+.event-chip.loki-chip{padding-top:19px!important}
+.month-marker-row .loki-marker{padding:0}
+.daily-task-card.loki-chip{padding-right:62px!important}
+html:not([data-theme="liquid"]):not([data-theme="glass"]) .event-chip.loki-chip,html:not([data-theme="liquid"]):not([data-theme="glass"]) .daily-task-card.loki-chip{background:var(--loki-bg)!important;border-left:4px solid var(--loki)!important;color:var(--loki-ink)!important}
+html:not([data-theme="liquid"]):not([data-theme="glass"]) .loki-chip .daily-task-time,html:not([data-theme="liquid"]):not([data-theme="glass"]) .loki-chip .daily-task-main,html:not([data-theme="liquid"]):not([data-theme="glass"]) .loki-chip .event-main-line,html:not([data-theme="liquid"]):not([data-theme="glass"]) .loki-chip .event-meta-line,html:not([data-theme="liquid"]):not([data-theme="glass"]) .loki-chip .event-desc-line{color:var(--loki-ink)!important}
+/* Loki cards — Liquid Glass / Glass: clear glass tinted with the Loki color, white text like every other card in these themes */
+html[data-theme="liquid"] .event-chip.loki-chip,html[data-theme="glass"] .event-chip.loki-chip,html[data-theme="liquid"] .daily-task-card.loki-chip,html[data-theme="glass"] .daily-task-card.loki-chip{background:var(--loki-glass)!important;border-left:4px solid var(--loki)!important;border-top:1px solid rgba(255,255,255,.34)!important;border-right:1px solid rgba(255,255,255,.2)!important;border-bottom:1px solid rgba(0,0,0,.14)!important;color:#fff!important;text-shadow:0 1px 3px rgba(0,0,0,.72)!important;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+html[data-theme="liquid"] .loki-chip .daily-task-time,html[data-theme="glass"] .loki-chip .daily-task-time,html[data-theme="liquid"] .loki-chip .daily-task-main,html[data-theme="glass"] .loki-chip .daily-task-main,html[data-theme="liquid"] .loki-chip .event-main-line,html[data-theme="glass"] .loki-chip .event-main-line,html[data-theme="liquid"] .loki-chip .event-meta-line,html[data-theme="glass"] .loki-chip .event-meta-line,html[data-theme="liquid"] .loki-chip .event-desc-line,html[data-theme="glass"] .loki-chip .event-desc-line,html[data-theme="liquid"] .loki-chip .loki-title,html[data-theme="glass"] .loki-chip .loki-title{color:#fff!important;text-shadow:0 1px 3px rgba(0,0,0,.72)!important;opacity:1}
+.loki-title{overflow-wrap:anywhere;word-break:break-word;min-width:0}
+.loki-struck .loki-title{text-decoration:line-through;text-decoration-thickness:1.5px}
+.loki-chip.loki-struck{opacity:.78}
+.loki-status{font-weight:760!important}
+.loki-chip .event-desc-line{-webkit-line-clamp:3}
 .loki-marker{background:var(--loki-bg)!important;box-shadow:0 0 0 1.5px var(--loki) inset;border-radius:999px}
-.loki-marker.loki-struck{opacity:.55}
+html[data-theme="liquid"] .loki-marker,html[data-theme="glass"] .loki-marker{background:var(--loki-glass)!important}
+.loki-marker.loki-struck{opacity:.6}
 .loki-struck-title{text-decoration:line-through}
 .loki-status-line{display:inline-block;margin:8px 0;padding:3px 10px;border-radius:999px;background:var(--loki-bg);color:var(--loki-ink);font-size:12px;font-weight:800}
+html[data-theme="liquid"] .loki-status-line,html[data-theme="glass"] .loki-status-line{background:var(--loki-glass);color:#fff}
 .loki-todo{margin-top:6px}
-.loki-todo-item .todo-title-btn{display:flex;flex-wrap:wrap;gap:6px;align-items:baseline;width:100%;text-align:left;background:none;border:0;padding:8px 6px;font:inherit;color:var(--loki-ink,var(--text));cursor:pointer}
+.loki-todo-item .todo-title-btn{display:flex;flex-wrap:wrap;gap:6px;align-items:baseline;width:100%;text-align:left;background:none!important;border:0!important;box-shadow:none!important;padding:8px 6px;font:inherit;color:var(--loki-ink,var(--text));cursor:pointer}
 .loki-todo-item small{color:var(--muted);font-size:11px}
 .loki-todo-section summary{color:var(--loki-ink,var(--text))}
+html[data-theme="liquid"] .loki-todo-item .todo-title-btn,html[data-theme="glass"] .loki-todo-item .todo-title-btn,html[data-theme="liquid"] .loki-todo-section summary,html[data-theme="glass"] .loki-todo-section summary,html[data-theme="liquid"] .loki-todo-item small,html[data-theme="glass"] .loki-todo-item small{color:#fff!important}

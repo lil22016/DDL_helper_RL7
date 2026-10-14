@@ -2002,12 +2002,12 @@ function lokiTimeText(it){
 function lokiClasses(it){const e=lokiEffective(it);return `loki-item loki-${e.status}${['failed','changed','cancelled'].includes(e.status)?' loki-struck':''}`}
 function lokiBadge(){return `<span class="loki-badge" title="${escapeHtml(lokiName())}">${escapeHtml(lokiName())}</span>`}
 function lokiChipHtml(it){
-  const e=lokiEffective(it),label=LOKI_LABEL[e.status],time=lokiTimeText(it);
-  return `<button class="event-chip loki-chip ${lokiClasses(it)}" data-loki="${escapeHtml(it.id)}" title="${escapeHtml(`${lokiName()} · ${it.title}${label?' · '+label:''}`)}">${lokiBadge()}<span class="event-main-line"><span class="task-icon emoji">${escapeHtml(lokiCfg.emoji||'✨')}</span><span class="loki-title">${escapeHtml(it.title)}</span></span>${time?`<span class="event-meta-line">${escapeHtml(time)}</span>`:''}${label?`<span class="event-meta-line loki-status">${e.status==='done'?'✓ ':''}${label}</span>`:''}</button>`;
+  const e=lokiEffective(it),label=LOKI_LABEL[e.status],time=calendarDisplay.time?lokiTimeText(it):'',desc=calendarDisplay.description&&e.status!=='changed'&&it.desc?it.desc.replace(/\s+/g,' ').trim():'';
+  return `<button class="event-chip loki-chip ${lokiClasses(it)}" data-loki="${escapeHtml(it.id)}" title="${escapeHtml(`${lokiName()} · ${it.title}${label?' · '+label:''}`)}">${lokiBadge()}<span class="event-main-line"><span class="task-icon emoji">${escapeHtml(lokiCfg.emoji||'✨')}</span><span class="loki-title">${escapeHtml(it.title)}</span></span>${time?`<span class="event-meta-line">${escapeHtml(time)}</span>`:''}${desc?`<span class="event-desc-line">${escapeHtml(desc)}</span>`:''}${label?`<span class="event-meta-line loki-status">${e.status==='done'?'✓ ':''}${label}</span>`:''}</button>`;
 }
 function lokiDayHtml(it){
-  const e=lokiEffective(it),label=LOKI_LABEL[e.status];
-  return `<button class="daily-task-card loki-chip ${lokiClasses(it)}" data-loki="${escapeHtml(it.id)}"><span class="daily-task-time">${escapeHtml(lokiTimeText(it)||'Any time')}</span><span class="daily-task-main">${lokiBadge()}<span class="event-main-line"><span class="task-icon emoji">${escapeHtml(lokiCfg.emoji||'✨')}</span><span class="loki-title">${escapeHtml(it.title)}</span></span>${label?`<span class="event-meta-line loki-status">${e.status==='done'?'✓ ':''}${label}</span>`:''}</span></button>`;
+  const e=lokiEffective(it),label=LOKI_LABEL[e.status],desc=calendarDisplay.description&&e.status!=='changed'&&it.desc?it.desc.replace(/\s+/g,' ').trim():'';
+  return `<button class="daily-task-card loki-chip ${lokiClasses(it)}" data-loki="${escapeHtml(it.id)}">${lokiBadge()}<span class="daily-task-time">${escapeHtml(lokiTimeText(it)||'Any time')}</span><span class="daily-task-main"><span class="event-main-line"><span class="task-icon emoji">${escapeHtml(lokiCfg.emoji||'✨')}</span><span class="loki-title">${escapeHtml(it.title)}</span></span>${desc?`<span class="event-desc-line">${escapeHtml(desc)}</span>`:''}${label?`<span class="event-meta-line loki-status">${e.status==='done'?'✓ ':''}${label}</span>`:''}</span></button>`;
 }
 function lokiMarkerHtml(it){
   const e=lokiEffective(it);
@@ -2036,8 +2036,10 @@ function applyLokiAppearance(){
   const st=document.documentElement.style;
   st.setProperty('--loki',`rgb(${r},${g},${b})`);st.setProperty('--loki-bg',`rgba(${r},${g},${b},.16)`);
   st.setProperty('--loki-ink',`rgb(${Math.round(r*.45+30*.55)},${Math.round(g*.45+30*.55)},${Math.round(b*.45+30*.55)})`);
+  st.setProperty('--loki-glass',`rgba(${r},${g},${b},.34)`);
+  st.setProperty('--loki-on',(0.299*r+0.587*g+0.114*b)>165?'#1d2230':'#ffffff');
 }
-function lokiSignature(){return JSON.stringify([fmtDateInput(new Date()),lokiData.items.map(i=>[i.id,lokiEffective(i).status,i.date,i.time,i.title]),lokiCfg.emoji,lokiCfg.color,lokiData.name])}
+function lokiSignature(){return JSON.stringify([fmtDateInput(new Date()),lokiData.items.map(i=>[i.id,lokiEffective(i).status,i.date,i.time,i.title,i.desc]),calendarDisplay.description,calendarDisplay.time,lokiCfg.emoji,lokiCfg.color,lokiData.name])}
 function renderLoki(){lokiSig=lokiSignature();renderCalendar();renderLokiTodo()}
 async function fetchLoki(){
   if(!lokiCfg.url||!lokiCfg.token){lokiData.error='';return}
