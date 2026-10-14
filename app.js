@@ -1990,34 +1990,47 @@ function lokiDueMs(it){return new Date(`${it.date}T${it.time||'23:59'}:00`).getT
    and the moment Companion reports done/failed/changed/cancelled that real status wins. */
 function lokiEffective(it){
   const st=it.status||'planned';
-  if(st==='planned'&&!it.time&&Date.now()>new Date(`${it.date}T23:59:59`).getTime())return {status:'done',auto:true};
+  if(st==='planned'){
+    const edge=it.end||it.time;
+    const t=edge?new Date(`${it.date}T${edge}:00`).getTime():new Date(`${it.date}T23:59:59`).getTime();
+    if(Date.now()>t)return {status:'done',auto:true};
+  }
   return {status:st,auto:false};
 }
+/* Title = text before the first punctuation mark (client-side safety net; Companion does the same server-side). */
+function lokiFirstClause(text){
+  text=String(text||'').trim();if(text.length<=24)return text;
+  const m=/[,，。！？!?；;、\n—–]|[.:：](?=\s|$)/g;let x;
+  while((x=m.exec(text))){if(x.index>=3){return text.slice(0,x.index).trim()}}
+  return text.length>40?text.slice(0,32).trim()+'…':text;
+}
+function lokiT(it){return lokiFirstClause(it.title)}
+function lokiD(it){const t=String(it.title||'').trim(),short=lokiT(it);const d=String(it.desc||'').trim();return short!==t&&!d.includes(t)?(t+(d?'\n'+d:'')):d}
 const LOKI_LABEL={done:'Complete',failed:'Not completed',changed:'Changed plan',cancelled:'Cancelled',planned:''};
 function lokiOn(ds){return lokiData.items.filter(i=>i.date===ds).sort((a,b)=>String(a.time||'99:99').localeCompare(String(b.time||'99:99')))}
 function lokiTimeText(it){
   const f=v=>new Date(`${it.date}T${v}:00`).toLocaleTimeString(uiLocale(),{hour:'numeric',minute:'2-digit'});
   return it.time?(it.end?`${f(it.time)}–${f(it.end)}`:f(it.time)):'';
 }
-function lokiClasses(it){const e=lokiEffective(it);return `loki-item loki-${e.status}${['failed','changed','cancelled'].includes(e.status)?' loki-struck':''}`}
+function lokiClasses(it){const e=lokiEffective(it);return `loki-item loki-${e.status}${e.status==='done'?' done':''}${['failed','changed','cancelled'].includes(e.status)?' loki-struck':''}`}
 function lokiBadge(){return `<span class="loki-badge" title="${escapeHtml(lokiName())}">${escapeHtml(lokiName())}</span>`}
 function lokiChipHtml(it){
-  const e=lokiEffective(it),label=LOKI_LABEL[e.status],time=calendarDisplay.time?lokiTimeText(it):'',desc=calendarDisplay.description&&e.status!=='changed'&&it.desc?it.desc.replace(/\s+/g,' ').trim():'';
-  return `<button class="event-chip loki-chip ${lokiClasses(it)}" data-loki="${escapeHtml(it.id)}" title="${escapeHtml(`${lokiName()} · ${it.title}${label?' · '+label:''}`)}">${lokiBadge()}<span class="event-main-line"><span class="task-icon emoji">${escapeHtml(lokiCfg.emoji||'✨')}</span><span class="loki-title">${escapeHtml(it.title)}</span></span>${time?`<span class="event-meta-line">${escapeHtml(time)}</span>`:''}${desc?`<span class="event-desc-line">${escapeHtml(desc)}</span>`:''}${label?`<span class="event-meta-line loki-status">${e.status==='done'?'✓ ':''}${label}</span>`:''}</button>`;
+  const e=lokiEffective(it),label=e.status==='done'?'':LOKI_LABEL[e.status],time=calendarDisplay.time?lokiTimeText(it):'',desc=calendarDisplay.description&&e.status!=='changed'&&lokiD(it)?lokiD(it).replace(/\s+/g,' ').trim():'';
+  return `<button class="event-chip loki-chip ${lokiClasses(it)}" data-loki="${escapeHtml(it.id)}" title="${escapeHtml(`${lokiName()} · ${lokiT(it)}${label?' · '+label:''}`)}">${lokiBadge()}<span class="event-main-line"><span class="task-icon emoji">${escapeHtml(lokiCfg.emoji||'✨')}</span><span class="loki-title">${escapeHtml(lokiT(it))}</span></span>${time?`<span class="event-meta-line">${escapeHtml(time)}</span>`:''}${desc?`<span class="event-desc-line">${escapeHtml(desc)}</span>`:''}${label?`<span class="event-meta-line loki-status">${e.status==='done'?'✓ ':''}${label}</span>`:''}</button>`;
 }
 function lokiDayHtml(it){
-  const e=lokiEffective(it),label=LOKI_LABEL[e.status],desc=calendarDisplay.description&&e.status!=='changed'&&it.desc?it.desc.replace(/\s+/g,' ').trim():'';
-  return `<button class="daily-task-card loki-chip ${lokiClasses(it)}" data-loki="${escapeHtml(it.id)}">${lokiBadge()}<span class="daily-task-time">${escapeHtml(lokiTimeText(it)||'Any time')}</span><span class="daily-task-main"><span class="event-main-line"><span class="task-icon emoji">${escapeHtml(lokiCfg.emoji||'✨')}</span><span class="loki-title">${escapeHtml(it.title)}</span></span>${desc?`<span class="event-desc-line">${escapeHtml(desc)}</span>`:''}${label?`<span class="event-meta-line loki-status">${e.status==='done'?'✓ ':''}${label}</span>`:''}</span></button>`;
+  const e=lokiEffective(it),label=e.status==='done'?'':LOKI_LABEL[e.status],desc=calendarDisplay.description&&e.status!=='changed'&&lokiD(it)?lokiD(it).replace(/\s+/g,' ').trim():'';
+  return `<button class="daily-task-card loki-chip ${lokiClasses(it)}" data-loki="${escapeHtml(it.id)}">${lokiBadge()}<span class="daily-task-time">${escapeHtml(lokiTimeText(it)||'Any time')}</span><span class="daily-task-main"><span class="event-main-line"><span class="task-icon emoji">${escapeHtml(lokiCfg.emoji||'✨')}</span><span class="loki-title">${escapeHtml(lokiT(it))}</span></span>${desc?`<span class="event-desc-line">${escapeHtml(desc)}</span>`:''}${label?`<span class="event-meta-line loki-status">${e.status==='done'?'✓ ':''}${label}</span>`:''}</span></button>`;
 }
 function lokiMarkerHtml(it){
   const e=lokiEffective(it);
-  return `<button class="month-task-marker has-emoji loki-marker ${lokiClasses(it)}" data-loki="${escapeHtml(it.id)}" title="${escapeHtml(`${lokiName()} · ${it.title}${LOKI_LABEL[e.status]?' · '+LOKI_LABEL[e.status]:''}`)}"><span class="month-marker-emoji">${escapeHtml(lokiCfg.emoji||'✨')}</span></button>`;
+  return `<button class="month-task-marker has-emoji loki-marker ${lokiClasses(it)}" data-loki="${escapeHtml(it.id)}" title="${escapeHtml(`${lokiName()} · ${lokiT(it)}${LOKI_LABEL[e.status]?' · '+LOKI_LABEL[e.status]:''}`)}"><span class="month-marker-emoji">${escapeHtml(lokiCfg.emoji||'✨')}</span></button>`;
 }
 function openLokiDetails(id){
   const it=lokiData.items.find(x=>x.id===id);if(!it)return;
   const e=lokiEffective(it),label=LOKI_LABEL[e.status],struck=['failed','changed','cancelled'].includes(e.status);
   const when=new Date(`${it.date}T12:00:00`).toLocaleDateString(uiLocale(),{weekday:'long',month:'long',day:'numeric'}),time=lokiTimeText(it);
-  showModal(`<div class="section-label">${escapeHtml(lokiName().toUpperCase())} · READ ONLY</div><h3 class="${struck?'loki-struck-title':''}">${escapeHtml(lokiCfg.emoji||'✨')} ${escapeHtml(it.title)}</h3><div class="next-meta">${escapeHtml(when)} · ${time?escapeHtml(time):'Any time'}</div>${label?`<div class="loki-status-line loki-${e.status}">${e.status==='done'?'✓ ':''}${label}</div>`:''}${it.desc&&e.status!=='changed'?`<div class="task-notes">${escapeHtml(it.desc)}</div>`:''}${e.auto?`<div class="next-meta" style="margin-top:10px">Shown as Complete by Garden after 11:59 PM. ${escapeHtml(lokiName())} has not confirmed this in Companion.</div>`:''}<div class="next-meta" style="margin-top:10px">Managed in Companion. It can’t be edited here and doesn’t affect your own tasks or reminders.</div><div class="modal-actions"><button id="lokiDetailClose" class="soft-btn">Close</button></div>`);
+  showModal(`<div class="section-label">${escapeHtml(lokiName().toUpperCase())} · READ ONLY</div><h3 class="${struck?'loki-struck-title':''}">${escapeHtml(lokiCfg.emoji||'✨')} ${escapeHtml(lokiT(it))}</h3><div class="next-meta">${escapeHtml(when)} · ${time?escapeHtml(time):'Any time'}</div>${label?`<div class="loki-status-line loki-${e.status}">${e.status==='done'?'✓ ':''}${label}</div>`:''}${lokiD(it)&&e.status!=='changed'?`<div class="task-notes">${escapeHtml(lokiD(it))}</div>`:''}${e.auto?`<div class="next-meta" style="margin-top:10px">Shown as Complete by Garden after 11:59 PM. ${escapeHtml(lokiName())} has not confirmed this in Companion.</div>`:''}<div class="next-meta" style="margin-top:10px">Managed in Companion. It can’t be edited here and doesn’t affect your own tasks or reminders.</div><div class="modal-actions"><button id="lokiDetailClose" class="soft-btn">Close</button></div>`);
   const b=$('#lokiDetailClose');if(b)b.onclick=closeModal;
 }
 function bindLokiClicks(){
@@ -2028,7 +2041,7 @@ function renderLokiTodo(){
   if(!lokiCfg.url||!lokiCfg.token||!lokiData.items.length){root.innerHTML='';return}
   const today=fmtDateInput(new Date()),end=fmtDateInput(addDays(new Date(),7));
   const items=lokiData.items.filter(i=>i.date>=today&&i.date<=end).sort((a,b)=>String(a.date+(a.time||'99:99')).localeCompare(String(b.date+(b.time||'99:99'))));
-  root.innerHTML=`<details class="todo-section loki-todo-section" open><summary><span class="todo-arrow">›</span><span class="todo-section-label">${escapeHtml(lokiName())} · next 7 days</span><span class="todo-section-count">${items.length}</span></summary><div class="todo-section-items">${items.length?items.map(it=>{const e=lokiEffective(it),label=LOKI_LABEL[e.status];return `<div class="todo-item loki-todo-item ${lokiClasses(it)}"><button class="todo-title-btn" data-loki="${escapeHtml(it.id)}">${escapeHtml(lokiCfg.emoji||'✨')} <span class="loki-title">${escapeHtml(it.title)}</span><small>${escapeHtml(new Date(`${it.date}T12:00:00`).toLocaleDateString(uiLocale(),{month:'short',day:'numeric'}))}${lokiTimeText(it)?' · '+escapeHtml(lokiTimeText(it)):''}${label?' · '+label:''}</small></button></div>`}).join(''):'<div class="todo-empty">Nothing planned.</div>'}</div></details>`;
+  root.innerHTML=`<details class="todo-section loki-todo-section" open><summary><span class="todo-arrow">›</span><span class="todo-section-label">${escapeHtml(lokiName())} · next 7 days</span><span class="todo-section-count">${items.length}</span></summary><div class="todo-section-items">${items.length?items.map(it=>{const e=lokiEffective(it),label=LOKI_LABEL[e.status];return `<div class="todo-item loki-todo-item ${lokiClasses(it)}"><button class="todo-title-btn" data-loki="${escapeHtml(it.id)}">${escapeHtml(lokiCfg.emoji||'✨')} <span class="loki-title">${escapeHtml(lokiT(it))}</span><small>${escapeHtml(new Date(`${it.date}T12:00:00`).toLocaleDateString(uiLocale(),{month:'short',day:'numeric'}))}${lokiTimeText(it)?' · '+escapeHtml(lokiTimeText(it)):''}${label?' · '+label:''}</small></button></div>`}).join(''):'<div class="todo-empty">Nothing planned.</div>'}</div></details>`;
   bindLokiClicks();
 }
 function applyLokiAppearance(){
@@ -2063,12 +2076,12 @@ function openSidebar(){
   const r=$('#sidebarRoot');if(!r)return;
   const link=lokiCfg.url&&lokiCfg.token?`${lokiCfg.url}/garden/feed?t=${lokiCfg.token}`:'';
   $('#sidebarBody').innerHTML=`<button id="sbReminders" class="soft-btn sidebar-item" type="button">⏰ Reminder settings</button>
-  <div class="sidebar-section"><div class="section-label">LOKI APPEARANCE</div>
+  <details class="sidebar-section sidebar-fold" id="charAppearance"><summary class="section-label">CHAR APPEARANCE</summary>
     <div class="sidebar-row"><label for="lokiColor">Color</label><input id="lokiColor" type="color" value="${escapeHtml(/^#[0-9a-f]{6}$/i.test(lokiCfg.color)?lokiCfg.color:'#8b7bd8')}"></div>
     <div class="sidebar-row"><label for="lokiEmoji">Emoji</label><input id="lokiEmoji" type="text" maxlength="8" value="${escapeHtml(lokiCfg.emoji||'')}" placeholder="✨"></div>
     <div class="sidebar-preview"><span class="event-chip loki-chip loki-item loki-planned" style="pointer-events:none">${lokiBadge()}<span class="event-main-line"><span class="task-icon emoji" id="lokiPreviewEmoji">${escapeHtml(lokiCfg.emoji||'✨')}</span><span>Sample plan</span></span></span></div>
     <div class="sidebar-help">Used for every ${escapeHtml(lokiName())} item in Garden. Status never changes the color.</div>
-  </div>
+  </details>
   <div class="sidebar-section"><div class="section-label">COMPANION LINK</div>
     <div class="sidebar-help">Companion → Settings → “DDL Garden connection”: generate, copy the link, paste it here once.</div>
     <input id="lokiLink" class="sidebar-input" type="text" autocomplete="off" spellcheck="false" placeholder="https://…/garden/feed?t=…" value="${escapeHtml(link)}">

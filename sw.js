@@ -1,4 +1,4 @@
-const CACHE='deadline-garden-v16-41-loki-mirror';
+const CACHE='deadline-garden-v16-42-char';
 const ASSETS=['./','./index.html','./styles.css?v=1641','./app.js?v=1641','./manifest.webmanifest','./favicon.ico?v=1612','./apple-touch-icon.png?v=1612','./icon-192.png?v=1612','./icon-512.png?v=1612'];
 self.addEventListener('install',e=>{self.skipWaiting();e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)))});
 self.addEventListener('activate',e=>e.waitUntil(Promise.all([self.clients.claim(),caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k))))])));

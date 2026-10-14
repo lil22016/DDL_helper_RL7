@@ -4204,3 +4204,16 @@ html[data-theme="liquid"] .loki-status-line,html[data-theme="glass"] .loki-statu
 .loki-todo-item small{color:var(--muted);font-size:11px}
 .loki-todo-section summary{color:var(--loki-ink,var(--text))}
 html[data-theme="liquid"] .loki-todo-item .todo-title-btn,html[data-theme="glass"] .loki-todo-item .todo-title-btn,html[data-theme="liquid"] .loki-todo-section summary,html[data-theme="glass"] .loki-todo-section summary,html[data-theme="liquid"] .loki-todo-item small,html[data-theme="glass"] .loki-todo-item small{color:#fff!important}
+
+/* ---- v16.42: Char appearance fold + native "done" look for character items ---- */
+.sidebar-fold>summary{cursor:pointer;list-style:none;display:flex;align-items:center;justify-content:space-between}
+.sidebar-fold>summary::-webkit-details-marker{display:none}
+.sidebar-fold>summary::after{content:"›";font-size:18px;transition:transform .18s;opacity:.7}
+.sidebar-fold[open]>summary::after{transform:rotate(90deg)}
+.sidebar-fold[open]>summary{margin-bottom:6px}
+/* done = exactly like Garden's own completed items: faded + struck through (no "Complete" caption) */
+.loki-chip.done,.loki-marker.done{opacity:.45!important}
+.loki-chip.done,.loki-chip.done *:not(.loki-badge){text-decoration:line-through!important;text-decoration-thickness:1.5px!important}
+.loki-chip.done .loki-badge{opacity:.8}
+.loki-todo-item.done{opacity:.55}
+.loki-todo-item.done .loki-title{text-decoration:line-through}
