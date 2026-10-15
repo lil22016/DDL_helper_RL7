@@ -5,7 +5,7 @@
 (function(){
 'use strict';
 const GARDEN_KEY='deadline-garden-plot-v1';
-const COLS=8,BASE_ROWS=5,MAX_ROWS=9,EXPAND_COST=6,CUSTOM_LIMIT=24,CUSTOM_MIN=3,CUSTOM_MAX=12;
+const BASE_COLS=8,MAX_COLS=12,BASE_ROWS=5,MAX_ROWS=10,EXPAND_COST=6,CUSTOM_LIMIT=24,CUSTOM_MIN=3,CUSTOM_MAX=12;
 const zh=()=>typeof uiLanguage!=='undefined'&&uiLanguage==='zh';
 const L=(en,cn)=>zh()?cn:en;
 const esc=s=>String(s??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
@@ -92,7 +92,7 @@ const FENCES=[
 const TABS=[['flowers','Flowers','花草'],['trees','Trees','树木'],['decor','Decor','装饰'],['fences','Fences','围栏'],['land','Land','土地'],['custom','My uploads','自定义']];
 
 /* ---------- state ---------- */
-function blank(){return {version:1,earned:[],spent:0,inv:{},cells:{},rows:BASE_ROWS,fence:'wood',fences:['wood'],custom:[],updatedAt:0}}
+function blank(){return {version:1,earned:[],spent:0,inv:{},cells:{},rows:BASE_ROWS,cols:BASE_COLS,fence:'wood',fences:['wood'],custom:[],updatedAt:0}}
 function normalize(g){
   const b=blank();if(!g||typeof g!=='object')return b;
   const out={...b,...g};
@@ -101,6 +101,7 @@ function normalize(g){
   out.inv=g.inv&&typeof g.inv==='object'?Object.fromEntries(Object.entries(g.inv).filter(([,n])=>Number(n)>0).map(([k,n])=>[k,Math.floor(n)])):{};
   out.cells=g.cells&&typeof g.cells==='object'?g.cells:{};
   out.rows=Math.min(MAX_ROWS,Math.max(BASE_ROWS,Number(g.rows)||BASE_ROWS));
+  out.cols=Math.min(MAX_COLS,Math.max(BASE_COLS,Number(g.cols)||BASE_COLS));
   out.fences=Array.isArray(g.fences)&&g.fences.length?[...new Set(['wood',...g.fences])]:['wood'];
   if(!out.fences.includes(out.fence))out.fence='wood';
   out.custom=Array.isArray(g.custom)?g.custom.filter(c=>c&&c.id&&typeof c.img==='string'&&c.img.startsWith('data:image/')):[];
@@ -137,12 +138,12 @@ function ensureRoot(){
   root=document.createElement('div');root.id='gardenRoot';root.className='gd-root hidden';root.setAttribute('aria-hidden','true');
   root.innerHTML=`<div class="gd-shell">
     <header class="gd-head">
-      <button class="icon-btn gd-close" type="button" data-gd="close" aria-label="${L('Close garden','关闭花园')}">×</button>
-      <div class="gd-title"><div class="section-label">${L('MY GARDEN','我的花园')}</div><strong>${L('Garden','花园')}</strong></div>
+      <button class="gd-icon gd-close" type="button" data-gd="close" aria-label="${L('Close garden','关闭花园')}">×</button>
+      <div class="gd-title"><div class="gd-label">${L('MY GARDEN','我的花园')}</div><strong>${L('Garden','花园')}</strong></div>
       <div class="gd-wallet" id="gdWallet"></div>
-      <button class="primary-btn gd-shop-btn" type="button" data-gd="shop">${L('Shop','商城')}</button>
+      <button class="gd-btn gd-btn-primary gd-shop-btn" type="button" data-gd="shop">${L('Shop','商城')}</button>
     </header>
-    <div class="gd-stage"><div class="gd-plot" id="gdPlot"><div class="gd-fence gd-fence-top"></div><div class="gd-fence gd-fence-left"></div><div class="gd-fence gd-fence-right"></div><div class="gd-grid" id="gdGrid"></div><div class="gd-fence gd-fence-bottom"></div></div></div>
+    <div class="gd-stage"><div class="gd-plot" id="gdPlot"><div class="gd-fence gd-fence-top"></div><div class="gd-fence gd-fence-left"></div><div class="gd-fence gd-fence-right"></div><div class="gd-grid" id="gdGrid"></div><div class="gd-items" id="gdItems"></div><div class="gd-fence gd-fence-bottom"></div></div></div>
     <div class="gd-actionbar hidden" id="gdActions"></div>
     <section class="gd-tray" id="gdTray" aria-label="${L('Seed bag','背包')}"></section>
     <div class="gd-shop hidden" id="gdShop" role="dialog" aria-label="${L('Shop','商城')}"></div>
@@ -167,26 +168,28 @@ function renderHud(){
   w.innerHTML=`<span class="gd-coin">✓ ${available()}</span><small>${L(`${earned()} completed · ${G.spent} spent`,`已完成 ${earned()} · 已花 ${G.spent}`)}</small>`;
   const sw=root.querySelector('#gdShopWallet');if(sw)sw.textContent=`✓ ${available()}`;
 }
-function render(){if(!isOpen())return;renderHud();renderPlot();renderTray();renderActions();if(shopOpen)renderShop()}
+function render(){if(!isOpen())return;if(drag){drag.pendingRender=true;return}renderHud();renderPlot();renderTray();renderActions();if(shopOpen)renderShop()}
 function renderPlot(){
   const plot=root.querySelector('#gdPlot'),grid=root.querySelector('#gdGrid');
   const f=FENCE_ART[G.fence]||FENCE_ART.wood;
   plot.dataset.fence=G.fence;
   plot.style.setProperty('--gd-fh',`url("data:image/svg+xml,${encodeURIComponent(f.h)}")`);
   plot.style.setProperty('--gd-fv',`url("data:image/svg+xml,${encodeURIComponent(f.v)}")`);
-  grid.style.setProperty('--gd-cols',COLS);
-  let h='';
-  for(let r=0;r<G.rows;r++)for(let c=0;c<COLS;c++){
+  const items=root.querySelector('#gdItems');
+  for(const el of [grid,items]){el.style.setProperty('--gd-cols',G.cols);el.style.setProperty('--gd-rows',G.rows)}
+  let h='',p='';
+  for(let r=0;r<G.rows;r++)for(let c=0;c<G.cols;c++){
     const key=`${r},${c}`,cell=G.cells[key],it=cell&&item(cell.item);
     const cls=['gd-cell',(r+c)%2?'alt':'',sel.cell===key?'selected':'',!it&&(sel.inv||sel.cell)?'target':''].join(' ');
-    h+=`<div class="${cls}" data-cell="${key}" style="z-index:${r+2}">${it?`<div class="gd-item${it.tall?' tall':''}${it.ground?' ground':''}${cell.flip?' flip':''}" data-placed="${key}" title="${esc(itemName(it))}">${artHtml(it)}</div>`:''}</div>`;
+    h+=`<div class="${cls}" data-cell="${key}"></div>`;
+    if(it)p+=`<div class="gd-slot" style="grid-row:${r+1};grid-column:${c+1};z-index:${it.ground?1:r*2+10}"><div class="gd-item${it.tall?' tall':''}${it.ground?' ground':''}${cell.flip?' flip':''}${sel.cell===key?' selected':''}" data-placed="${key}" title="${esc(itemName(it))}">${artHtml(it)}</div></div>`;
   }
-  grid.innerHTML=h;
+  grid.innerHTML=h;items.innerHTML=p;
 }
 function renderTray(){
   const tray=root.querySelector('#gdTray');
   const ids=Object.keys(G.inv).filter(id=>G.inv[id]>0&&item(id));
-  tray.innerHTML=`<div class="gd-tray-head"><span class="section-label">${L('SEED BAG','背包')}</span><small>${ids.length?L('Drag onto the garden, or tap an item then tap a plot.','拖到花园里，或先点物品再点格子。'):L('Empty — buy plants in the Shop.','空空的——去商城兑换植物吧。')}</small></div>
+  tray.innerHTML=`<div class="gd-tray-head"><span class="gd-label">${L('SEED BAG','背包')}</span><small>${ids.length?L('Drag onto the garden, or tap an item then tap a plot.','拖到花园里，或先点物品再点格子。'):L('Empty — buy plants in the Shop.','空空的——去商城兑换植物吧。')}</small></div>
   <div class="gd-tray-items">${ids.map(id=>{const it=item(id);return `<button type="button" class="gd-chip${sel.inv===id?' selected':''}" data-inv="${esc(id)}" title="${esc(itemName(it))}"><span class="gd-chip-art">${artHtml(it)}</span><span class="gd-chip-count">×${G.inv[id]}</span></button>`}).join('')}</div>`;
 }
 function renderActions(){
@@ -194,7 +197,7 @@ function renderActions(){
   const cell=sel.cell&&G.cells[sel.cell],it=cell&&item(cell.item);
   if(!it){bar.classList.add('hidden');bar.innerHTML='';return}
   bar.classList.remove('hidden');
-  bar.innerHTML=`<strong>${esc(itemName(it))}</strong><span>${L('Tap an empty plot to move it','点空格子即可移动')}</span><button type="button" class="soft-btn small" data-gd="flip">↔ ${L('Flip','翻转')}</button><button type="button" class="soft-btn small" data-gd="store">${L('Put in bag','收回背包')}</button><button type="button" class="icon-btn" data-gd="deselect" aria-label="${L('Done','完成')}">✓</button>`;
+  bar.innerHTML=`<strong>${esc(itemName(it))}</strong><span>${L('Tap an empty plot to move it','点空格子即可移动')}</span><button type="button" class="gd-btn" data-gd="flip">↔ ${L('Flip','翻转')}</button><button type="button" class="gd-btn" data-gd="store">${L('Put in bag','收回背包')}</button><button type="button" class="gd-icon" data-gd="deselect" aria-label="${L('Done','完成')}">✓</button>`;
 }
 
 /* ---------- placing ---------- */
@@ -221,54 +224,64 @@ function pop(key){requestAnimationFrame(()=>{const el=root.querySelector(`[data-
 /* ---------- pointer drag ---------- */
 let drag=null;
 function onPointerDown(e){
-  if(e.button>0)return;
+  if(e.button>0||drag)return;
   const src=e.target.closest('[data-placed],[data-inv]');if(!src||!root.contains(src)||src.closest('#gdShop'))return;
+  if(e.pointerType==='mouse')e.preventDefault(); // no native image drag / text selection
   const from=src.dataset.placed?{type:'cell',key:src.dataset.placed}:{type:'inv',id:src.dataset.inv};
   drag={from,src,x:e.clientX,y:e.clientY,active:false,pid:e.pointerId,target:null};
-  try{src.setPointerCapture(e.pointerId)}catch{}
-  src.addEventListener('pointermove',onPointerMove);
-  src.addEventListener('pointerup',onPointerUp);
-  src.addEventListener('pointercancel',onPointerCancel);
+  try{root.setPointerCapture(e.pointerId)}catch{}
+  window.addEventListener('pointermove',onPointerMove,{passive:false});
+  window.addEventListener('pointerup',onPointerUp);
+  window.addEventListener('pointercancel',onPointerCancel);
+  window.addEventListener('blur',onPointerCancel);
 }
 function cellSize(){const c=root.querySelector('.gd-cell');return c?c.getBoundingClientRect().width:48}
+function cellAt(x,y){
+  const g=root.querySelector('#gdGrid');if(!g)return null;const r=g.getBoundingClientRect();
+  if(x<r.left||x>=r.right||y<r.top||y>=r.bottom)return null;
+  const col=Math.floor((x-r.left)/(r.width/G.cols)),row=Math.floor((y-r.top)/(r.height/G.rows));
+  return `${Math.min(G.rows-1,Math.max(0,row))},${Math.min(G.cols-1,Math.max(0,col))}`;
+}
 function onPointerMove(e){
   if(!drag||e.pointerId!==drag.pid)return;
   if(!drag.active){
-    if(Math.hypot(e.clientX-drag.x,e.clientY-drag.y)<7)return;
-    drag.active=true;
+    if(Math.hypot(e.clientX-drag.x,e.clientY-drag.y)<6)return;
     const id=drag.from.type==='cell'?G.cells[drag.from.key]?.item:drag.from.id,it=item(id);
+    if(!it){cancelDrag();return}
+    drag.active=true;
     const g=root.querySelector('#gdGhost');g.innerHTML=artHtml(it);
-    const w=cellSize()*(it?.tall?1.25:1);g.style.width=w+'px';g.dataset.tall=it?.tall?'1':'';
+    const w=cellSize()*(it.tall?1.25:1);g.style.width=w+'px';g.dataset.tall=it.tall?'1':'';
     g.classList.toggle('flip',drag.from.type==='cell'&&!!G.cells[drag.from.key]?.flip);
     g.classList.remove('hidden');drag.src.classList.add('dragging');root.classList.add('gd-dragging');
   }
   e.preventDefault();
   const g=root.querySelector('#gdGhost'),w=parseFloat(g.style.width)||48;
   g.style.transform=`translate(${e.clientX-w/2}px,${e.clientY-w*(g.dataset.tall?1.3:.85)}px)`;
-  const under=document.elementFromPoint(e.clientX,e.clientY);
-  const cell=under&&under.closest('.gd-cell'),tray=under&&under.closest('#gdTray');
   root.querySelectorAll('.gd-cell.over,.gd-tray.over').forEach(x=>x.classList.remove('over'));
   drag.target=null;
-  if(cell){cell.classList.add('over');drag.target={type:'cell',key:cell.dataset.cell}}
-  else if(tray&&drag.from.type==='cell'){tray.classList.add('over');drag.target={type:'tray'}}
+  const key=cellAt(e.clientX,e.clientY);
+  if(key){root.querySelector(`[data-cell="${key}"]`)?.classList.add('over');drag.target={type:'cell',key}}
+  else if(drag.from.type==='cell'){const t=root.querySelector('#gdTray'),r=t.getBoundingClientRect();if(e.clientX>=r.left&&e.clientX<=r.right&&e.clientY>=r.top&&e.clientY<=r.bottom){t.classList.add('over');drag.target={type:'tray'}}}
 }
 function endDrag(){
   if(!drag)return;
-  const s=drag.src;s.removeEventListener('pointermove',onPointerMove);s.removeEventListener('pointerup',onPointerUp);s.removeEventListener('pointercancel',onPointerCancel);
-  s.classList.remove('dragging');root.classList.remove('gd-dragging');
-  root.querySelector('#gdGhost').classList.add('hidden');
+  window.removeEventListener('pointermove',onPointerMove);window.removeEventListener('pointerup',onPointerUp);window.removeEventListener('pointercancel',onPointerCancel);window.removeEventListener('blur',onPointerCancel);
+  try{root.releasePointerCapture(drag.pid)}catch{}
+  drag.src.classList.remove('dragging');root.classList.remove('gd-dragging');
+  const g=root.querySelector('#gdGhost');g.classList.add('hidden');g.innerHTML='';
   root.querySelectorAll('.gd-cell.over,.gd-tray.over').forEach(x=>x.classList.remove('over'));
 }
-function onPointerCancel(){endDrag();drag=null}
+function cancelDrag(){const pending=drag&&drag.pendingRender;endDrag();drag=null;if(pending)render()}
+function onPointerCancel(){cancelDrag();render()}
 function onPointerUp(e){
   if(!drag||e.pointerId!==drag.pid)return;
   const d=drag;endDrag();drag=null;
   if(!d.active){tap(d.from);return}
-  const t=d.target;if(!t){render();return}
-  if(d.from.type==='inv'&&t.type==='cell'){
+  const t=d.target;
+  if(t&&d.from.type==='inv'&&t.type==='cell'){
     if(G.cells[t.key])say('That spot is taken — pick an empty plot.','这个格子已经有东西了，换个空格子吧。');else{place(d.from.id,t.key);sel.cell=null}
-  }else if(d.from.type==='cell'&&t.type==='cell')move(d.from.key,t.key);
-  else if(d.from.type==='cell'&&t.type==='tray')store(d.from.key);
+  }else if(t&&d.from.type==='cell'&&t.type==='cell')move(d.from.key,t.key);
+  else if(t&&d.from.type==='cell'&&t.type==='tray')store(d.from.key);
   render();
 }
 function tap(from){
@@ -291,7 +304,7 @@ function onClick(e){
     if(act==='tab'){tab=a.dataset.tab;return renderShop()}
     if(act==='buy')return buy(a.dataset.id);
     if(act==='fence')return buyFence(a.dataset.id);
-    if(act==='expand')return expand();
+    if(act==='expand')return expand(a.dataset.dir);
     if(act==='upload')return confirmUpload();
     if(act==='delCustom')return deleteCustom(a.dataset.id);
     return;
@@ -323,8 +336,12 @@ function renderShop(){
     body=`<div class="gd-cards wide">${FENCES.map(f=>{const own=G.fences.includes(f.id),cur=G.fence===f.id;const art=FENCE_ART[f.id];
       return `<div class="gd-card"><div class="gd-card-art fence" style="--gd-fh:url(&quot;data:image/svg+xml,${encodeURIComponent(art.h)}&quot;)"></div><div class="gd-card-name">${L(f.en,f.cn)}</div><div class="gd-card-meta">${cur?L('In use','使用中'):own?L('Owned','已拥有'):'&nbsp;'}</div>${cur?`<button type="button" class="gd-buy done" disabled>${L('Using','使用中')}</button>`:own?`<button type="button" class="gd-buy" data-gd="fence" data-id="${f.id}">${L('Use','使用')}</button>`:priceBtn(f.price,`data-gd="fence" data-id="${f.id}"`)}</div>`}).join('')}</div>`;
   }else if(tab==='land'){
-    const full=G.rows>=MAX_ROWS;
-    body=`<div class="gd-land"><div class="gd-land-art">${Array.from({length:Math.min(G.rows+1,MAX_ROWS)},(_,i)=>`<i class="${i>=G.rows?'new':''}"></i>`).join('')}</div><div><strong>${L('Expand the garden','扩建花园')}</strong><p>${L(`Add one more row of ${COLS} plots. Currently ${G.rows} rows (max ${MAX_ROWS}).`,`增加一排（${COLS} 格）。目前 ${G.rows} 排，最多 ${MAX_ROWS} 排。`)}</p>${full?`<button type="button" class="gd-buy done" disabled>${L('Fully expanded','已扩建到最大')}</button>`:priceBtn(EXPAND_COST,'data-gd="expand"',`✓ ${EXPAND_COST} · ${L('Add a row','加一排')}`)}</div></div>`;
+    const rowFull=G.rows>=MAX_ROWS,colFull=G.cols>=MAX_COLS;
+    const mini=(rows,cols,nr,nc)=>`<div class="gd-mini" style="--r:${rows};--c:${cols}">${Array.from({length:rows*cols},(_,i)=>{const r=Math.floor(i/cols),c=i%cols;return `<i class="${(nr&&r===rows-1)||(nc&&c===cols-1)?'new':''}"></i>`}).join('')}</div>`;
+    body=`<div class="gd-land-list">
+      <div class="gd-land">${mini(Math.min(G.rows+1,MAX_ROWS),G.cols,!rowFull,false)}<div><strong>${L('Add a row','加一排（横向）')}</strong><p>${L(`One more row of ${G.cols} plots. Now ${G.rows} rows (max ${MAX_ROWS}).`,`增加一排 ${G.cols} 格。目前 ${G.rows} 排，最多 ${MAX_ROWS} 排。`)}</p>${rowFull?`<button type="button" class="gd-buy done" disabled>${L('Maxed out','已到最大')}</button>`:priceBtn(EXPAND_COST,'data-gd="expand" data-dir="row"',`✓ ${EXPAND_COST} · ${L('Add a row','加一排')}`)}</div></div>
+      <div class="gd-land">${mini(G.rows,Math.min(G.cols+1,MAX_COLS),false,!colFull)}<div><strong>${L('Add a column','加一列（竖向）')}</strong><p>${L(`One more column of ${G.rows} plots. Now ${G.cols} columns (max ${MAX_COLS}).`,`增加一列 ${G.rows} 格。目前 ${G.cols} 列，最多 ${MAX_COLS} 列。`)}</p>${colFull?`<button type="button" class="gd-buy done" disabled>${L('Maxed out','已到最大')}</button>`:priceBtn(EXPAND_COST,'data-gd="expand" data-dir="col"',`✓ ${EXPAND_COST} · ${L('Add a column','加一列')}`)}</div></div>
+    </div>`;
   }else if(tab==='custom'){
     const d=uploadDraft;
     body=`<div class="gd-upload">
@@ -339,7 +356,7 @@ function renderShop(){
       </div></div>
       ${G.custom.length?`<div class="gd-cards">${G.custom.map(it=>card(it,`<div class="gd-card-row">${priceBtn(it.price,`data-gd="buy" data-id="${esc(it.id)}"`)}<button type="button" class="gd-del" data-gd="delCustom" data-id="${esc(it.id)}" aria-label="${L('Remove product','删除商品')}">🗑</button></div>`)).join('')}</div>`:''}`;
   }
-  s.innerHTML=`<div class="gd-shop-head"><div><div class="section-label">${L('GARDEN SHOP','花园商城')}</div><strong>${L('Trade completed tasks for plants','用已完成事项兑换植物')}</strong></div><span class="gd-coin" id="gdShopWallet">✓ ${available()}</span><button type="button" class="icon-btn" data-gd="shopClose" aria-label="${L('Close shop','关闭商城')}">×</button></div>
+  s.innerHTML=`<div class="gd-shop-head"><div><div class="gd-label">${L('GARDEN SHOP','花园商城')}</div><strong>${L('Trade completed tasks for plants','用已完成事项兑换植物')}</strong></div><span class="gd-coin" id="gdShopWallet">✓ ${available()}</span><button type="button" class="gd-icon" data-gd="shopClose" aria-label="${L('Close shop','关闭商城')}">×</button></div>
   <nav class="gd-tabs">${TABS.map(([id,en,cn])=>`<button type="button" class="${tab===id?'on':''}" data-gd="tab" data-tab="${id}">${L(en,cn)}</button>`).join('')}</nav>
   <div class="gd-shop-body">${body}</div>`;
 }
@@ -354,7 +371,11 @@ function buyFence(id){
   if(!G.fences.includes(id)){if(!charge(f.price))return;G.fences.push(id);celebrate()}
   G.fence=id;persist();render();renderShop();
 }
-function expand(){if(G.rows>=MAX_ROWS||!charge(EXPAND_COST))return;G.rows++;persist();celebrate();say('Your garden grew by one row.','花园扩建了一排。');render();renderShop()}
+function expand(dir){
+  if(dir==='col'){if(G.cols>=MAX_COLS||!charge(EXPAND_COST))return;G.cols++;say('Your garden grew by one column.','花园扩建了一列。')}
+  else{if(G.rows>=MAX_ROWS||!charge(EXPAND_COST))return;G.rows++;say('Your garden grew by one row.','花园扩建了一排。')}
+  persist();celebrate();render();renderShop();
+}
 
 /* ---------- custom uploads ---------- */
 function onChange(e){
@@ -401,7 +422,8 @@ function deleteCustom(id){
 }
 
 /* ---------- hooks into the app ---------- */
-document.addEventListener('keydown',e=>{if(e.key==='Escape'&&isOpen()){if(shopOpen)closeShop();else closeGarden()}});
+document.addEventListener('dragstart',e=>{if(root&&root.contains(e.target))e.preventDefault()});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&drag){onPointerCancel();return}if(e.key==='Escape'&&isOpen()){if(shopOpen)closeShop();else closeGarden()}});
 try{const _ra=renderAll;renderAll=function(){_ra.apply(this,arguments);try{reconcile()}catch(err){console.error(err)}}}catch{}
 try{const _collect=collectGardenState;collectGardenState=async function(){const s=await _collect.apply(this,arguments);s.garden=G;return s}}catch{}
 try{const _apply=applyCloudState;applyCloudState=async function(state){
