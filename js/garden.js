@@ -92,7 +92,7 @@ const FENCES=[
 const TABS=[['flowers','Flowers','花草'],['trees','Trees','树木'],['decor','Decor','装饰'],['fences','Fences','围栏'],['land','Land','土地'],['custom','My uploads','自定义']];
 
 /* ---------- state ---------- */
-function blank(){return {version:1,earned:[],spent:0,inv:{},cells:{},rows:BASE_ROWS,cols:BASE_COLS,fence:'wood',fences:['wood'],custom:[],updatedAt:0}}
+function blank(){return {version:1,earned:[],spent:0,inv:{},cells:{},rows:BASE_ROWS,cols:BASE_COLS,fence:'wood',fences:['wood'],custom:[],updatedAt:0,editedAt:0}}
 function normalize(g){
   const b=blank();if(!g||typeof g!=='object')return b;
   const out={...b,...g};
@@ -105,12 +105,33 @@ function normalize(g){
   out.fences=Array.isArray(g.fences)&&g.fences.length?[...new Set(['wood',...g.fences])]:['wood'];
   if(!out.fences.includes(out.fence))out.fence='wood';
   out.custom=Array.isArray(g.custom)?g.custom.filter(c=>c&&c.id&&typeof c.img==='string'&&c.img.startsWith('data:image/')):[];
+  out.updatedAt=Number(g.updatedAt)||0;
+  // editedAt only moves on real user actions (buy / place / move …), never on the automatic ✓ ledger.
+  // Older saves had no editedAt: treat a garden with content as edited at its last save, an untouched one as never edited.
+  out.editedAt=Number(g.editedAt)||(hasContent(out)?(out.updatedAt||1):0);
   return out;
 }
+function hasContent(g){return !!(g&&(g.spent>0||Object.keys(g.cells||{}).length||Object.keys(g.inv||{}).length||(g.custom||[]).length||(g.fences||[]).length>1||g.rows>BASE_ROWS||g.cols>BASE_COLS))}
+/* Merge two copies of the garden (this device + cloud). The copy the user edited most recently decides
+   the layout, bag, spending and land; the completed-task ledger, fences and uploads are unioned so nothing
+   earned or bought is lost. A never-touched garden (editedAt 0) can never overwrite a real one. */
+function mergeGardens(a,b){
+  const A=normalize(a),B=normalize(b);
+  const base=B.editedAt>A.editedAt?B:A,other=base===B?A:B;
+  const out={...base};
+  out.earned=[...new Set([...A.earned,...B.earned])];
+  out.fences=[...new Set([...A.fences,...B.fences])];
+  const ids=new Set(base.custom.map(c=>c.id));
+  out.custom=[...base.custom,...other.custom.filter(c=>!ids.has(c.id))];
+  out.editedAt=Math.max(A.editedAt,B.editedAt);
+  out.updatedAt=Math.max(A.updatedAt,B.updatedAt);
+  return out;
+}
+const sameGarden=(a,b)=>{const k=g=>JSON.stringify([g.editedAt,g.spent,g.rows,g.cols,g.fence,g.cells,g.inv,[...g.earned].sort(),[...g.fences].sort(),g.custom.map(c=>c.id).sort()]);return k(normalize(a))===k(normalize(b))};
 let G=blank();
 try{G=normalize(JSON.parse(localStorage.getItem(GARDEN_KEY)||'null'))}catch{}
-function persist(sync=true){
-  G.updatedAt=Date.now();
+function persist(sync=true,edit=true){
+  G.updatedAt=Date.now();if(edit)G.editedAt=G.updatedAt;
   try{localStorage.setItem(GARDEN_KEY,JSON.stringify(G))}catch{say('Storage is full — try removing an uploaded image.','存储空间已满，请删除一些上传的图片。')}
   if(sync)try{queueCloudSync()}catch{}
 }
@@ -123,7 +144,7 @@ function reconcile(){
   if(typeof tasks==='undefined'||!Array.isArray(tasks))return;
   const set=new Set(G.earned);let changed=false;
   for(const t of tasks){const id=String(t.id);if(t.done&&!set.has(id)){set.add(id);changed=true}else if(!t.done&&set.has(id)){set.delete(id);changed=true}}
-  if(changed){G.earned=[...set];persist();renderHud()}
+  if(changed){G.earned=[...set];persist(true,false);renderHud()}
 }
 
 function item(id){return CATALOG.find(x=>x.id===id)||G.custom.find(x=>x.id===id)||null}
@@ -427,8 +448,19 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&drag){onPointerCanc
 try{const _ra=renderAll;renderAll=function(){_ra.apply(this,arguments);try{reconcile()}catch(err){console.error(err)}}}catch{}
 try{const _collect=collectGardenState;collectGardenState=async function(){const s=await _collect.apply(this,arguments);s.garden=G;return s}}catch{}
 try{const _apply=applyCloudState;applyCloudState=async function(state){
-  if(state&&state.garden&&typeof state.garden==='object'&&(Number(state.garden.updatedAt)||0)>=(G.updatedAt||0)-1000){G=normalize(state.garden);persist(false)}
-  await _apply.apply(this,arguments);if(isOpen())render();
+  let pushBack=false;
+  if(state&&typeof state==='object'){
+    const remote=state.garden&&typeof state.garden==='object'?state.garden:null;
+    if(remote){
+      const merged=mergeGardens(G,remote);
+      if(hasContent(G)&&merged.editedAt>G.editedAt&&!sameGarden(G,merged))try{localStorage.setItem(GARDEN_KEY+'-backup',JSON.stringify(G))}catch{}
+      pushBack=!sameGarden(merged,remote);
+      G=merged;try{localStorage.setItem(GARDEN_KEY,JSON.stringify(G))}catch{}
+    }else pushBack=hasContent(G);
+  }
+  await _apply.apply(this,arguments);
+  if(isOpen())render();
+  if(pushBack)setTimeout(()=>{try{uploadGardenState().catch(console.error)}catch{}},400);
 }}catch{}
 function injectMenuItem(){
   const body=document.querySelector('#sidebarBody');if(!body||body.querySelector('#sbGarden'))return;
