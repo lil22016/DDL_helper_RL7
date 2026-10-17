@@ -121,8 +121,10 @@ function normalize(g,kind='mine'){
   out.fences=Array.isArray(g.fences)&&g.fences.length?[...new Set(['wood',...g.fences])]:['wood'];
   if(!out.fences.includes(out.fence))out.fence='wood';
   out.custom=Array.isArray(g.custom)?g.custom.filter(c=>c&&c.id&&typeof c.img==='string'&&c.img.startsWith('data:image/')):[];
-  out.loans=Array.isArray(g.loans)?g.loans.filter(l=>l&&l.id).map(l=>({id:String(l.id),at:Number(l.at)||0,asked:Math.max(0,Math.floor(Number(l.asked)||0)),amount:Math.max(0,Math.floor(Number(l.amount)||0)),repay:!!l.repay,repaid:Math.max(0,r1(l.repaid)),msg:String(l.msg||''),reply:String(l.reply||'')})):[];
+  out.loans=Array.isArray(g.loans)?g.loans.filter(l=>l&&l.id).map(l=>({id:String(l.id),at:Number(l.at)||0,asked:Math.max(0,Math.floor(Number(l.asked)||0)),dir:l.dir==='out'?'out':'in',amount:Math.max(0,Math.floor(Number(l.amount)||0)),repay:!!l.repay,repaid:Math.max(0,r1(l.repaid)),msg:String(l.msg||''),reply:String(l.reply||'')})):[];
   out.repayOn=g.repayOn!==false;
+  out.allowVisits=!!g.allowVisits;out.lastVisitCheck=String(g.lastVisitCheck||'');
+  out.visit=g.visit&&typeof g.visit==='object'&&g.visit.id&&['suggest','borrow'].includes(g.visit.kind)?{id:String(g.visit.id),at:Number(g.visit.at)||0,kind:g.visit.kind,ops:Array.isArray(g.visit.ops)?g.visit.ops.filter(o=>o&&o.t):[],amount:Math.max(0,Math.floor(Number(g.visit.amount)||0)),repay:g.visit.repay!==false,say:String(g.visit.say||'')}:null;
   out.updatedAt=Number(g.updatedAt)||0;
   // editedAt only moves on real actions (buy / place / borrow …), never on the automatic ✓ ledger.
   out.editedAt=Number(g.editedAt)||(hasContent(out)?(out.updatedAt||1):0);
@@ -145,10 +147,11 @@ function mergeGardens(a,b,kind){
   out.archives=[...am.values()].sort((x,y)=>(x.start||'').localeCompare(y.start||'')).slice(-60);
   out.lastAuto=[A.lastAuto,B.lastAuto].sort().pop()||'';
   out.news=fresher.news||staler.news;
+  out.visit=fresher.visit===undefined?staler.visit:fresher.visit;out.lastVisitCheck=[A.lastVisitCheck,B.lastVisitCheck].sort().pop()||'';
   out.editedAt=Math.max(A.editedAt,B.editedAt);out.updatedAt=Math.max(A.updatedAt,B.updatedAt);
   return out;
 }
-const sig=g=>{g=normalize(g,g&&g.kind);return JSON.stringify([g.editedAt,g.spent,g.rows,g.cols,g.fence,g.cells,g.inv,[...g.earned].sort(),Object.entries(g.earnedMap).sort(),[...g.fences].sort(),g.custom.map(c=>c.id).sort(),g.loans.map(l=>[l.id,l.repaid]),g.repayOn,g.period,g.periodKey,g.archives.map(a=>a.id),g.autoPlant,g.lastAuto,g.news&&g.news.at])};
+const sig=g=>{g=normalize(g,g&&g.kind);return JSON.stringify([g.editedAt,g.spent,g.rows,g.cols,g.fence,g.cells,g.inv,[...g.earned].sort(),Object.entries(g.earnedMap).sort(),[...g.fences].sort(),g.custom.map(c=>c.id).sort(),g.loans.map(l=>[l.id,l.repaid]),g.repayOn,g.period,g.periodKey,g.archives.map(a=>a.id),g.autoPlant,g.lastAuto,g.allowVisits,g.visit&&g.visit.id,g.lastVisitCheck,g.news&&g.news.at])};
 const sameGarden=(a,b)=>sig(a)===sig(b);
 
 let MINE=blank('mine'),CHARB=blank('char'),OPS=[],CHAT={msgs:[]};
@@ -175,19 +178,22 @@ function recompute(){
 }
 
 /* ---------- credits ---------- */
-const lentTotal=()=>MINE.loans.reduce((s,l)=>s+l.amount,0);
-const repaidTotal=()=>MINE.loans.reduce((s,l)=>s+l.repaid,0);
-const debt=()=>r1(MINE.loans.reduce((s,l)=>s+(l.repay?Math.max(0,l.amount-l.repaid):0),0));
+/* loans: dir 'in' = the character lent to you, 'out' = you lent to the character */
+const netToMine=()=>r1(MINE.loans.reduce((s,l)=>s+(l.dir==='out'?-1:1)*(l.amount-l.repaid),0));
+const lentTotal=()=>MINE.loans.filter(l=>l.dir!=='out').reduce((s,l)=>s+l.amount,0);
+const repaidTotal=()=>MINE.loans.filter(l=>l.dir!=='out').reduce((s,l)=>s+l.repaid,0);
+const debt=()=>r1(MINE.loans.reduce((s,l)=>s+(l.dir!=='out'&&l.repay?Math.max(0,l.amount-l.repaid):0),0));
+const charDebt=()=>r1(MINE.loans.reduce((s,l)=>s+(l.dir==='out'&&l.repay?Math.max(0,l.amount-l.repaid):0),0));
 const earnedOf=S=>S.kind==='char'?r1(Object.values(S.earnedMap).reduce((a,b)=>a+b,0)):S.earned.length;
-const availOf=S=>Math.max(0,r1(earnedOf(S)-S.spent+(S.kind==='char'?repaidTotal()-lentTotal():lentTotal()-repaidTotal())));
+const availOf=S=>Math.max(0,r1(earnedOf(S)-S.spent+(S.kind==='char'?-netToMine():netToMine())));
 const available=()=>availOf(G);
 let lastErr='';
 function charge(S,n){if(availOf(S)+1e-9<n){lastErr=L(`You need ${fmt(n-availOf(S))} more ✓.`,`还差 ${fmt(n-availOf(S))} 个 ✓。`);return false}S.spent=r1(S.spent+n);return true}
 
 /* your ledger: a task stays earned even if deleted later; un-completing removes it.
    New ✓ pay back what you owe first (oldest loan first) when the loan was marked "pay back". */
-function repayFrom(n){
-  let left=n;for(const l of MINE.loans){if(left<=0)break;if(!l.repay)continue;const owe=r1(l.amount-l.repaid);if(owe<=0)continue;const x=Math.min(owe,left);l.repaid=r1(l.repaid+x);left=r1(left-x)}
+function repayFrom(n,dir='in'){
+  let left=n;for(const l of MINE.loans){if(left<=0)break;if(!l.repay||(l.dir==='out')!==(dir==='out'))continue;const owe=r1(l.amount-l.repaid);if(owe<=0)continue;const x=Math.min(owe,left);l.repaid=r1(l.repaid+x);left=r1(left-x)}
   return r1(n-left);
 }
 function reconcileMine(){
@@ -204,14 +210,18 @@ function reconcileMine(){
 const STATUS_VALUE={done:1,changed:.5};
 function reconcileChar(){
   if(typeof lokiData==='undefined'||!Array.isArray(lokiData.items))return;
-  let changed=false;
+  let changed=false;const before=earnedOf(CHARB);
   for(const it of lokiData.items){
     let st=it.status||'planned';try{st=lokiEffective(it).status}catch{}
     const v=STATUS_VALUE[st]||0,id=String(it.id),cur=CHARB.earnedMap[id]||0;
     if(st==='planned'&&!cur)continue;
     if(v!==cur){if(v)CHARB.earnedMap[id]=v;else delete CHARB.earnedMap[id];changed=true}
   }
-  if(changed){persistChar(false);recompute();renderHud()}
+  if(changed){
+    const gain=r1(earnedOf(CHARB)-before),paid=gain>0&&charDebt()>0?repayFrom(gain,'out'):0;
+    if(paid>0){persistMine(true);say(`${cname()} paid you back ✓ ${fmt(paid)}.`,`${cname()}还了你 ✓ ${fmt(paid)}。`)}
+    persistChar(false);recompute();renderHud();
+  }
 }
 function charCounts(){let d=0,c=0;for(const v of Object.values(CHARB.earnedMap)){if(v>=1)d++;else c++}return {d,c}}
 
@@ -316,7 +326,7 @@ function ensureRoot(){
   root.addEventListener('input',onInput);
   return root;
 }
-function setView(v){view=v==='char'?'char':'mine';sel={inv:null,cell:null};if(!busy)bubble=null;if(view!=='char')closeChat();else showNews();closeShop();closeSheet();if(tab==='custom'&&view==='char')uploadDraft=null;recompute();render()}
+function setView(v){view=v==='char'?'char':'mine';sel={inv:null,cell:null};if(!busy)bubble=null;if(view==='char')showNews();closeShop();closeSheet();if(tab==='custom'&&view==='char')uploadDraft=null;recompute();render()}
 let fromMenu=false,closeTimer=null;
 function openGarden(v,opts={}){
   fromMenu=!!opts.fromMenu;
@@ -355,7 +365,8 @@ function paintSocial(){
   let mode='';try{mode=Char.mode()}catch{}
   if(view==='mine'){
     const d=debt();
-    el.innerHTML=`<button type="button" class="gd-btn" data-gd="borrowOpen"${dis}>🤝 ${L(`Borrow ✓ from ${nm}`,`向${nm}借 ✓`)}</button>${d>0?`<span class="gd-debt">${L(`You owe ${nm} ✓ ${fmt(d)}`,`欠${nm} ✓ ${fmt(d)}`)}</span><button type="button" class="gd-btn" data-gd="repay"${dis}${available()<1?' disabled':''}>${L('Pay back','还')}</button>`:''}`;
+    const v=MINE.visit,cd=charDebt();
+    el.innerHTML=`${mode?`<button type="button" class="gd-btn gd-btn-primary" data-gd="chatOpen">💬 ${L(`Chat with ${nm}`,`和${nm}聊天`)}</button>`:''}${v?`<button type="button" class="gd-btn gd-visit" data-gd="visitOpen">📬 ${v.kind==='borrow'?L(`${nm} wants to borrow ✓ ${v.amount}`,`${nm}想借 ✓ ${v.amount}`):L(`${nm} left ${v.ops.length} suggestion${v.ops.length>1?'s':''}`,`${nm}留了 ${v.ops.length} 条建议`)}</button>`:''}${cd>0?`<span class="gd-debt gd-debt-in">${L(`${nm} owes you ✓ ${fmt(cd)}`,`${nm}欠你 ✓ ${fmt(cd)}`)}</span>`:''}<button type="button" class="gd-btn" data-gd="borrowOpen"${dis}>🤝 ${L(`Borrow ✓ from ${nm}`,`向${nm}借 ✓`)}</button>${d>0?`<span class="gd-debt">${L(`You owe ${nm} ✓ ${fmt(d)}`,`欠${nm} ✓ ${fmt(d)}`)}</span><button type="button" class="gd-btn" data-gd="repay"${dis}${available()<1?' disabled':''}>${L('Pay back','还')}</button>`:''}`;
   }else if(!mode){
     el.innerHTML=`<span class="gd-hint">${L('Set up your character first — their finished plans become their ✓.','先设置角色——角色完成的日程就是它的 ✓。')}</span><button type="button" class="gd-btn" data-gd="charSettings">🤖 ${L('Character & API','角色与 API')}</button>`;
   }else{
@@ -380,6 +391,7 @@ function renderTools(){
   <label class="gd-tool"><span>${L('Shape','形状')}</span><select id="gdShape" aria-label="${L('Rows × columns','行 × 列')}">${opts.map(([r,c])=>`<option value="${r}x${c}" ${r===G.rows&&c===G.cols?'selected':''}>${L(`${r} rows × ${c} cols`,`${r} 排 × ${c} 列`)}</option>`).join('')}</select></label>
   <label class="gd-tool"><span>${L('New garden','换新花园')}</span><select id="gdPeriod">${[['none',L('Never','不换')],['week',L('Every week','每周')],['month',L('Every month','每月')]].map(([v,t])=>`<option value="${v}" ${cur===v?'selected':''}>${t}</option>`).join('')}</select></label>
   <button type="button" class="gd-btn" data-gd="album">🖼 ${L('Album','相册')} ${S.archives.length?`(${S.archives.length})`:''}</button>
+  ${view==='mine'?`<label class="gd-chipcheck"><input type="checkbox" data-gd-visits ${MINE.allowVisits?'checked':''}><span>🚪 ${esc(L(`Let ${cname()} visit my garden`,`允许${cname()}来我的花园`))}<small>${L('suggests changes, may ask to borrow ✓','会给建议，也可能找你借 ✓')}</small></span></label>`:''}
   ${S.periodKey?`<span class="gd-season">${L('This season','本期')}：${esc(periodLabel(S.periodKey))}</span>`:''}`;
 }
 function render(){if(!isOpen())return;if(drag){drag.pendingRender=true;return}root.dataset.view=view;renderTitle();renderHud();renderSocial();renderSay();renderTools();renderPlot();if(chatOpen)renderChat();renderTray();renderActions();if(shopOpen)renderShop();if(sheet)renderSheet()}
@@ -531,6 +543,9 @@ function onClick(e){
     if(act==='chatSend')return sendChat();
     if(act==='album')return openSheet('album');
     if(act==='albumView'){albumId=a.dataset.id;return openSheet('albumView')}
+    if(act==='visitOpen')return openSheet('visit');
+    if(act==='visitAccept')return resolveVisit(true);
+    if(act==='visitDecline')return resolveVisit(false);
     return;
   }
   if(e.target.closest('[data-placed],[data-inv]'))return; // handled by pointer events
@@ -606,6 +621,8 @@ function onChange(e){
   if(e.target.id==='gdShape'){const [r,c]=e.target.value.split('x').map(Number);if(doOp({t:'shape',rows:r,cols:c})){sel={inv:null,cell:null};if(view==='char')say('Shape change added as a suggestion.','形状修改已作为建议。')}render();return}
   if(e.target.id==='gdPeriod'){const v=e.target.value;MINE.period=v;MINE.periodKey=periodKey(v);CHARB.periodKey=periodKey(v);persistMine();persistChar(false);render();say(v==='none'?'Your gardens keep growing — no reset.':`A fresh garden every ${v}. What’s planted now stays until the ${v} ends.`,v==='none'?'花园会一直保留，不再换新。':`每${v==='week'?'周':'月'}一个新花园。现在种的会保留到本${v==='week'?'周':'月'}结束，之后进相册。`);return}
   if(e.target.matches('[data-gd-auto]')){CHARB.autoPlant=e.target.checked;persistChar();renderSocial();return}
+  if(e.target.matches('[data-gd-visits]')){MINE.allowVisits=e.target.checked;if(!MINE.allowVisits)MINE.visit=null;persistMine();render();if(MINE.allowVisits)say(`${cname()} may drop by now and then.`,`${cname()}偶尔会过来看看。`);return}
+  if(e.target.matches('[data-visit-op]')){renderVisitPreview();return}
   if(e.target.id!=='gdFile')return;
   const f=e.target.files&&e.target.files[0];if(!f)return;
   if(!f.type.startsWith('image/'))return say('Please choose an image file.','请选择图片文件。');
@@ -667,6 +684,22 @@ function renderSheet(){
       <button type="button" class="gd-buy gd-wide" data-gd="borrowSend"${busy||cAvail<1?' disabled':''}>${cAvail<1?L(`${nm} has no ✓ to lend`,`${nm}现在没有 ✓ 可以借`):L(`Ask ${nm}`,`问问${nm}`)}</button>
       ${hist.length?`<div class="gd-hist"><div class="gd-label">${L('HISTORY','记录')}</div>${hist.map(l=>`<div class="gd-hist-row"><span>${new Date(l.at).toLocaleDateString(uiLocale(),{month:'short',day:'numeric'})}</span><span>${l.amount?L(`lent ${l.amount}/${l.asked}`,`借到 ${l.amount}/${l.asked}`):L(`refused (${l.asked})`,`拒绝了（${l.asked}）`)}${l.amount?(l.repay?` · ${L('repaid','已还')} ${fmt(l.repaid)}/${l.amount}`:` · ${L('gift','送的')}`):''}</span>${l.reply?`<small>“${esc(l.reply)}”</small>`:''}</div>`).join('')}</div>`:''}
     </div>`;
+  }else if(sheet==='visit'){
+    const v=MINE.visit;if(!v){closeSheet();return}
+    if(v.kind==='borrow'){
+      s.innerHTML=sheetHead(L('VISIT','来访'),L(`${nm} wants to borrow ✓ ${v.amount}`,`${nm}想借 ✓ ${v.amount}`))+`<div class="gd-shop-body gd-form">
+        ${v.say?`<div class="gd-quote"><span class="gd-ava">${esc(cemoji())}</span><p>${esc(v.say)}</p></div>`:''}
+        <div class="gd-stats"><span>${L('You have','你有')} <b>✓ ${fmt(availOf(MINE))}</b></span><span>${esc(cemoji())} ${nm} <b>✓ ${fmt(availOf(CHARB))}</b></span><span>${v.repay?L('Will pay back from their next plans','之后完成的日程会先还你'):L('Asks it as a gift','想让你送')}</span></div>
+        <div class="gd-row2"><button type="button" class="gd-buy gd-wide" data-gd="visitAccept"${busy||availOf(MINE)<1?' disabled':''}>${L(`Lend ✓ ${Math.min(v.amount,Math.floor(availOf(MINE)))}`,`借给${nm} ✓ ${Math.min(v.amount,Math.floor(availOf(MINE)))}`)}</button><button type="button" class="gd-btn gd-wide" data-gd="visitDecline"${busy?' disabled':''}>${L('Not this time','不借')}</button></div>
+      </div>`;
+    }else{
+      s.innerHTML=sheetHead(L('VISIT','来访'),L(`${nm}'s suggestions for your garden`,`${nm}给你花园的建议`))+`<div class="gd-shop-body gd-form">
+        ${v.say?`<div class="gd-quote"><span class="gd-ava">${esc(cemoji())}</span><p>${esc(v.say)}</p></div>`:''}
+        <div class="gd-visit-grid"><ol class="gd-ops gd-checks">${v.ops.map((o,i)=>`<li><label><input type="checkbox" data-visit-op="${i}" checked> ${esc(opTextHuman(o))}</label></li>`).join('')}</ol><div class="gd-preview"><div class="gd-label">${L('PREVIEW','预览')}</div><div id="gdVisitPreview"></div></div></div>
+        <div class="gd-row2"><button type="button" class="gd-buy gd-wide" data-gd="visitAccept"${busy?' disabled':''}>${L('Accept selected','接受勾选的')}</button><button type="button" class="gd-btn gd-wide" data-gd="visitDecline"${busy?' disabled':''}>${L('Keep mine as is','都不要')}</button></div>
+      </div>`;
+      renderVisitPreview();
+    }
   }else if(sheet==='album'||sheet==='albumView'){
     const S=view==='char'?CHARB:MINE,list=[...S.archives].reverse(),title=view==='char'?L(`${cname()}'s album`,`${cname()}的相册`):L('Garden album','花园相册');
     if(sheet==='albumView'){const a=S.archives.find(x=>x.id===albumId);if(!a){sheet='album';return renderSheet()}
@@ -687,6 +720,12 @@ function staticPlot(a,cell){
   const f=FENCE_ART[a.fence]||FENCE_ART.wood,ft=Math.max(6,Math.round(cell*.33));let h='',p='';
   for(let r=0;r<a.rows;r++)for(let c=0;c<a.cols;c++){h+=`<div class="gd-cell${(r+c)%2?' alt':''}"></div>`;const v=a.cells[`${r},${c}`],it=v&&item(v.item);if(it)p+=`<div class="gd-slot" style="grid-row:${r+1};grid-column:${c+1};z-index:${it.ground?1:r*2+10}"><div class="gd-item${it.tall?' tall':''}${it.ground?' ground':''}${v.flip?' flip':''}">${artHtml(it)}</div></div>`}
   return `<div class="gd-plot gd-static" data-fence="${esc(a.fence)}" style="--gd-ft:${ft}px;--gd-cell:${cell}px;--gd-cols:${a.cols};--gd-rows:${a.rows};--gd-fh:url(&quot;data:image/svg+xml,${encodeURIComponent(f.h)}&quot;);--gd-fv:url(&quot;data:image/svg+xml,${encodeURIComponent(f.v)}&quot;)"><div class="gd-fence gd-fence-top"></div><div class="gd-fence gd-fence-left"></div><div class="gd-fence gd-fence-right"></div><div class="gd-grid" style="--gd-cols:${a.cols}">${h}</div><div class="gd-items" style="--gd-cols:${a.cols};--gd-rows:${a.rows}">${p}</div><div class="gd-fence gd-fence-bottom"></div></div>`;
+}
+function renderVisitPreview(){
+  const box=root.querySelector('#gdVisitPreview'),v=MINE.visit;if(!box||!v)return;
+  const picks=new Set([...root.querySelectorAll('[data-visit-op]')].filter(x=>x.checked).map(x=>+x.dataset.visitOp));
+  const t=clone(MINE);v.ops.forEach((op,i)=>{if(picks.has(i))applyOp(t,op)});
+  box.innerHTML=staticPlot(t,Math.max(10,Math.floor(Math.min(320,window.innerWidth-80)/t.cols)));
 }
 function opTextHuman(op){
   const nm=id=>itemName(item(id)),cell=k=>{const [r,c]=String(k).split(',');return L(`row ${+r+1}, col ${+c+1}`,`第 ${+r+1} 排第 ${+c+1} 列`)};
@@ -709,12 +748,14 @@ async function sendBorrow(){
   MINE.repayOn=repay;
   const ctx={amount,msg,repay,charAvail:availOf(CHARB),myAvail:availOf(MINE),debt:debt(),history:MINE.loans.slice(-5)};
   closeSheet();setBusy(L('thinking','正在想'));
+  logChat('user',L(`🤝 Can I borrow ✓ ${amount}?${msg?` ${msg}`:''}`,`🤝 能借我 ✓ ${amount} 吗？${msg?` ${msg}`:''}`),repay?L('I’ll pay it back','会还'):L('as a gift','当作送我'));
   let res;
-  try{res=await Char.decideLoan(ctx)}catch(e){busy='';bubble={text:L(`(Couldn’t reach ${cname()}: ${e.message})`,`（联系不上${cname()}：${e.message}）`)};render();return}
+  try{res=await Char.decideLoan(ctx)}catch(e){busy='';bubble={text:failMsg(e)};logChat('char',failMsg(e));render();return}
   const granted=Math.max(0,Math.min(res.amount|0,Math.floor(availOf(CHARB))));
   MINE.loans.push({id:uid(),at:Date.now(),asked:amount,amount:granted,repay,repaid:0,msg,reply:res.reply||''});
   persistMine();recompute();
   if(granted)celebrate();
+  logChat('char',res.reply||'',granted?L(`lent you ✓ ${granted}`,`借给你 ✓ ${granted}`):L('declined','没借'));
   speak(res.reply||'',granted?L(`+✓ ${granted} from ${cname()}${repay?' · to pay back':' · a gift'}`,`${cname()}给了你 ✓ ${granted}${repay?' · 之后要还':' · 送你的'}`):L('Request declined.','没有借给你。'));
 }
 function repayNow(){
@@ -724,14 +765,39 @@ function repayNow(){
   say(`Paid ${cname()} back ✓ ${fmt(paid)}.`,`还给${cname()} ✓ ${fmt(paid)}。`);render();
 }
 function resolveId(x){x=String(x||'').trim();if(item(x))return x;const lx=x.toLowerCase();const hit=[...CATALOG,...MINE.custom].find(i=>[i.en,i.cn,i.name].filter(Boolean).some(n=>String(n).toLowerCase()===lx));return hit?hit.id:''}
-function cellKey(v){if(Array.isArray(v))return `${v[0]},${v[1]}`;const m=/(\d+)\D+(\d+)/.exec(String(v||''));return m?`${+m[1]},${+m[2]}`:''}
-function decorateCtx(){
-  const S=CHARB,empty=[];for(let r=0;r<S.rows;r++)for(let c=0;c<S.cols;c++)if(!S.cells[`${r},${c}`])empty.push(`${r},${c}`);
+/* The AI always sees positions counted from 1 (row 1 = back), like a person would; we store them from 0. */
+const toAI=k=>{const [r,c]=String(k).split(',').map(Number);return `${r+1},${c+1}`};
+function cellKey(v){let a,b;if(Array.isArray(v)){a=+v[0];b=+v[1]}else{const m=/(\d+)\D+(\d+)/.exec(String(v||''));if(!m)return '';a=+m[1];b=+m[2]}if(!(a>=1&&b>=1))return '';return `${a-1},${b-1}`}
+function decorateCtx(S=CHARB){
+  const empty=[];for(let r=0;r<S.rows;r++)for(let c=0;c<S.cols;c++)if(!S.cells[`${r},${c}`])empty.push(toAI(`${r},${c}`));
   return {avail:availOf(S),rows:S.rows,cols:S.cols,expandCost:EXPAND_COST,
     catalog:[...CATALOG,...MINE.custom].map(i=>({id:i.id,name:itemName(i),price:i.price,kind:i.tall?'tree':i.ground?'ground decor':(i.cat==='decor'?'decor':'plant')})),
     fences:FENCES.map(f=>({id:f.id,name:L(f.en,f.cn),price:f.price,owned:S.fences.includes(f.id)})),fence:S.fence,inv:{...S.inv},
-    placed:Object.entries(S.cells).map(([at,c])=>({at,id:c.item,name:itemName(item(c.item))})),empty};
+    placed:Object.entries(S.cells).map(([at,c])=>({at:toAI(at),id:c.item,name:itemName(item(c.item))})),empty};
 }
+function opTextAI(op){
+  const nm=id=>{const it=item(id);return it?(it.custom?it.name:it.en):id},cell=k=>`row ${+k.split(',')[0]+1} col ${+k.split(',')[1]+1}`;
+  switch(op.t){
+    case 'buy':return `buy ${nm(op.id)} (${item(op.id)?.price} ✓)`;
+    case 'place':return `plant ${nm(op.id)} at ${cell(op.to)}`;
+    case 'move':return `move what is at ${cell(op.from)} to ${cell(op.to)}`;
+    case 'store':return `put what is at ${cell(op.at)} back in the bag`;
+    case 'flip':return `flip what is at ${cell(op.at)}`;
+    case 'fence':return `switch the fence to ${FENCES.find(f=>f.id===op.id)?.en||op.id}`;
+    case 'expand':return op.dir==='col'?`add a column (${EXPAND_COST} ✓)`:`add a row (${EXPAND_COST} ✓)`;
+    case 'shape':return `reshape to ${op.rows} rows × ${op.cols} columns (same number of plots)`;
+  }
+  return op.t;
+}
+/* turn an AI plan into ops for a garden (used for suggestions to YOUR garden) */
+function planToOps(plan){
+  const ops=[];if(!plan)return ops;
+  for(const b of (plan.buy||[]).slice(0,10)){const id=resolveId(b);if(id)ops.push({t:'buy',id})}
+  for(const p of (plan.place||[]).slice(0,20)){const id=resolveId(p&&(p.id||p.item)),to=cellKey(p&&(p.to||p.cell||p.at));if(id&&to)ops.push({t:'place',id,to})}
+  for(const m of (plan.move||[]).slice(0,20)){const from=cellKey(m&&m.from),to=cellKey(m&&m.to);if(from&&to)ops.push({t:'move',from,to})}
+  return ops;
+}
+function logChat(role,text,note=''){if(!text&&!note)return;CHAT.msgs.push({id:uid(),role,text:text||'…',note,at:Date.now()});saveChat();if(isOpen()&&chatOpen)renderChat()}
 function applyPlan(plan){
   const S=CHARB;let n=0,bought=0;const run=op=>{if(applyOp(S,op)){if(op.t==='buy')bought++;else n++}};
   if(!plan)return 0;
@@ -749,6 +815,7 @@ async function letDecorate(){
   try{plan=await Char.decorate(decorateCtx())}catch(e){busy='';bubble={text:failMsg(e)};render();return}
   const n=applyPlan(plan);
   persistChar(n>0);recompute();
+  logChat('char',plan.say||'',n?L(`decorated · ${n} change${n>1?'s':''}`,`布置了花园 · ${n} 处改动`):'');
   speak(plan.say||'',n?L(`${cname()} made ${n} change${n>1?'s':''}.`,`${cname()}做了 ${n} 处改动。`):L('Nothing changed.','没有改动。'));
 }
 /* the character tends their garden by themselves once a day when they have ✓ to spare */
@@ -762,11 +829,50 @@ async function maybeAutoPlant(){
   try{
     const plan=await Char.decorate({...decorateCtx(),auto:true});
     const n=applyPlan(plan);
-    if(n){CHARB.news={text:plan.say||'',note:L(`${cname()} tended the garden on their own · ${n} change${n>1?'s':''}`,`${cname()}自己打理了花园 · ${n} 处改动`),at:Date.now(),seen:false};persistChar(true);recompute()}
+    if(n){CHARB.news={text:plan.say||'',note:L(`${cname()} tended the garden on their own · ${n} change${n>1?'s':''}`,`${cname()}自己打理了花园 · ${n} 处改动`),at:Date.now(),seen:false};persistChar(true);recompute();logChat('char',plan.say||'',CHARB.news.note)}
     if(isOpen()){if(view==='char')showNews();render()}
   }catch(e){console.warn('auto plant failed',e)}
   finally{autoRunning=false}
 }
+/* the character visits YOUR garden now and then (only if you allow it) */
+let visitRunning=false;
+async function maybeVisit(force=false){
+  let mode='';try{mode=Char.mode()}catch{}
+  if(!mode||!MINE.allowVisits||visitRunning||busy||MINE.visit)return;
+  const today=ymd(new Date());
+  if(!force){if(MINE.lastVisitCheck===today||new Date().getHours()<10)return;MINE.lastVisitCheck=today;persistMine(false);if(Math.random()>.45)return}
+  visitRunning=true;
+  try{
+    reconcileChar();const dc=decorateCtx(MINE);
+    const res=await Char.visit({myGarden:{...dc,avail:availOf(MINE)},myAvail:availOf(MINE),charAvail:availOf(CHARB),charDebt:charDebt(),myDebt:debt()});
+    let v=null;
+    if(res.kind==='suggest'){const ops=planToOps(res.suggest);if(ops.length)v={kind:'suggest',ops}}
+    else if(res.kind==='borrow'){const amount=Math.min(res.amount,Math.floor(availOf(MINE)));if(amount>=1)v={kind:'borrow',amount,repay:res.repay}}
+    if(v){MINE.visit={id:uid(),at:Date.now(),ops:[],amount:0,repay:true,...v,say:res.say||''};persistMine();logChat('char',res.say||'',v.kind==='borrow'?L(`visited your garden · wants to borrow ✓ ${v.amount}${v.repay?' (will pay back)':''}`,`来了你的花园 · 想借 ✓ ${v.amount}${v.repay?'（会还）':''}`):L(`visited your garden · ${v.ops.length} suggestion${v.ops.length>1?'s':''}`,`来了你的花园 · 留了 ${v.ops.length} 条建议`))}
+    if(isOpen())render();
+  }catch(e){console.warn('visit failed',e)}
+  finally{visitRunning=false}
+}
+async function resolveVisit(accept){
+  const v=MINE.visit;if(!v||busy)return;
+  let accepted=0,total=1,declinedText='';
+  if(v.kind==='borrow'){
+    const amount=Math.min(v.amount,Math.floor(availOf(MINE)));
+    if(accept&&amount>=1){MINE.loans.push({id:uid(),at:Date.now(),asked:v.amount,amount,dir:'out',repay:v.repay,repaid:0,msg:'',reply:v.say});accepted=1;logChat('user',L(`Sure — here’s ✓ ${amount}.`,`好，借你 ✓ ${amount}。`),v.repay?L(`${cname()} will pay it back from their next plans`,`${cname()}之后完成的日程会先还给你`):'')}
+    else logChat('user',L('Sorry, not this time.','这次不借了。'));
+  }else{
+    const picks=accept===false?[]:[...root.querySelectorAll('[data-visit-op]')].filter(x=>x.checked).map(x=>+x.dataset.visitOp);
+    total=v.ops.length;const set=new Set(picks);
+    v.ops.forEach((op,i)=>{if(set.has(i)&&applyOp(MINE,op))accepted++});
+    declinedText=v.ops.filter((_,i)=>!set.has(i)).map(opTextAI).join('; ');
+    logChat('user',accepted?L(`I took ${accepted} of your ${total} suggestions.`,`你的 ${total} 条建议我采纳了 ${accepted} 条。`):L('I’ll keep my garden as it is.','我还是保持原样吧。'));
+  }
+  MINE.visit=null;persistMine();recompute();closeSheet();
+  setBusy(L('thinking','正在想'));
+  let reply='';try{reply=await Char.react({kind:v.kind,accepted,total,amount:v.amount,declinedText})}catch(e){reply=failMsg(e)}
+  logChat('char',reply);speak(reply,'');
+}
+
 function showNews(){if(CHARB.news&&!CHARB.news.seen){bubble={text:CHARB.news.text,note:CHARB.news.note};CHARB.news.seen=true;persistChar(false)}}
 
 /* ---------- chat ---------- */
@@ -787,7 +893,7 @@ async function sendChat(){
   ta.value='';
   CHAT.msgs.push({id:uid(),role:'user',text,at:Date.now()});saveChat();
   busy=L('typing','正在输入');renderChat();renderSocial();renderSay();
-  const ctx={message:text,history:CHAT.msgs.slice(-13,-1),garden:decorateCtx(),myAvail:availOf(MINE),debt:debt(),repay:MINE.repayOn};
+  const ctx={message:text,history:CHAT.msgs.slice(-13,-1),where:view,garden:decorateCtx(CHARB),myGarden:{...decorateCtx(MINE),avail:availOf(MINE)},myAvail:availOf(MINE),debt:debt(),repay:MINE.repayOn};
   let res;
   try{res=await Char.chat(ctx)}catch(e){busy='';CHAT.msgs.push({id:uid(),role:'char',text:failMsg(e),at:Date.now()});saveChat(false);render();return}
   const notes=[];
@@ -795,6 +901,8 @@ async function sendChat(){
   const lend=Math.min(res.lend|0,Math.floor(availOf(CHARB)));
   if(lend>0){MINE.loans.push({id:uid(),at:Date.now(),asked:lend,amount:lend,repay:MINE.repayOn,repaid:0,msg:text,reply:res.reply||''});persistMine();notes.push(L(`lent you ✓ ${lend}${MINE.repayOn?' (to pay back)':' (gift)'}`,`借给你 ✓ ${lend}${MINE.repayOn?'（要还）':'（送你）'}`));celebrate()}
   else if((res.lend|0)>0)notes.push(L(`${cname()} has no ✓ to spare — nothing was lent`,`${cname()}没有多余的 ✓，实际没借成`));
+  const sops=planToOps(res.suggest);
+  if(sops.length){MINE.visit={id:uid(),at:Date.now(),kind:'suggest',ops:sops,amount:0,repay:true,say:res.reply||''};persistMine();notes.push(L(`left ${sops.length} suggestion${sops.length>1?'s':''} for your garden`,`给你的花园留了 ${sops.length} 条建议`))}
   busy='';recompute();
   CHAT.msgs.push({id:uid(),role:'char',text:res.reply||'…',note:notes.join(' · '),at:Date.now()});saveChat();
   render();
@@ -803,12 +911,15 @@ async function sendSuggestions(){
   if(!OPS.length||busy)return;
   const note=(root.querySelector('#gdNote')?.value||'').trim().slice(0,200);
   const ops=[...OPS];closeSheet();setBusy(L('looking at your suggestions','正在看你的建议'));
+  logChat('user',`📝 ${L('Suggestions for your garden','给你花园的建议')}：\n${ops.map((o,i)=>`${i+1}. ${opTextHuman(o)}`).join('\n')}${note?`\n${note}`:''}`);
   let res;
-  const ctx={avail:availOf(CHARB),rows:CHARB.rows,cols:CHARB.cols,placed:Object.entries(CHARB.cells).map(([at,c])=>({at,name:itemName(item(c.item))})),ops:ops.map(opTextHuman),msg:note};
-  try{res=await Char.review(ctx)}catch(e){busy='';bubble={text:L(`(Couldn’t reach ${cname()}: ${e.message})`,`（联系不上${cname()}：${e.message}）`)};render();return}
+  const dc=decorateCtx(CHARB);
+  const ctx={avail:availOf(CHARB),rows:CHARB.rows,cols:CHARB.cols,placed:dc.placed,empty:dc.empty,ops:ops.map(opTextAI),msg:note};
+  try{res=await Char.review(ctx)}catch(e){busy='';bubble={text:failMsg(e)};logChat('char',failMsg(e));render();return}
   const acc=new Set(res.accepted);let n=0;
   ops.forEach((op,i)=>{if(acc.has(i)&&applyOp(CHARB,op))n++});
   OPS=[];saveOps();persistChar(n>0);recompute();sel={inv:null,cell:null};
+  logChat('char',res.reply||'',L(`accepted ${n} of ${ops.length}`,`接受了 ${n}/${ops.length} 条`));
   speak(res.reply||'',L(`${cname()} accepted ${n} of ${ops.length}.`,`${cname()}接受了 ${n}/${ops.length} 条。`));
 }
 
@@ -848,7 +959,9 @@ function injectMenuItem(){
 try{const _open=openSidebar;openSidebar=function(){_open.apply(this,arguments);injectMenuItem()};const sb=document.querySelector('#sidebarBtn');if(sb)sb.onclick=openSidebar}catch{}
 setTimeout(()=>{try{reconcileChar();checkSeasons()}catch{}},1200);
 setTimeout(()=>{maybeAutoPlant().catch(()=>{})},9000);
+setTimeout(()=>{maybeVisit().catch(()=>{})},15000);
+setInterval(()=>{if(!document.hidden)maybeVisit().catch(()=>{})},45*60000);
 setInterval(()=>{if(!document.hidden){try{checkSeasons()}catch{}maybeAutoPlant().catch(()=>{})}},30*60000);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden){try{checkSeasons()}catch{}setTimeout(()=>maybeAutoPlant().catch(()=>{}),4000)}});
-window.DeadlineGarden={open:openGarden,close:closeGarden,refresh:()=>{recompute();render()},_autoPlant:()=>{CHARB.lastAuto='';return maybeAutoPlant()}};
+window.DeadlineGarden={open:openGarden,close:closeGarden,refresh:()=>{recompute();render()},_autoPlant:()=>{CHARB.lastAuto='';return maybeAutoPlant()},_visit:()=>maybeVisit(true)};
 })();

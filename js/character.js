@@ -14,8 +14,8 @@ const day=d=>{const x=d||new Date();return `${x.getFullYear()}-${String(x.getMon
 const OUTCOMES=['done','changed','failed','cancelled'];
 
 /* ---------- config ---------- */
-function blankCfg(){return {mode:'',name:'',userName:'',persona:'',background:'',extra:'',provider:'openai',baseUrl:'',apiKey:'',model:'',updatedAt:0}}
-function normCfg(c){const b=blankCfg();if(!c||typeof c!=='object')return b;const o={...b};for(const k of Object.keys(b))if(c[k]!=null)o[k]=typeof b[k]==='number'?Number(c[k])||0:String(c[k]);if(!['','uranus','api'].includes(o.mode))o.mode='';if(!['openai','anthropic'].includes(o.provider))o.provider='openai';return o}
+function blankCfg(){return {mode:'',name:'',userName:'',persona:'',background:'',extra:'',replyLang:'auto',provider:'openai',baseUrl:'',apiKey:'',model:'',updatedAt:0}}
+function normCfg(c){const b=blankCfg();if(!c||typeof c!=='object')return b;const o={...b};for(const k of Object.keys(b))if(c[k]!=null)o[k]=typeof b[k]==='number'?Number(c[k])||0:String(c[k]);if(!['','uranus','api'].includes(o.mode))o.mode='';if(!['openai','anthropic'].includes(o.provider))o.provider='openai';if(!['auto','zh','en'].includes(o.replyLang))o.replyLang='auto';return o}
 let cfg=blankCfg();
 try{cfg=normCfg(JSON.parse(localStorage.getItem(CFG_KEY)||'null'))}catch{}
 try{if(!cfg.mode&&typeof lokiCfg!=='undefined'&&lokiCfg.url&&lokiCfg.token)cfg.mode='uranus'}catch{}
@@ -24,6 +24,8 @@ const hasAI=()=>!!(cfg.apiKey&&cfg.model);
 const charName=()=>cfg.name.trim()||(typeof lokiData!=='undefined'&&lokiData.name)||L('Character','角色');
 const charEmoji=()=>{try{return lokiCfg.emoji||'✨'}catch{return '✨'}};
 const userName=()=>cfg.userName.trim()||L('the user','用户');
+/* the character's language is independent of the app's interface language */
+const LR=(en,cn)=>cfg.replyLang==='zh'?cn:cfg.replyLang==='en'?en:L(en,cn);
 
 /* ---------- AI client (OpenAI-compatible or Anthropic, straight from the browser) ---------- */
 async function post(url,headers,body,timeout=70000){
@@ -57,7 +59,7 @@ function parseJSON(text){
   const a=s.indexOf('{'),b=s.lastIndexOf('}');if(a<0||b<=a)throw new Error(L('The AI reply was not JSON.','AI 回复的不是 JSON。'));
   return JSON.parse(s.slice(a,b+1));
 }
-async function askJSON(system,user,opts){return parseJSON(await ask(system,user+`\n\n${L('Respond with ONLY the JSON object, no other text.','只输出 JSON 对象，不要输出其他文字。')}`,opts))}
+async function askJSON(system,user,opts){return parseJSON(await ask(system,user+`\n\nRespond with ONLY the JSON object, no other text.`,opts))}
 
 function personaSystem(){
   const lines=[`You are role-playing ${charName()}. Stay fully in character at all times; never mention being an AI or a model.`];
@@ -65,7 +67,8 @@ function personaSystem(){
   if(cfg.background.trim())lines.push(`Background:\n${cfg.background.trim()}`);
   if(cfg.extra.trim())lines.push(`Other details:\n${cfg.extra.trim()}`);
   lines.push(`The person you talk to is ${userName()}. You both use an app called Deadline Garden: finishing plans earns ✓ (check marks), and ✓ buy plants and decorations for your own little fenced garden.`);
-  lines.push(`Language: write every human-readable text (titles, replies) in ${zh()?'Simplified Chinese':'English'} unless your persona clearly speaks another language.`);
+  lines.push(cfg.replyLang==='zh'?'Language: write every human-readable text (titles, replies) in Simplified Chinese.':cfg.replyLang==='en'?'Language: write every human-readable text (titles, replies) in English.':'Language: use whatever language suits your persona and the conversation — usually the language the other person writes to you in. The app’s interface language does not matter.');
+  lines.push('Garden positions are always written "row,col" counting from 1: row 1 is the back row (top of the screen), column 1 is the left edge. Use exactly this convention in your answers.');
   return lines.join('\n\n');
 }
 
@@ -131,11 +134,11 @@ const listeners=new Set();function notify(){for(const f of listeners)try{f()}cat
 const rnd=a=>a[Math.floor(Math.random()*a.length)];
 const fmt=n=>Number.isInteger(n)?String(n):n.toFixed(1);
 function fallbackLoan(c){
-  const cap=Math.floor(c.charAvail);if(cap<1)return {agree:false,amount:0,reply:L(`I don't have any ✓ to spare right now.`,`我自己现在也没有多余的 ✓ 了。`)};
+  const cap=Math.floor(c.charAvail);if(cap<1)return {agree:false,amount:0,reply:LR(`I don't have any ✓ to spare right now.`,`我自己现在也没有多余的 ✓ 了。`)};
   let p=.85-.12*Math.min(4,c.debt)-.45*Math.min(1,c.amount/Math.max(1,c.charAvail));if(!c.repay)p-=.1;
-  if(Math.random()>Math.max(.1,p))return {agree:false,amount:0,reply:rnd(L(['Not this time — finish a couple of your own first.','Hmm… no. You still owe me, remember?','I need mine for my garden today.'],['这次不行，先自己完成几个吧。','嗯……不借。你上次的还没还呢。','我今天要用来布置花园。']))};
+  if(Math.random()>Math.max(.1,p))return {agree:false,amount:0,reply:rnd(LR(['Not this time — finish a couple of your own first.','Hmm… no. You still owe me, remember?','I need mine for my garden today.'],['这次不行，先自己完成几个吧。','嗯……不借。你上次的还没还呢。','我今天要用来布置花园。']))};
   const amount=Math.max(1,Math.min(cap,c.amount));
-  return {agree:true,amount,reply:amount<c.amount?L(`I can only spare ${amount}.`,`我只能借你 ${amount} 个。`):rnd(L(['Fine. Take them.','Here you go — spend them well.','Okay, just this once.'],['好吧，拿去。','给你，好好用。','行，就这一次。']))};
+  return {agree:true,amount,reply:amount<c.amount?LR(`I can only spare ${amount}.`,`我只能借你 ${amount} 个。`):rnd(LR(['Fine. Take them.','Here you go — spend them well.','Okay, just this once.'],['好吧，拿去。','给你，好好用。','行，就这一次。']))};
 }
 async function decideLoan(c){
   if(Math.floor(c.charAvail)<1)return fallbackLoan(c);
@@ -157,8 +160,8 @@ function fallbackDecorate(c){
   const buyable=c.catalog.filter(x=>x.price<=budget);
   for(let i=0;i<8&&budget>0&&empty.length;i++){const opts=c.catalog.filter(x=>x.price<=budget);if(!opts.length)break;const it=rnd(opts);plan.buy.push(it.id);budget-=it.price;const k=empty.splice(Math.floor(Math.random()*empty.length),1)[0];plan.place.push({id:it.id,to:k})}
   for(const [id,n] of Object.entries(c.inv))for(let i=0;i<n&&empty.length;i++){const k=empty.splice(Math.floor(Math.random()*empty.length),1)[0];plan.place.push({id,to:k})}
-  plan.say=plan.place.length?rnd(L(['There. Much better.','I like it like this.','Done — don’t touch anything.'],['好了，好看多了。','我喜欢这样。','布置好了，别乱动。'])):L('Nothing to add today.','今天没什么要加的。');
-  if(!buyable.length&&!plan.place.length)plan.say=L('I need more ✓ before I can buy anything.','我得再攒点 ✓ 才能买东西。');
+  plan.say=plan.place.length?rnd(LR(['There. Much better.','I like it like this.','Done — don’t touch anything.'],['好了，好看多了。','我喜欢这样。','布置好了，别乱动。'])):LR('Nothing to add today.','今天没什么要加的。');
+  if(!buyable.length&&!plan.place.length)plan.say=LR('I need more ✓ before I can buy anything.','我得再攒点 ✓ 才能买东西。');
   return plan;
 }
 async function decorate(c){
@@ -172,13 +175,14 @@ JSON shape: {"buy":["id",...],"place":[{"id":"id","to":"r,c"}],"move":[{"from":"
 }
 function fallbackReview(c){
   const accepted=c.ops.map((_,i)=>i).filter(()=>Math.random()<.72);
-  const reply=accepted.length===c.ops.length?rnd(L(['Fine, your way.','Okay, I like that.'],['行，听你的。','嗯，这样也不错。'])):accepted.length?L('Some of it. Not all.','一部分可以，其他的不行。'):rnd(L(['No. It’s my garden.','I’d rather keep it as it is.'],['不要，这是我的花园。','我还是喜欢原来的样子。']));
+  const reply=accepted.length===c.ops.length?rnd(LR(['Fine, your way.','Okay, I like that.'],['行，听你的。','嗯，这样也不错。'])):accepted.length?LR('Some of it. Not all.','一部分可以，其他的不行。'):rnd(LR(['No. It’s my garden.','I’d rather keep it as it is.'],['不要，这是我的花园。','我还是喜欢原来的样子。']));
   return {accepted,reply};
 }
 async function review(c){
   if(!hasAI())return fallbackReview(c);
-  const user=`${userName()} suggests changes to YOUR garden (they cannot change it without your approval). Grid ${c.rows}×${c.cols}, cells "row,col". Your balance before the changes: ${fmt(c.avail)} ✓ — purchases are paid with your ✓.
+  const user=`${userName()} suggests changes to YOUR garden (they cannot change it without your approval). Grid ${c.rows} rows × ${c.cols} columns, cells "row,col" from 1,1. Your balance before the changes: ${fmt(c.avail)} ✓ — purchases are paid with your ✓.
 Currently placed: ${c.placed.map(p=>`${p.at}=${p.name}`).join(', ')||'nothing'}.
+Empty cells: ${(c.empty||[]).join(' ')||'none'}.
 Suggested steps (later steps may depend on earlier ones):
 ${c.ops.map((o,i)=>`#${i} ${o}`).join('\n')}
 ${c.msg?`Their note: "${c.msg}"`:''}
@@ -189,31 +193,63 @@ JSON shape: {"accepted":[0,1],"reply":"what you say to them, 1-3 sentences"}`;
 }
 
 function gardenText(g){
-  return `Your garden: ${g.rows} rows × ${g.cols} columns, cells "row,col" from 0,0 (row 0 = back). Balance ${fmt(g.avail)} ✓. Adding a row/column costs ${g.expandCost} ✓.
+  return `${g.who||'Your garden'}: ${g.rows} rows × ${g.cols} columns (rows 1–${g.rows}, columns 1–${g.cols}; row 1 = back). Balance ${fmt(g.avail)} ✓. Adding a row/column costs ${g.expandCost} ✓.
 Shop (id | name | price | kind):
 ${g.catalog.map(x=>`${x.id} | ${x.name} | ${x.price} | ${x.kind}`).join('\n')}
 Fences: ${g.fences.map(f=>`${f.id} (${f.name}, ${f.price}${f.owned?', owned':''})`).join('; ')}. Current fence: ${g.fence}.
 In your bag: ${Object.entries(g.inv).map(([k,n])=>`${k}×${n}`).join(', ')||'nothing'}.
-Placed: ${g.placed.map(p=>`${p.at}=${p.id}`).join(', ')||'nothing yet'}.`;
+Placed: ${g.placed.map(p=>`${p.at}=${p.id}`).join(', ')||'nothing yet'}.
+Empty cells: ${(g.empty||[]).join(' ')||'none'}.`;
 }
 function fallbackChat(c){
   const t=String(c.message||'');
   if(/种|布置|装饰|花园|plant|garden|decorat|grow/i.test(t)){const plan=fallbackDecorate(c.garden);return {reply:plan.say,actions:plan,lend:0}}
   if(/借|lend|borrow/i.test(t)){const n=Math.max(1,Math.min(20,parseInt((t.match(/\d+/)||['2'])[0],10)||2));const r=fallbackLoan({amount:n,charAvail:c.garden.avail,debt:c.debt,repay:c.repay});return {reply:r.reply,actions:null,lend:r.agree?r.amount:0}}
-  return {reply:L('(No API is set up, so I only understand “plant something” or “lend me 2”.)','（还没配置 API，我现在只听得懂“种点东西”或者“借我 2 个”。）'),actions:null,lend:0};
+  return {reply:LR('(No API is set up, so I only understand “plant something” or “lend me 2”.)','（还没配置 API，我现在只听得懂“种点东西”或者“借我 2 个”。）'),actions:null,lend:0};
 }
 async function chat(c){
   if(!hasAI())return fallbackChat(c);
   const hist=(c.history||[]).slice(-12).map(m=>`${m.role==='user'?userName():charName()}: ${m.text}`).join('\n');
-  const user=`You are chatting with ${userName()} inside Deadline Garden, mostly about your garden and plants.
+  const user=`You are chatting with ${userName()} inside Deadline Garden, mostly about gardens and plants. They are currently looking at ${c.where==='mine'?'THEIR OWN garden':'YOUR garden'}.
 ${gardenText(c.garden)}
+${c.myGarden?gardenText({...c.myGarden,who:`${userName()}'s garden (you can only SUGGEST changes there; their shop prices are the same)`}):''}
 ${userName()} has ${fmt(c.myAvail)} ✓ and owes you ${fmt(c.debt)} ✓. If you lend them ✓ they ${c.repay?'will pay it back from their next finished tasks':'won’t pay it back (a gift)'}.
 ${hist?`Conversation so far:\n${hist}\n`:''}${userName()} now says: "${c.message}"
-Answer in character (1-3 sentences). If you decide to plant, buy, move things or change your garden — because they asked, or because you feel like it — put it in "actions" (spend at most your balance; place bought items on empty cells). If they ask to borrow ✓ and you agree, set "lend" to the number (at most ${Math.floor(c.garden.avail)}). Otherwise leave actions empty and lend 0.
-JSON shape: {"reply":"...","actions":{"buy":[],"place":[{"id":"id","to":"r,c"}],"move":[{"from":"r,c","to":"r,c"}],"fence":"","expand":""},"lend":0}`;
+Answer in character (1-3 sentences). If you decide to plant, buy, move things or change your garden — because they asked, or because you feel like it — put it in "actions" (spend at most your balance; place bought items on empty cells). If they ask to borrow ✓ and you agree, set "lend" to the number (at most ${Math.floor(c.garden.avail)}). If they ask your opinion about THEIR garden or you want to rearrange it, put concrete steps in "suggestForThem" (they will accept or decline; buying there is paid with their ✓). Otherwise leave these empty and lend 0.
+JSON shape: {"reply":"...","actions":{"buy":[],"place":[{"id":"id","to":"r,c"}],"move":[{"from":"r,c","to":"r,c"}],"fence":"","expand":""},"lend":0,"suggestForThem":{"buy":[],"place":[],"move":[]}}`;
   const j=await askJSON(personaSystem(),user,{maxTokens:900});
   const a=j.actions&&typeof j.actions==='object'?j.actions:null;
-  return {reply:String(j.reply||'').trim().slice(0,600),actions:a?{buy:Array.isArray(a.buy)?a.buy.map(String):[],place:Array.isArray(a.place)?a.place:[],move:Array.isArray(a.move)?a.move:[],fence:String(a.fence||''),expand:String(a.expand||'')}:null,lend:Math.max(0,Math.floor(Number(j.lend)||0))};
+  const sf=j.suggestForThem&&typeof j.suggestForThem==='object'?j.suggestForThem:null;
+  return {suggest:sf?{buy:Array.isArray(sf.buy)?sf.buy.map(String):[],place:Array.isArray(sf.place)?sf.place:[],move:Array.isArray(sf.move)?sf.move:[]}:null,reply:String(j.reply||'').trim().slice(0,600),actions:a?{buy:Array.isArray(a.buy)?a.buy.map(String):[],place:Array.isArray(a.place)?a.place:[],move:Array.isArray(a.move)?a.move:[],fence:String(a.fence||''),expand:String(a.expand||'')}:null,lend:Math.max(0,Math.floor(Number(j.lend)||0))};
+}
+
+/* ---------- visiting the user's garden ---------- */
+function fallbackVisit(c){
+  const g=c.myGarden;
+  if(c.charAvail<3&&c.myAvail>=3&&Math.random()<.5)return {kind:'borrow',amount:Math.min(3,Math.floor(c.myAvail/2)),repay:true,say:LR('I’m a little short. Lend me a few? I’ll pay you back.','我有点不够用了，借我几个？会还你的。')};
+  if(g.placed.length&&g.empty.length){const p=g.placed[Math.floor(Math.random()*g.placed.length)],to=g.empty[Math.floor(Math.random()*g.empty.length)];return {kind:'suggest',suggest:{buy:[],place:[],move:[{from:p.at,to}]},say:LR(`Your ${p.name} would look better over there.`,`你的${p.name}挪到那边会更好看。`)}}
+  return {kind:'none',say:''};
+}
+async function visit(c){
+  if(!hasAI())return fallbackVisit(c);
+  const user=`You drop by ${userName()}'s garden in Deadline Garden on your own.
+${gardenText({...c.myGarden,who:`${userName()}'s garden`})}
+You have ${fmt(c.charAvail)} ✓; ${userName()} has ${fmt(c.myAvail)} ✓. You owe them ${fmt(c.charDebt)} ✓; they owe you ${fmt(c.myDebt)} ✓.
+Decide what you do, in character:
+- "suggest": leave concrete suggestions for THEIR garden (they decide; anything bought is paid with their ✓),
+- "borrow": ask to borrow some of their ✓ (whole number, at most ${Math.max(0,Math.floor(c.myAvail))}), and say whether you'll pay it back,
+- "none": just look around.
+JSON shape: {"kind":"suggest|borrow|none","suggest":{"buy":[],"place":[{"id":"id","to":"r,c"}],"move":[{"from":"r,c","to":"r,c"}]},"amount":0,"repay":true,"say":"what you tell them, 1-3 sentences"}`;
+  const j=await askJSON(personaSystem(),user,{maxTokens:700,temperature:1});
+  const sf=j.suggest&&typeof j.suggest==='object'?j.suggest:{};
+  return {kind:['suggest','borrow','none'].includes(j.kind)?j.kind:'none',suggest:{buy:Array.isArray(sf.buy)?sf.buy.map(String):[],place:Array.isArray(sf.place)?sf.place:[],move:Array.isArray(sf.move)?sf.move:[]},amount:Math.max(0,Math.floor(Number(j.amount)||0)),repay:j.repay!==false,say:String(j.say||'').trim().slice(0,400)};
+}
+async function react(c){
+  const fb=()=>c.kind==='borrow'?(c.accepted?LR('Thanks. I won’t forget it.','谢了，我记着。'):LR('Fine. Be that way.','行吧，小气。')):(c.accepted===c.total?LR('See? Much better.','看吧，好看多了。'):c.accepted?LR('Half-listening, as usual.','只听了一半，老样子。'):LR('Your loss.','不听拉倒。'));
+  if(!hasAI())return fb();
+  const what=c.kind==='borrow'?`You asked ${userName()} to borrow ${c.amount} ✓ and they ${c.accepted?'said yes':'said no'}.`:`You suggested ${c.total} change(s) to ${userName()}'s garden and they accepted ${c.accepted} of them.${c.declinedText?` They declined: ${c.declinedText}.`:''}`;
+  const j=await askJSON(personaSystem(),`${what}\nReact in character in 1-2 sentences.\nJSON shape: {"reply":"..."}`,{maxTokens:200});
+  return String(j.reply||'').trim().slice(0,300)||fb();
 }
 
 /* ---------- settings modal ---------- */
@@ -231,6 +267,7 @@ function openSettings(){
   <div class="form-grid">
     ${field('csName',L('Character name','角色名'),cfg.name,mode==='uranus'?(typeof lokiData!=='undefined'&&lokiData.name)||'Loki':L('e.g. Alex','例如：阿澈'))}
     ${field('csUser',L('What the character calls you (optional)','角色怎么称呼你（可选）'),cfg.userName,L('e.g. your nickname','例如：你的昵称'))}
+    <div class="field full"><label for="csLang">${L('Character’s language','角色说话的语言')}</label><select id="csLang"><option value="auto" ${cfg.replyLang==='auto'?'selected':''}>${L('Follow the persona / how I write to them','跟随人设 / 我跟它说话用的语言')}</option><option value="zh" ${cfg.replyLang==='zh'?'selected':''}>中文</option><option value="en" ${cfg.replyLang==='en'?'selected':''}>English</option></select></div>
   </div>
   ${mode==='uranus'?`<div class="cs-block"><div class="cs-block-title">${L('Companion link','Companion 链接')}</div><div class="next-meta">Companion → Settings → “DDL Garden connection”: ${L('generate, copy the link, paste it here once.','生成并复制链接，粘贴到这里一次即可。')}</div>
     <div class="cs-row"><input id="csLink" type="text" autocomplete="off" spellcheck="false" placeholder="https://…/garden/feed?t=…" value="${esc(link)}"><button id="csLinkSave" class="soft-btn" type="button">${L('Save & sync','保存并同步')}</button></div><div id="lokiConnStatus" class="next-meta"></div></div>`:''}
@@ -255,7 +292,7 @@ function openSettings(){
   ${mode==='api'?`<div class="cs-block"><div class="cs-block-title">${L('Daily schedule','每日日程')}</div><div id="csSchedStatus" class="next-meta"></div><div class="cs-row"><button id="csGen" class="soft-btn" type="button">${sched.days[day()]?L('Regenerate today','重新生成今天'):L('Generate today now','现在生成今天')}</button></div></div>`:''}
   <div class="modal-actions"><button id="csCancel" class="soft-btn" type="button">${L('Close','关闭')}</button><button id="csSave" class="primary-btn" type="button">${L('Save','保存')}</button></div>`;
   const read=()=>{const v=id=>document.getElementById(id)?.value??null;const set=(k,id,trim=true)=>{const x=v(id);if(x!=null)cfg[k]=trim?x.trim():x};
-    cfg.mode=mode;set('name','csName');set('userName','csUser');set('provider','csProvider');set('baseUrl','csBase');set('apiKey','csKey');set('model','csModel');set('persona','csPersona',false);set('background','csBackground',false);set('extra','csExtra',false)};
+    cfg.mode=mode;set('name','csName');set('userName','csUser');set('replyLang','csLang');set('provider','csProvider');set('baseUrl','csBase');set('apiKey','csKey');set('model','csModel');set('persona','csPersona',false);set('background','csBackground',false);set('extra','csExtra',false)};
   const statusText=()=>{const t=sched.days[day()];return generating?L('Writing today’s schedule…','正在生成今天的日程…'):sched.error?L(`Last attempt failed: ${sched.error}`,`上次生成失败：${sched.error}`):t?L(`Today: ${t.items.length} activities · generated ${new Date(t.at).toLocaleTimeString(uiLocale(),{hour:'numeric',minute:'2-digit'})}`,`今天：${t.items.length} 项活动 · ${new Date(t.at).toLocaleTimeString(uiLocale(),{hour:'numeric',minute:'2-digit'})} 生成`):(hasAI()?L('Not generated yet — it happens automatically when Garden opens each day.','今天还没生成——每天打开 Garden 时会自动生成。'):L('Add an API key and model to start.','填好 API Key 和模型后开始。'))};
   const bind=()=>{
     document.querySelectorAll('[data-cs-mode]').forEach(b=>b.onclick=()=>{read();mode=b.dataset.csMode;draw()});
@@ -305,7 +342,7 @@ setTimeout(()=>{if(cfg.mode==='api'){refreshLoki();generateDay().catch(()=>{})}}
 
 window.Char={
   get cfg(){return cfg},get sched(){return sched},saveCfg,name:charName,emoji:charEmoji,userName,hasAI,mode:()=>cfg.mode,
-  ask,askJSON,decideLoan,decorate,review,chat,openSettings,generateDay,loadIntoLoki,isGenerating:()=>generating,
+  ask,askJSON,decideLoan,decorate,review,chat,visit,react,openSettings,generateDay,loadIntoLoki,isGenerating:()=>generating,
   onChange(f){listeners.add(f);return()=>listeners.delete(f)},fmt
 };
 })();

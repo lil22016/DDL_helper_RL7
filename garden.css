@@ -270,3 +270,16 @@ html[data-theme] .gd-root .gd-gear.on{background:#3f7650!important;color:#fff!im
   .gd-root.chat-open .gd-shop{left:calc((100% - 414px) / 2);width:min(760px,calc(100% - 454px))}
 }
 @media(prefers-reduced-motion:reduce){.gd-root,.gd-root .gd-shell{transition:none!important}.gd-tools.open{animation:none}}
+
+/* ---- v7: visits, two-way loans ---- */
+.gd-visit{animation:gdPulse 2s ease-in-out infinite}
+@keyframes gdPulse{50%{box-shadow:0 0 0 4px rgba(224,168,58,.35)}}
+.gd-debt-in{background:#e6f3df}
+.gd-quote{display:flex;gap:10px;align-items:flex-start;padding:12px;border-radius:14px;background:#f2f6ee}.gd-quote p{margin:0;font-size:14px;line-height:1.5}
+.gd-row2{display:flex;gap:10px}.gd-row2>*{flex:1}
+.gd-visit-grid{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:16px;align-items:start}
+.gd-checks{list-style:none;padding:0}.gd-checks label{display:flex;gap:8px;align-items:flex-start;cursor:pointer}.gd-checks input{width:18px;height:18px;margin-top:1px;accent-color:#3f7650}
+.gd-preview{display:grid;gap:6px;justify-items:center}
+@media(max-width:560px){.gd-visit-grid{grid-template-columns:1fr}.gd-row2{flex-direction:column}}
+html[data-theme] .gd-root .gd-quote,html[data-theme] .gd-root .gd-debt-in{background:#eef6e9!important}
+html[data-theme] .gd-root .gd-debt-in{color:#2f6a3d!important}
