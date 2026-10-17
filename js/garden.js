@@ -154,6 +154,7 @@ const sameGarden=(a,b)=>sig(a)===sig(b);
 let MINE=blank('mine'),CHARB=blank('char'),OPS=[],CHAT={msgs:[]};
 const CHAT_KEY='deadline-garden-char-chat-v1',ZOOM_KEY='deadline-garden-zoom-v1';
 try{const c=JSON.parse(localStorage.getItem(CHAT_KEY)||'null');if(c&&Array.isArray(c.msgs))CHAT={msgs:c.msgs.filter(m=>m&&m.id&&m.text)}}catch{}
+const TOOLS_KEY='deadline-garden-tools-open-v1';let toolsOpen=false;try{toolsOpen=localStorage.getItem(TOOLS_KEY)==='1'}catch{}
 let zoom=72;try{const z=Number(localStorage.getItem(ZOOM_KEY));if(z>=28&&z<=128)zoom=z}catch{}
 function mergeChat(a,b){const m=new Map();for(const x of [...(a?.msgs||[]),...(b?.msgs||[])])if(x&&x.id&&!m.has(x.id))m.set(x.id,x);return {msgs:[...m.values()].sort((x,y)=>x.at-y.at).slice(-120)}}
 function saveChat(sync=true){CHAT.msgs=CHAT.msgs.slice(-120);saveRaw(CHAT_KEY,CHAT);if(sync)try{queueCloudSync()}catch{}}
@@ -293,7 +294,7 @@ function ensureRoot(){
   root=document.createElement('div');root.id='gardenRoot';root.className='gd-root hidden';root.setAttribute('aria-hidden','true');
   root.innerHTML=`<div class="gd-shell">
     <header class="gd-head">
-      <button class="gd-icon gd-close" type="button" data-gd="close" aria-label="${L('Close garden','关闭花园')}">×</button>
+      <button class="gd-btn gd-back" type="button" data-gd="close" aria-label="${L('Back','返回')}"><span aria-hidden="true">‹</span> ${L('Back','返回')}</button>
       <div class="gd-title" id="gdTitle"></div>
       <div class="gd-wallet" id="gdWallet"></div>
       <button class="gd-btn gd-btn-primary gd-shop-btn" type="button" data-gd="shop">${L('Shop','商城')}</button>
@@ -316,14 +317,23 @@ function ensureRoot(){
   return root;
 }
 function setView(v){view=v==='char'?'char':'mine';sel={inv:null,cell:null};if(!busy)bubble=null;if(view!=='char')closeChat();else showNews();closeShop();closeSheet();if(tab==='custom'&&view==='char')uploadDraft=null;recompute();render()}
-function openGarden(v){
-  ensureRoot();reconcileMine();reconcileChar();sel={inv:null,cell:null};
+let fromMenu=false,closeTimer=null;
+function openGarden(v,opts={}){
+  fromMenu=!!opts.fromMenu;
+  ensureRoot();clearTimeout(closeTimer);reconcileMine();reconcileChar();sel={inv:null,cell:null};
   if(v)view=v==='char'?'char':'mine';checkSeasons();recompute();if(view==='char')showNews();
-  root.classList.remove('hidden');root.setAttribute('aria-hidden','false');document.body.classList.add('gd-open');
+  root.classList.remove('hidden','closing');root.setAttribute('aria-hidden','false');document.body.classList.add('gd-open');
   render();
+  void root.offsetWidth;root.classList.add('show');
 }
-function closeGarden(){if(!root)return;closeShop();closeSheet();closeChat();root.classList.add('hidden');root.setAttribute('aria-hidden','true');document.body.classList.remove('gd-open')}
-const isOpen=()=>root&&!root.classList.contains('hidden');
+/* back = close the garden and, if it was opened from the ☰ menu, land back in the open menu */
+function closeGarden(toMenu=fromMenu){
+  if(!root||!isOpen())return;closeShop();closeSheet();closeChat();
+  root.classList.remove('show');root.classList.add('closing');root.setAttribute('aria-hidden','true');document.body.classList.remove('gd-open');
+  if(toMenu)setTimeout(()=>{try{openSidebar()}catch{}},120);
+  clearTimeout(closeTimer);closeTimer=setTimeout(()=>{root.classList.add('hidden');root.classList.remove('closing')},240);
+}
+const isOpen=()=>root&&!root.classList.contains('hidden')&&!root.classList.contains('closing');
 
 function renderHud(){
   if(!root)return;const w=root.querySelector('#gdWallet');if(!w)return;
@@ -336,6 +346,11 @@ function renderTitle(){
   root.querySelector('#gdSwitch').innerHTML=`<button type="button" role="tab" class="${view==='mine'?'on':''}" data-gd="view" data-v="mine">🌳 ${L('My garden','我的花园')}</button><button type="button" role="tab" class="${view==='char'?'on':''}" data-gd="view" data-v="char">${esc(cemoji())} ${esc(L(`${cname()}'s garden`,`${cname()}的花园`))}${CHARB.news&&!CHARB.news.seen&&view!=='char'?'<i class="gd-dot"></i>':''}</button>`;
 }
 function renderSocial(){
+  paintSocial();
+  const el=root.querySelector('#gdSocial');
+  el.insertAdjacentHTML('beforeend',`<button type="button" class="gd-icon gd-gear${toolsOpen?' on':''}" data-gd="tools" aria-expanded="${toolsOpen}" aria-controls="gdTools" title="${L('Garden settings: size, shape, seasons, album','花园设置：大小、形状、换新、相册')}" aria-label="${L('Garden settings','花园设置')}"><span>⚙︎</span></button>`);
+}
+function paintSocial(){
   const el=root.querySelector('#gdSocial'),nm=esc(cname()),dis=busy?' disabled':'';
   let mode='';try{mode=Char.mode()}catch{}
   if(view==='mine'){
@@ -358,7 +373,9 @@ function renderSay(){
   el.innerHTML=`<span class="gd-ava">${esc(cemoji())}</span><div><strong>${esc(cname())}</strong><p>${esc(bubble.text)}</p>${bubble.note?`<small>${esc(bubble.note)}</small>`:''}</div><button type="button" class="gd-icon gd-say-x" data-gd="sayClose" aria-label="${L('Dismiss','关闭')}">×</button>`;
 }
 function renderTools(){
-  const el=root.querySelector('#gdTools'),S=view==='char'?CHARB:MINE,opts=shapeOptions(G),cur=MINE.period;
+  const box=root.querySelector('#gdTools');box.classList.toggle('open',toolsOpen);box.setAttribute('aria-hidden',String(!toolsOpen));
+  if(!toolsOpen){box.innerHTML='';return}
+  const el=box,S=view==='char'?CHARB:MINE,opts=shapeOptions(G),cur=MINE.period;
   el.innerHTML=`<label class="gd-tool gd-zoom"><span>${L('Size','大小')}</span><input id="gdZoom" type="range" min="28" max="128" step="2" value="${zoom}" aria-label="${L('Garden size','花园大小')}"></label>
   <label class="gd-tool"><span>${L('Shape','形状')}</span><select id="gdShape" aria-label="${L('Rows × columns','行 × 列')}">${opts.map(([r,c])=>`<option value="${r}x${c}" ${r===G.rows&&c===G.cols?'selected':''}>${L(`${r} rows × ${c} cols`,`${r} 排 × ${c} 列`)}</option>`).join('')}</select></label>
   <label class="gd-tool"><span>${L('New garden','换新花园')}</span><select id="gdPeriod">${[['none',L('Never','不换')],['week',L('Every week','每周')],['month',L('Every month','每月')]].map(([v,t])=>`<option value="${v}" ${cur===v?'selected':''}>${t}</option>`).join('')}</select></label>
@@ -507,7 +524,8 @@ function onClick(e){
     if(act==='sendSuggest')return openSheet('suggest');
     if(act==='suggestSend')return sendSuggestions();
     if(act==='undoSuggest'){OPS=[];saveOps();recompute();sel={inv:null,cell:null};return render()}
-    if(act==='charSettings'){closeGarden();try{Char.openSettings()}catch{}return}
+    if(act==='charSettings'){closeGarden(false);try{Char.openSettings()}catch{}return}
+    if(act==='tools'){toolsOpen=!toolsOpen;try{localStorage.setItem(TOOLS_KEY,toolsOpen?'1':'0')}catch{}renderSocial();renderTools();return}
     if(act==='chatOpen')return openChat();
     if(act==='chatClose')return closeChat();
     if(act==='chatSend')return sendChat();
@@ -824,7 +842,7 @@ function injectMenuItem(){
   const body=document.querySelector('#sidebarBody');if(!body||body.querySelector('#sbGarden'))return;
   const b=document.createElement('button');b.id='sbGarden';b.type='button';b.className='soft-btn sidebar-item sidebar-garden';
   b.innerHTML=`<span>🌳 ${L('Garden','花园')}</span><small>✓ ${fmt(availOf(MINE))}</small>`;
-  b.onclick=()=>{try{closeSidebar()}catch{}openGarden()};
+  b.onclick=()=>{try{closeSidebar()}catch{}openGarden(null,{fromMenu:true})};
   body.prepend(b);
 }
 try{const _open=openSidebar;openSidebar=function(){_open.apply(this,arguments);injectMenuItem()};const sb=document.querySelector('#sidebarBtn');if(sb)sb.onclick=openSidebar}catch{}
