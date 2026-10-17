@@ -1980,7 +1980,9 @@ let lokiCfg={url:'',token:'',color:'#8b7bd8',emoji:'✨'},lokiData={name:'',item
 try{Object.assign(lokiCfg,JSON.parse(localStorage.getItem(LOKI_CFG_KEY)||'{}'))}catch{}
 try{const c=JSON.parse(localStorage.getItem(LOKI_CACHE_KEY)||'null');if(c&&Array.isArray(c.items))lokiData={...lokiData,...c,error:''}}catch{}
 function saveLokiCfg(){try{localStorage.setItem(LOKI_CFG_KEY,JSON.stringify(lokiCfg))}catch{}}
-function lokiName(){return lokiData.name||'Loki'}
+function lokiName(){return (window.Char&&Char.cfg.name.trim())||lokiData.name||(uiLanguage==='zh'?'角色':'Character')}
+function lokiApiMode(){return !!(window.Char&&Char.mode()==='api')}
+function lokiActive(){return lokiApiMode()?lokiData.items.length>0:!!(lokiCfg.url&&lokiCfg.token&&lokiData.items.length)}
 function lokiParseLink(raw){
   const text=String(raw||'').trim();if(!text)return null;
   try{const u=new URL(text);return {url:u.origin,token:u.searchParams.get('t')||''}}catch{return null}
@@ -2038,7 +2040,7 @@ function bindLokiClicks(){
 }
 function renderLokiTodo(){
   const root=$('#lokiTodo');if(!root)return;
-  if(!lokiCfg.url||!lokiCfg.token||!lokiData.items.length){root.innerHTML='';return}
+  if(!lokiActive()){root.innerHTML='';return}
   const today=fmtDateInput(new Date()),end=fmtDateInput(addDays(new Date(),7));
   const items=lokiData.items.filter(i=>i.date>=today&&i.date<=end).sort((a,b)=>String(a.date+(a.time||'99:99')).localeCompare(String(b.date+(b.time||'99:99'))));
   root.innerHTML=`<details class="todo-section loki-todo-section" open><summary><span class="todo-arrow">›</span><span class="todo-section-label">${escapeHtml(lokiName())} · next 7 days</span><span class="todo-section-count">${items.length}</span></summary><div class="todo-section-items">${items.length?items.map(it=>{const e=lokiEffective(it),label=LOKI_LABEL[e.status];return `<div class="todo-item loki-todo-item ${lokiClasses(it)}"><button class="todo-title-btn" data-loki="${escapeHtml(it.id)}">${escapeHtml(lokiCfg.emoji||'✨')} <span class="loki-title">${escapeHtml(lokiT(it))}</span><small>${escapeHtml(new Date(`${it.date}T12:00:00`).toLocaleDateString(uiLocale(),{month:'short',day:'numeric'}))}${lokiTimeText(it)?' · '+escapeHtml(lokiTimeText(it)):''}${label?' · '+label:''}</small></button></div>`}).join(''):'<div class="todo-empty">Nothing planned.</div>'}</div></details>`;
@@ -2055,18 +2057,20 @@ function applyLokiAppearance(){
 function lokiSignature(){return JSON.stringify([fmtDateInput(new Date()),lokiData.items.map(i=>[i.id,lokiEffective(i).status,i.date,i.time,i.title,i.desc]),calendarDisplay.description,calendarDisplay.time,lokiCfg.emoji,lokiCfg.color,lokiData.name])}
 function renderLoki(){lokiSig=lokiSignature();renderCalendar();renderLokiTodo()}
 async function fetchLoki(){
+  if(lokiApiMode()){Char.loadIntoLoki();renderLoki();updateLokiStatus();return}
   if(!lokiCfg.url||!lokiCfg.token){lokiData.error='';return}
   try{
     const r=await fetch(`${lokiCfg.url.replace(/\/+$/,'')}/garden/feed?t=${encodeURIComponent(lokiCfg.token)}`,{cache:'no-store'});
     const o=await r.json().catch(()=>null);
     if(!r.ok||!o?.ok)throw new Error(o?.error||`HTTP ${r.status}`);
-    lokiData={name:String(o.characterName||'Loki'),items:Array.isArray(o.items)?o.items.filter(i=>i&&i.id&&/^\d{4}-\d{2}-\d{2}$/.test(i.date||'')):[],fetchedAt:Date.now(),error:''};
+    lokiData={name:String(o.characterName||''),items:Array.isArray(o.items)?o.items.filter(i=>i&&i.id&&/^\d{4}-\d{2}-\d{2}$/.test(i.date||'')):[],fetchedAt:Date.now(),error:''};
     try{localStorage.setItem(LOKI_CACHE_KEY,JSON.stringify({name:lokiData.name,items:lokiData.items,fetchedAt:lokiData.fetchedAt}))}catch{}
   }catch(e){lokiData.error=String(e?.message||e)}
   renderLoki();updateLokiStatus();
 }
 function updateLokiStatus(){
   const el=$('#lokiConnStatus');if(!el)return;
+  if(lokiApiMode()){el.textContent='';return}
   if(!lokiCfg.url||!lokiCfg.token){el.textContent='Not connected.';return}
   el.textContent=lokiData.error?`Can’t reach Companion: ${lokiData.error}`:(lokiData.fetchedAt?`Connected · ${lokiData.items.length} items · updated ${new Date(lokiData.fetchedAt).toLocaleTimeString(uiLocale(),{hour:'numeric',minute:'2-digit'})}`:'Connecting…');
 }
@@ -2075,31 +2079,21 @@ function closeSidebar(){const r=$('#sidebarRoot');if(r){r.classList.add('hidden'
 function openSidebar(){
   const r=$('#sidebarRoot');if(!r)return;
   const link=lokiCfg.url&&lokiCfg.token?`${lokiCfg.url}/garden/feed?t=${lokiCfg.token}`:'';
+  const zh=uiLanguage==='zh',nm=escapeHtml(lokiName());
   $('#sidebarBody').innerHTML=`<button id="sbReminders" class="soft-btn sidebar-item" type="button">⏰ Reminder settings</button>
-  <details class="sidebar-section sidebar-fold" id="charAppearance"><summary class="section-label">CHAR APPEARANCE</summary>
+  <button id="sbCharacter" class="soft-btn sidebar-item sidebar-character" type="button"><span>🤖 ${zh?'角色与 API':'Character & API'}</span><small>${window.Char&&Char.mode()?(Char.mode()==='uranus'?(zh?'已连 Uranus':'Uranus'):(zh?'自己的 API':'Own API')):(zh?'未设置':'Not set')}</small></button>
+  <details class="sidebar-section sidebar-fold" id="charAppearance"><summary class="section-label">${zh?`${nm} 外观`:`${nm.toUpperCase()} APPEARANCE`}</summary>
     <div class="sidebar-row"><label for="lokiColor">Color</label><input id="lokiColor" type="color" value="${escapeHtml(/^#[0-9a-f]{6}$/i.test(lokiCfg.color)?lokiCfg.color:'#8b7bd8')}"></div>
     <div class="sidebar-row"><label for="lokiEmoji">Emoji</label><input id="lokiEmoji" type="text" maxlength="8" value="${escapeHtml(lokiCfg.emoji||'')}" placeholder="✨"></div>
     <div class="sidebar-preview"><span class="event-chip loki-chip loki-item loki-planned" style="pointer-events:none">${lokiBadge()}<span class="event-main-line"><span class="task-icon emoji" id="lokiPreviewEmoji">${escapeHtml(lokiCfg.emoji||'✨')}</span><span>Sample plan</span></span></span></div>
-    <div class="sidebar-help">Used for every ${escapeHtml(lokiName())} item in Garden. Status never changes the color.</div>
-  </details>
-  <div class="sidebar-section"><div class="section-label">COMPANION LINK</div>
-    <div class="sidebar-help">Companion → Settings → “DDL Garden connection”: generate, copy the link, paste it here once.</div>
-    <input id="lokiLink" class="sidebar-input" type="text" autocomplete="off" spellcheck="false" placeholder="https://…/garden/feed?t=…" value="${escapeHtml(link)}">
-    <button id="lokiLinkSave" class="primary-btn sidebar-save" type="button">Save &amp; sync</button>
-    <div id="lokiConnStatus" class="sidebar-help"></div>
-  </div>`;
+    <div class="sidebar-help">${zh?`Garden 里所有 ${nm} 的日程都用这个样式，状态不会改变颜色。`:`Used for every ${nm} item in Garden. Status never changes the color.`}</div>
+  </details>`;
   r.classList.remove('hidden');r.setAttribute('aria-hidden','false');
   $('#sbReminders').onclick=()=>{closeSidebar();const root=$('#authRoot');root.classList.remove('hidden');root.setAttribute('aria-hidden','false');openReminderSettings()};
+  $('#sbCharacter').onclick=()=>{closeSidebar();if(window.Char)Char.openSettings()};
   const color=$('#lokiColor'),emoji=$('#lokiEmoji');
   color.oninput=()=>{lokiCfg.color=color.value;saveLokiCfg();applyLokiAppearance();queueCloudSync();renderLoki()};
   emoji.oninput=()=>{lokiCfg.emoji=emoji.value.trim().slice(0,8);saveLokiCfg();$('#lokiPreviewEmoji').textContent=lokiCfg.emoji||'✨';queueCloudSync();renderLoki()};
-  $('#lokiLinkSave').onclick=async()=>{
-    const raw=$('#lokiLink').value.trim();
-    if(!raw){lokiCfg.url='';lokiCfg.token='';lokiData={name:'',items:[],fetchedAt:0,error:''};saveLokiCfg();try{localStorage.removeItem(LOKI_CACHE_KEY)}catch{}queueCloudSync();renderLoki();updateLokiStatus();toast('Disconnected from Companion.');return}
-    const p=lokiParseLink(raw);if(!p||!p.token){$('#lokiConnStatus').textContent='That doesn’t look like a Companion link (it needs ?t=…).';return}
-    lokiCfg.url=p.url;lokiCfg.token=p.token;saveLokiCfg();queueCloudSync();
-    $('#lokiConnStatus').textContent='Connecting…';await fetchLoki();if(!lokiData.error)pushDdlSnapshot(true).catch(()=>{});
-  };
   updateLokiStatus();
 }
 // Garden → Companion: read-only snapshot of the user's own DDL tasks (lets Loki *see* them; never edited or written back)

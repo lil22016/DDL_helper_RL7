@@ -114,6 +114,7 @@ body.gd-open .toast{z-index:1100!important}body.gd-open #confettiCanvas{z-index:
   .gd-stage{padding-top:26px}
   .gd-chip{width:54px;height:54px}
   .gd-actionbar span{display:none}.gd-actionbar strong{flex:1}
+  .gd-switch{align-self:stretch}.gd-switch button{flex:1}
   .gd-upload{grid-template-columns:1fr}.gd-drop{max-width:160px;justify-self:center;width:100%}
   .gd-cards{grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:9px}
   .gd-card-art{height:76px}
@@ -149,3 +150,65 @@ html[data-theme] .gd-root .gd-seg button.on{color:#fff!important;background:#3f7
 html[data-theme] .gd-root input[type=text]{color:#24342b!important;background:#fff!important}
 html[data-theme] .gd-root .gd-del{background:#f6ecec!important}
 html[data-theme] .gd-root .gd-actionbar,html[data-theme] .gd-root .gd-tray{background:rgba(255,255,255,.92)!important}
+
+/* ---- v4: two gardens, borrowing, suggestions ---- */
+.gd-switch{display:flex;gap:6px;padding:4px;border-radius:16px;background:rgba(255,255,255,.7);align-self:flex-start;max-width:100%;overflow-x:auto;scrollbar-width:none}
+.gd-switch button{flex:none;padding:8px 14px;border:0;border-radius:12px;background:transparent;font:inherit;font-weight:850;font-size:13px;cursor:pointer;white-space:nowrap}
+.gd-social{display:flex;align-items:center;flex-wrap:wrap;gap:8px}
+.gd-hint,.gd-suggest{font-size:12px;line-height:1.4}
+.gd-suggest{padding:6px 10px;border-radius:99px;background:#fff4d6;font-weight:800}
+.gd-debt{padding:6px 10px;border-radius:99px;background:#fbe9e7;font-size:12px;font-weight:800}
+.gd-btn:disabled,.gd-icon:disabled{opacity:.5;cursor:default}
+.gd-say{position:relative;display:flex;gap:12px;align-items:flex-start;padding:12px 44px 12px 12px;border-radius:18px;background:#fff;box-shadow:0 6px 20px rgba(60,90,60,.12);animation:gdSayIn .25s ease}
+.gd-say.hidden{display:none}
+.gd-say strong{font-size:13px}.gd-say p{margin:3px 0 0;font-size:14px;line-height:1.5;white-space:pre-wrap}.gd-say small{display:block;margin-top:5px;font-size:11px}
+.gd-say-x{position:absolute;top:8px;right:8px;width:30px;height:30px;font-size:16px}
+.gd-ava{flex:none;display:grid;place-items:center;width:40px;height:40px;border-radius:50%;background:var(--loki-bg,#ece8f8);box-shadow:0 0 0 2px var(--loki,#8b7bd8) inset;font-size:20px}
+.gd-typing i{display:inline-block;width:5px;height:5px;margin-left:3px;border-radius:50%;background:currentColor;opacity:.4;animation:gdDot 1s infinite}
+.gd-typing i:nth-child(2){animation-delay:.15s}.gd-typing i:nth-child(3){animation-delay:.3s}
+@keyframes gdDot{50%{opacity:1;transform:translateY(-2px)}}
+@keyframes gdSayIn{from{opacity:0;transform:translateY(-6px)}}
+.gd-plot.draft::after{content:'';position:absolute;inset:-5px;border:2px dashed #e0a83a;border-radius:14px;pointer-events:none}
+.gd-item.suggested{filter:drop-shadow(0 0 3px #ffd36b) drop-shadow(0 0 3px #ffd36b) drop-shadow(0 3px 2px rgba(30,60,20,.22))}
+.gd-sheet{z-index:960}
+.gd-form{display:grid;gap:14px;padding-top:8px}
+.gd-stats{display:flex;flex-wrap:wrap;gap:8px}.gd-stats span{padding:7px 11px;border-radius:12px;background:#f2f6ee;font-size:13px}
+.gd-amount{display:flex;align-items:center;gap:10px;font-weight:800;font-size:13px}.gd-amount strong{min-width:32px;text-align:center;font-size:24px}
+.gd-field{display:grid;gap:6px;font-size:12px;font-weight:800}
+.gd-field textarea{padding:10px 12px;border:1px solid #d6e0d2;border-radius:12px;font:inherit;font-weight:500;resize:vertical}
+.gd-toggle{display:flex;gap:10px;align-items:flex-start;padding:12px;border-radius:14px;background:#f2f6ee;cursor:pointer}
+.gd-toggle input{width:20px;height:20px;margin-top:1px;accent-color:#3f7650}.gd-toggle span{display:grid;gap:3px;font-size:13px}.gd-toggle small{font-size:11px;line-height:1.45}
+.gd-wide{width:100%;padding:12px}
+.gd-hist{display:grid;gap:8px;padding-top:6px;border-top:1px solid #e3ebdf}
+.gd-hist-row{display:grid;grid-template-columns:auto 1fr;gap:2px 10px;font-size:12px}.gd-hist-row small{grid-column:2;font-style:italic}
+.gd-ops{margin:0;padding-left:20px;display:grid;gap:6px;font-size:13px}
+.gd-note-top{margin:0 0 10px}
+html[data-theme] .gd-root .gd-switch button{color:#3f5a48!important}
+html[data-theme] .gd-root .gd-switch button.on{background:#3f7650!important;color:#fff!important}
+html[data-theme] .gd-root .gd-btn-quiet{background:transparent!important;color:#5f6e64!important}
+html[data-theme] .gd-root .gd-hint,html[data-theme] .gd-root .gd-say small,html[data-theme] .gd-root .gd-toggle small,html[data-theme] .gd-root .gd-hist-row span:first-child,html[data-theme] .gd-root .gd-hist-row small{color:#5f6e64!important}
+html[data-theme] .gd-root .gd-suggest{color:#7a5410!important}
+html[data-theme] .gd-root .gd-debt{color:#8a3b2e!important}
+html[data-theme] .gd-root .gd-say{background:#fff!important}
+html[data-theme] .gd-root textarea{color:#24342b!important;background:#fff!important}
+html[data-theme] .gd-root .gd-stats span,html[data-theme] .gd-root .gd-toggle{background:#f2f6ee!important}
+html[data-theme] .gd-root .gd-amount .gd-icon{width:34px;height:34px}
+
+/* character settings (app modal) */
+.cs-card{max-width:620px}
+.cs-modes{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:4px 0 16px}
+.cs-mode{display:grid;gap:4px;padding:14px;border:1.5px solid var(--border);border-radius:16px;background:transparent;text-align:left;cursor:pointer;color:inherit;font:inherit}
+.cs-mode strong{font-size:14px}.cs-mode small{font-size:12px;line-height:1.4;opacity:.8}
+.cs-mode.on{border-color:var(--accent);box-shadow:0 0 0 3px var(--focus)}
+.cs-block{margin-top:14px;padding:14px;border:1px solid var(--border);border-radius:16px}
+.cs-block>summary{cursor:pointer;list-style:none}.cs-block>summary::-webkit-details-marker{display:none}
+.cs-block>summary::before{content:'›';display:inline-block;margin-right:6px;transition:transform .15s}.cs-block[open]>summary::before{transform:rotate(90deg)}
+.cs-block-title{font-size:13px;font-weight:850;margin-bottom:6px}
+.cs-block .form-grid{margin-top:10px}
+.cs-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px}
+.cs-row input{flex:1;min-width:180px;padding:10px 12px;border:1px solid var(--border);border-radius:12px;font:inherit;background:rgba(255,255,255,.85)}
+.cs-card textarea{resize:vertical}
+.sidebar-character{display:flex!important;align-items:center;justify-content:space-between;gap:10px}
+.sidebar-character small{padding:3px 9px;border-radius:99px;background:rgba(255,255,255,.7);font-size:11px}
+@media(max-width:560px){.cs-modes{grid-template-columns:1fr}.gd-social .gd-hint{flex-basis:100%}}
+.gd-shell>*{flex-shrink:0}

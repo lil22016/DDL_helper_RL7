@@ -1,5 +1,6 @@
-/* ==== Deadline Garden · Garden plot (v1) ====
+/* ==== Deadline Garden · Garden plot (v2: your garden + the character's garden) ====
    A fenced little garden in the ☰ menu. Every completed task/checklist item earns 1 ✓.
+   The character has a garden too, paid for by their own plans; you can borrow from them and suggest changes.
    Spend ✓ in the shop on flowers, trees, decor, fences, land, or your own uploaded PNGs,
    then drag them onto the grid. State lives in localStorage and rides along with cloud sync. */
 (function(){
@@ -91,13 +92,23 @@ const FENCES=[
 ];
 const TABS=[['flowers','Flowers','花草'],['trees','Trees','树木'],['decor','Decor','装饰'],['fences','Fences','围栏'],['land','Land','土地'],['custom','My uploads','自定义']];
 
-/* ---------- state ---------- */
-function blank(){return {version:1,earned:[],spent:0,inv:{},cells:{},rows:BASE_ROWS,cols:BASE_COLS,fence:'wood',fences:['wood'],custom:[],updatedAt:0,editedAt:0}}
-function normalize(g){
-  const b=blank();if(!g||typeof g!=='object')return b;
-  const out={...b,...g};
+/* ---------- state ----------
+   MINE  – your garden. ✓ = completed tasks (+ borrowed − repaid).
+   CHARB – the character's garden. ✓ = their plans: done 1, changed plan 0.5, not done 0 (− lent + repaid).
+   OPS   – your pending suggestions for the character's garden. They show in a draft until the character
+           accepts them; nothing in CHARB changes without the character's say-so. */
+const CHAR_KEY='deadline-garden-char-plot-v1',OPS_KEY='deadline-garden-char-suggest-v1';
+const r1=n=>Math.round((Number(n)||0)*10)/10;
+const fmt=n=>{n=r1(n);return Number.isInteger(n)?String(n):n.toFixed(1)};
+const clone=o=>JSON.parse(JSON.stringify(o));
+const uid=()=>crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+Math.random().toString(36).slice(2);
+function blank(kind){return {version:1,kind,earned:[],earnedMap:{},spent:0,inv:{},cells:{},rows:BASE_ROWS,cols:BASE_COLS,fence:'wood',fences:['wood'],custom:[],loans:[],repayOn:true,updatedAt:0,editedAt:0}}
+function normalize(g,kind='mine'){
+  const b=blank(kind);if(!g||typeof g!=='object')return b;
+  const out={...b,...g,kind};
   out.earned=Array.isArray(g.earned)?[...new Set(g.earned.map(String))]:[];
-  out.spent=Math.max(0,Number(g.spent)||0);
+  out.earnedMap={};if(g.earnedMap&&typeof g.earnedMap==='object')for(const [k,v] of Object.entries(g.earnedMap)){const n=Number(v);if(n>0)out.earnedMap[k]=Math.min(1,n)}
+  out.spent=Math.max(0,r1(g.spent));
   out.inv=g.inv&&typeof g.inv==='object'?Object.fromEntries(Object.entries(g.inv).filter(([,n])=>Number(n)>0).map(([k,n])=>[k,Math.floor(n)])):{};
   out.cells=g.cells&&typeof g.cells==='object'?g.cells:{};
   out.rows=Math.min(MAX_ROWS,Math.max(BASE_ROWS,Number(g.rows)||BASE_ROWS));
@@ -105,69 +116,137 @@ function normalize(g){
   out.fences=Array.isArray(g.fences)&&g.fences.length?[...new Set(['wood',...g.fences])]:['wood'];
   if(!out.fences.includes(out.fence))out.fence='wood';
   out.custom=Array.isArray(g.custom)?g.custom.filter(c=>c&&c.id&&typeof c.img==='string'&&c.img.startsWith('data:image/')):[];
+  out.loans=Array.isArray(g.loans)?g.loans.filter(l=>l&&l.id).map(l=>({id:String(l.id),at:Number(l.at)||0,asked:Math.max(0,Math.floor(Number(l.asked)||0)),amount:Math.max(0,Math.floor(Number(l.amount)||0)),repay:!!l.repay,repaid:Math.max(0,r1(l.repaid)),msg:String(l.msg||''),reply:String(l.reply||'')})):[];
+  out.repayOn=g.repayOn!==false;
   out.updatedAt=Number(g.updatedAt)||0;
-  // editedAt only moves on real user actions (buy / place / move …), never on the automatic ✓ ledger.
-  // Older saves had no editedAt: treat a garden with content as edited at its last save, an untouched one as never edited.
+  // editedAt only moves on real actions (buy / place / borrow …), never on the automatic ✓ ledger.
   out.editedAt=Number(g.editedAt)||(hasContent(out)?(out.updatedAt||1):0);
   return out;
 }
-function hasContent(g){return !!(g&&(g.spent>0||Object.keys(g.cells||{}).length||Object.keys(g.inv||{}).length||(g.custom||[]).length||(g.fences||[]).length>1||g.rows>BASE_ROWS||g.cols>BASE_COLS))}
-/* Merge two copies of the garden (this device + cloud). The copy the user edited most recently decides
-   the layout, bag, spending and land; the completed-task ledger, fences and uploads are unioned so nothing
-   earned or bought is lost. A never-touched garden (editedAt 0) can never overwrite a real one. */
-function mergeGardens(a,b){
-  const A=normalize(a),B=normalize(b);
-  const base=B.editedAt>A.editedAt?B:A,other=base===B?A:B;
+function hasContent(g){return !!(g&&(g.spent>0||Object.keys(g.cells||{}).length||Object.keys(g.inv||{}).length||(g.custom||[]).length||(g.loans||[]).length||(g.fences||[]).length>1||g.rows>BASE_ROWS||g.cols>BASE_COLS))}
+/* Merge this device's copy with the cloud's. The most recently *edited* copy decides layout, bag, spending and land;
+   ledgers, fences, uploads and loans are unioned so nothing earned, bought or borrowed is lost. */
+function mergeGardens(a,b,kind){
+  const A=normalize(a,kind),B=normalize(b,kind);
+  const base=B.editedAt>A.editedAt?B:A,other=base===B?A:B,fresher=B.updatedAt>A.updatedAt?B:A,staler=fresher===B?A:B;
   const out={...base};
   out.earned=[...new Set([...A.earned,...B.earned])];
+  out.earnedMap={...staler.earnedMap,...fresher.earnedMap};
   out.fences=[...new Set([...A.fences,...B.fences])];
-  const ids=new Set(base.custom.map(c=>c.id));
-  out.custom=[...base.custom,...other.custom.filter(c=>!ids.has(c.id))];
-  out.editedAt=Math.max(A.editedAt,B.editedAt);
-  out.updatedAt=Math.max(A.updatedAt,B.updatedAt);
+  const ids=new Set(base.custom.map(c=>c.id));out.custom=[...base.custom,...other.custom.filter(c=>!ids.has(c.id))];
+  const lm=new Map();for(const l of [...A.loans,...B.loans]){const p=lm.get(l.id);lm.set(l.id,p?{...p,repaid:Math.max(p.repaid,l.repaid)}:l)}
+  out.loans=[...lm.values()].sort((x,y)=>x.at-y.at);
+  out.editedAt=Math.max(A.editedAt,B.editedAt);out.updatedAt=Math.max(A.updatedAt,B.updatedAt);
   return out;
 }
-const sameGarden=(a,b)=>{const k=g=>JSON.stringify([g.editedAt,g.spent,g.rows,g.cols,g.fence,g.cells,g.inv,[...g.earned].sort(),[...g.fences].sort(),g.custom.map(c=>c.id).sort()]);return k(normalize(a))===k(normalize(b))};
-let G=blank();
-try{G=normalize(JSON.parse(localStorage.getItem(GARDEN_KEY)||'null'))}catch{}
-function persist(sync=true,edit=true){
-  G.updatedAt=Date.now();if(edit)G.editedAt=G.updatedAt;
-  try{localStorage.setItem(GARDEN_KEY,JSON.stringify(G))}catch{say('Storage is full — try removing an uploaded image.','存储空间已满，请删除一些上传的图片。')}
-  if(sync)try{queueCloudSync()}catch{}
-}
-const earned=()=>G.earned.length;
-const available=()=>Math.max(0,earned()-G.spent);
-function charge(n){if(available()<n){say(`You need ${n-available()} more completed ✓.`,`还差 ${n-available()} 个已完成 ✓。`);return false}G.spent+=n;return true}
+const sig=g=>{g=normalize(g,g&&g.kind);return JSON.stringify([g.editedAt,g.spent,g.rows,g.cols,g.fence,g.cells,g.inv,[...g.earned].sort(),Object.entries(g.earnedMap).sort(),[...g.fences].sort(),g.custom.map(c=>c.id).sort(),g.loans.map(l=>[l.id,l.repaid]),g.repayOn])};
+const sameGarden=(a,b)=>sig(a)===sig(b);
 
-/* completed-task ledger: a task stays earned even if deleted later; un-completing removes it */
-function reconcile(){
+let MINE=blank('mine'),CHARB=blank('char'),OPS=[];
+try{MINE=normalize(JSON.parse(localStorage.getItem(GARDEN_KEY)||'null'),'mine')}catch{}
+try{CHARB=normalize(JSON.parse(localStorage.getItem(CHAR_KEY)||'null'),'char')}catch{}
+try{const o=JSON.parse(localStorage.getItem(OPS_KEY)||'[]');if(Array.isArray(o))OPS=o.filter(x=>x&&x.t)}catch{}
+let view='mine',G=MINE;
+function saveRaw(key,obj){try{localStorage.setItem(key,JSON.stringify(obj))}catch{say('Storage is full — try removing an uploaded image.','存储空间已满，请删除一些上传的图片。')}}
+function persistMine(edit=true,sync=true){MINE.updatedAt=Date.now();if(edit)MINE.editedAt=MINE.updatedAt;saveRaw(GARDEN_KEY,MINE);if(sync)try{queueCloudSync()}catch{}}
+function persistChar(edit=true,sync=true){CHARB.updatedAt=Date.now();if(edit)CHARB.editedAt=CHARB.updatedAt;saveRaw(CHAR_KEY,CHARB);if(sync)try{queueCloudSync()}catch{}}
+function saveOps(){saveRaw(OPS_KEY,OPS)}
+/* Rebuild what you see: in the character's garden that's their real garden with your pending suggestions on top. */
+function recompute(){
+  if(view!=='char'){G=MINE;return}
+  const d=clone(CHARB),kept=[];for(const op of OPS)if(applyOp(d,op))kept.push(op);
+  if(kept.length!==OPS.length){OPS=kept;saveOps()}
+  G=d;
+}
+
+/* ---------- credits ---------- */
+const lentTotal=()=>MINE.loans.reduce((s,l)=>s+l.amount,0);
+const repaidTotal=()=>MINE.loans.reduce((s,l)=>s+l.repaid,0);
+const debt=()=>r1(MINE.loans.reduce((s,l)=>s+(l.repay?Math.max(0,l.amount-l.repaid):0),0));
+const earnedOf=S=>S.kind==='char'?r1(Object.values(S.earnedMap).reduce((a,b)=>a+b,0)):S.earned.length;
+const availOf=S=>Math.max(0,r1(earnedOf(S)-S.spent+(S.kind==='char'?repaidTotal()-lentTotal():lentTotal()-repaidTotal())));
+const available=()=>availOf(G);
+let lastErr='';
+function charge(S,n){if(availOf(S)+1e-9<n){lastErr=L(`You need ${fmt(n-availOf(S))} more ✓.`,`还差 ${fmt(n-availOf(S))} 个 ✓。`);return false}S.spent=r1(S.spent+n);return true}
+
+/* your ledger: a task stays earned even if deleted later; un-completing removes it.
+   New ✓ pay back what you owe first (oldest loan first) when the loan was marked "pay back". */
+function repayFrom(n){
+  let left=n;for(const l of MINE.loans){if(left<=0)break;if(!l.repay)continue;const owe=r1(l.amount-l.repaid);if(owe<=0)continue;const x=Math.min(owe,left);l.repaid=r1(l.repaid+x);left=r1(left-x)}
+  return r1(n-left);
+}
+function reconcileMine(){
   if(typeof tasks==='undefined'||!Array.isArray(tasks))return;
-  const set=new Set(G.earned);let changed=false;
-  for(const t of tasks){const id=String(t.id);if(t.done&&!set.has(id)){set.add(id);changed=true}else if(!t.done&&set.has(id)){set.delete(id);changed=true}}
-  if(changed){G.earned=[...set];persist(true,false);renderHud()}
+  const set=new Set(MINE.earned);let added=0,changed=false;
+  for(const t of tasks){const id=String(t.id);if(t.done&&!set.has(id)){set.add(id);added++;changed=true}else if(!t.done&&set.has(id)){set.delete(id);changed=true}}
+  if(!changed)return;
+  MINE.earned=[...set];
+  const paid=added&&debt()>0?repayFrom(added):0;
+  persistMine(paid>0);
+  if(paid>0)say(`${fmt(paid)} ✓ went to paying back ${cname()}.`,`有 ${fmt(paid)} 个 ✓ 自动还给了 ${cname()}。`);
+  if(view==='mine')G=MINE;if(isOpen())render();
 }
+const STATUS_VALUE={done:1,changed:.5};
+function reconcileChar(){
+  if(typeof lokiData==='undefined'||!Array.isArray(lokiData.items))return;
+  let changed=false;
+  for(const it of lokiData.items){
+    let st=it.status||'planned';try{st=lokiEffective(it).status}catch{}
+    const v=STATUS_VALUE[st]||0,id=String(it.id),cur=CHARB.earnedMap[id]||0;
+    if(st==='planned'&&!cur)continue;
+    if(v!==cur){if(v)CHARB.earnedMap[id]=v;else delete CHARB.earnedMap[id];changed=true}
+  }
+  if(changed){persistChar(false);recompute();renderHud()}
+}
+function charCounts(){let d=0,c=0;for(const v of Object.values(CHARB.earnedMap)){if(v>=1)d++;else c++}return {d,c}}
 
-function item(id){return CATALOG.find(x=>x.id===id)||G.custom.find(x=>x.id===id)||null}
+function item(id){return CATALOG.find(x=>x.id===id)||MINE.custom.find(x=>x.id===id)||null}
 const itemName=it=>it?(it.custom?it.name:L(it.en,it.cn)):'?';
 function artHtml(it){if(!it)return'';if(it.custom)return `<img src="${esc(it.img)}" alt="" draggable="false">`;return ART[it.id]||''}
 const plantedCount=id=>Object.values(G.cells).filter(c=>c&&c.item===id).length;
+const cname=()=>{try{return Char.name()}catch{return L('Character','角色')}};
+const cemoji=()=>{try{return Char.emoji()}catch{return '✨'}};
+const inRange=(S,key)=>{const m=/^(\d+),(\d+)$/.exec(String(key||''));return !!m&&+m[1]<S.rows&&+m[2]<S.cols};
 
+/* ---------- one mutation layer for both gardens ---------- */
+function applyOp(S,op){
+  lastErr='';
+  switch(op&&op.t){
+    case 'place':{if(!inRange(S,op.to)||S.cells[op.to]||!(S.inv[op.id]>0)||!item(op.id))return false;S.cells[op.to]={item:op.id,flip:false};if(--S.inv[op.id]<=0)delete S.inv[op.id];return true}
+    case 'move':{if(op.from===op.to||!S.cells[op.from]||!inRange(S,op.to))return false;const a=S.cells[op.from],b=S.cells[op.to];S.cells[op.to]=a;if(b)S.cells[op.from]=b;else delete S.cells[op.from];return true}
+    case 'store':{const c=S.cells[op.at];if(!c)return false;S.inv[c.item]=(S.inv[c.item]||0)+1;delete S.cells[op.at];return true}
+    case 'flip':{const c=S.cells[op.at];if(!c)return false;c.flip=!c.flip;return true}
+    case 'buy':{const it=item(op.id);if(!it||!charge(S,it.price))return false;S.inv[op.id]=(S.inv[op.id]||0)+1;return true}
+    case 'fence':{const f=FENCES.find(x=>x.id===op.id);if(!f)return false;if(!S.fences.includes(f.id)){if(!charge(S,f.price))return false;S.fences.push(f.id)}S.fence=f.id;return true}
+    case 'expand':{if(op.dir==='col'){if(S.cols>=MAX_COLS||!charge(S,EXPAND_COST))return false;S.cols++}else{if(S.rows>=MAX_ROWS||!charge(S,EXPAND_COST))return false;S.rows++}return true}
+  }
+  return false;
+}
+function doOp(op){
+  if(view==='mine'){if(!applyOp(MINE,op)){if(lastErr)say(lastErr,lastErr);return false}persistMine();G=MINE;return true}
+  const t=clone(G);if(!applyOp(t,op)){if(lastErr)say(lastErr,lastErr);return false}
+  OPS.push(op);saveOps();G=t;return true;
+}
 /* ---------- DOM ---------- */
-let root,sel={inv:null,cell:null},tab='flowers',shopOpen=false,uploadDraft=null;
+let root,sel={inv:null,cell:null},tab='flowers',shopOpen=false,uploadDraft=null,busy='',bubble=null,sheet='';
 function ensureRoot(){
   if(root)return root;
   root=document.createElement('div');root.id='gardenRoot';root.className='gd-root hidden';root.setAttribute('aria-hidden','true');
   root.innerHTML=`<div class="gd-shell">
     <header class="gd-head">
       <button class="gd-icon gd-close" type="button" data-gd="close" aria-label="${L('Close garden','关闭花园')}">×</button>
-      <div class="gd-title"><div class="gd-label">${L('MY GARDEN','我的花园')}</div><strong>${L('Garden','花园')}</strong></div>
+      <div class="gd-title" id="gdTitle"></div>
       <div class="gd-wallet" id="gdWallet"></div>
       <button class="gd-btn gd-btn-primary gd-shop-btn" type="button" data-gd="shop">${L('Shop','商城')}</button>
     </header>
+    <nav class="gd-switch" id="gdSwitch" role="tablist"></nav>
+    <div class="gd-social" id="gdSocial"></div>
+    <div class="gd-say hidden" id="gdSay" aria-live="polite"></div>
     <div class="gd-stage"><div class="gd-plot" id="gdPlot"><div class="gd-fence gd-fence-top"></div><div class="gd-fence gd-fence-left"></div><div class="gd-fence gd-fence-right"></div><div class="gd-grid" id="gdGrid"></div><div class="gd-items" id="gdItems"></div><div class="gd-fence gd-fence-bottom"></div></div></div>
     <div class="gd-actionbar hidden" id="gdActions"></div>
     <section class="gd-tray" id="gdTray" aria-label="${L('Seed bag','背包')}"></section>
     <div class="gd-shop hidden" id="gdShop" role="dialog" aria-label="${L('Shop','商城')}"></div>
+    <div class="gd-shop gd-sheet hidden" id="gdSheet" role="dialog"></div>
   </div><div class="gd-ghost hidden" id="gdGhost"></div>`;
   document.body.appendChild(root);
   root.addEventListener('click',onClick);
@@ -176,24 +255,51 @@ function ensureRoot(){
   root.addEventListener('input',onInput);
   return root;
 }
-function openGarden(){
-  ensureRoot();reconcile();sel={inv:null,cell:null};
+function setView(v){view=v==='char'?'char':'mine';sel={inv:null,cell:null};if(!busy)bubble=null;closeShop();closeSheet();if(tab==='custom'&&view==='char')uploadDraft=null;recompute();render()}
+function openGarden(v){
+  ensureRoot();reconcileMine();reconcileChar();sel={inv:null,cell:null};
+  if(v)view=v==='char'?'char':'mine';recompute();
   root.classList.remove('hidden');root.setAttribute('aria-hidden','false');document.body.classList.add('gd-open');
   render();
 }
-function closeGarden(){if(!root)return;closeShop();root.classList.add('hidden');root.setAttribute('aria-hidden','true');document.body.classList.remove('gd-open')}
+function closeGarden(){if(!root)return;closeShop();closeSheet();root.classList.add('hidden');root.setAttribute('aria-hidden','true');document.body.classList.remove('gd-open')}
 const isOpen=()=>root&&!root.classList.contains('hidden');
 
 function renderHud(){
-  const w=root&&root.querySelector('#gdWallet');if(!w)return;
-  w.innerHTML=`<span class="gd-coin">✓ ${available()}</span><small>${L(`${earned()} completed · ${G.spent} spent`,`已完成 ${earned()} · 已花 ${G.spent}`)}</small>`;
-  const sw=root.querySelector('#gdShopWallet');if(sw)sw.textContent=`✓ ${available()}`;
+  if(!root)return;const w=root.querySelector('#gdWallet');if(!w)return;
+  if(view==='char'){const {d,c}=charCounts();w.innerHTML=`<span class="gd-coin">✓ ${fmt(available())}</span><small>${L(`${d} done · ${c} changed · ${fmt(G.spent)} spent`,`完成 ${d} · 改计划 ${c} · 已花 ${fmt(G.spent)}`)}</small>`}
+  else{const net=lentTotal()-repaidTotal();w.innerHTML=`<span class="gd-coin">✓ ${fmt(available())}</span><small>${L(`${earnedOf(MINE)} completed · ${fmt(MINE.spent)} spent`,`已完成 ${earnedOf(MINE)} · 已花 ${fmt(MINE.spent)}`)}${net?` · ${L('borrowed','借入')} ${fmt(net)}`:''}</small>`}
+  const sw=root.querySelector('#gdShopWallet');if(sw)sw.textContent=`✓ ${fmt(available())}`;
 }
-function render(){if(!isOpen())return;if(drag){drag.pendingRender=true;return}renderHud();renderPlot();renderTray();renderActions();if(shopOpen)renderShop()}
+function renderTitle(){
+  root.querySelector('#gdTitle').innerHTML=view==='char'?`<div class="gd-label">${esc(cname().toUpperCase())} · ${L('GARDEN','花园')}</div><strong>${esc(cemoji())} ${esc(L(`${cname()}'s garden`,`${cname()}的花园`))}</strong>`:`<div class="gd-label">${L('MY GARDEN','我的花园')}</div><strong>${L('Garden','花园')}</strong>`;
+  root.querySelector('#gdSwitch').innerHTML=`<button type="button" role="tab" class="${view==='mine'?'on':''}" data-gd="view" data-v="mine">🌳 ${L('My garden','我的花园')}</button><button type="button" role="tab" class="${view==='char'?'on':''}" data-gd="view" data-v="char">${esc(cemoji())} ${esc(L(`${cname()}'s garden`,`${cname()}的花园`))}</button>`;
+}
+function renderSocial(){
+  const el=root.querySelector('#gdSocial'),nm=esc(cname()),dis=busy?' disabled':'';
+  let mode='';try{mode=Char.mode()}catch{}
+  if(view==='mine'){
+    const d=debt();
+    el.innerHTML=`<button type="button" class="gd-btn" data-gd="borrowOpen"${dis}>🤝 ${L(`Borrow ✓ from ${nm}`,`向${nm}借 ✓`)}</button>${d>0?`<span class="gd-debt">${L(`You owe ${nm} ✓ ${fmt(d)}`,`欠${nm} ✓ ${fmt(d)}`)}</span><button type="button" class="gd-btn" data-gd="repay"${dis}${available()<1?' disabled':''}>${L('Pay back','还')}</button>`:''}`;
+  }else if(!mode){
+    el.innerHTML=`<span class="gd-hint">${L('Set up your character first — their finished plans become their ✓.','先设置角色——角色完成的日程就是它的 ✓。')}</span><button type="button" class="gd-btn" data-gd="charSettings">🤖 ${L('Character & API','角色与 API')}</button>`;
+  }else{
+    el.innerHTML=`<button type="button" class="gd-btn gd-btn-primary" data-gd="decorate"${dis}>✨ ${L(`Let ${nm} decorate`,`让${nm}自己布置`)}</button>
+    ${OPS.length?`<span class="gd-suggest">${L(`${OPS.length} suggested change${OPS.length>1?'s':''} — not applied yet`,`${OPS.length} 条修改建议，还没生效`)}</span><button type="button" class="gd-btn" data-gd="sendSuggest"${dis}>${L(`Send to ${nm}`,`发送给${nm}`)}</button><button type="button" class="gd-btn gd-btn-quiet" data-gd="undoSuggest"${dis}>${L('Undo all','全部撤销')}</button>`:`<span class="gd-hint">${L(`Anything you change here is a suggestion — ${nm} decides.`,`你在这里的修改都是建议，${nm}同意了才会生效。`)}</span>`}`;
+  }
+}
+function renderSay(){
+  const el=root.querySelector('#gdSay');
+  if(busy){el.classList.remove('hidden');el.innerHTML=`<span class="gd-ava">${esc(cemoji())}</span><div><strong>${esc(cname())}</strong><p class="gd-typing">${esc(busy)}<i></i><i></i><i></i></p></div>`;return}
+  if(!bubble){el.classList.add('hidden');el.innerHTML='';return}
+  el.classList.remove('hidden');
+  el.innerHTML=`<span class="gd-ava">${esc(cemoji())}</span><div><strong>${esc(cname())}</strong><p>${esc(bubble.text)}</p>${bubble.note?`<small>${esc(bubble.note)}</small>`:''}</div><button type="button" class="gd-icon gd-say-x" data-gd="sayClose" aria-label="${L('Dismiss','关闭')}">×</button>`;
+}
+function render(){if(!isOpen())return;if(drag){drag.pendingRender=true;return}root.dataset.view=view;renderTitle();renderHud();renderSocial();renderSay();renderPlot();renderTray();renderActions();if(shopOpen)renderShop();if(sheet)renderSheet()}
 function renderPlot(){
   const plot=root.querySelector('#gdPlot'),grid=root.querySelector('#gdGrid');
   const f=FENCE_ART[G.fence]||FENCE_ART.wood;
-  plot.dataset.fence=G.fence;
+  plot.dataset.fence=G.fence;plot.classList.toggle('draft',view==='char'&&OPS.length>0);
   plot.style.setProperty('--gd-fh',`url("data:image/svg+xml,${encodeURIComponent(f.h)}")`);
   plot.style.setProperty('--gd-fv',`url("data:image/svg+xml,${encodeURIComponent(f.v)}")`);
   const items=root.querySelector('#gdItems');
@@ -203,14 +309,15 @@ function renderPlot(){
     const key=`${r},${c}`,cell=G.cells[key],it=cell&&item(cell.item);
     const cls=['gd-cell',(r+c)%2?'alt':'',sel.cell===key?'selected':'',!it&&(sel.inv||sel.cell)?'target':''].join(' ');
     h+=`<div class="${cls}" data-cell="${key}"></div>`;
-    if(it)p+=`<div class="gd-slot" style="grid-row:${r+1};grid-column:${c+1};z-index:${it.ground?1:r*2+10}"><div class="gd-item${it.tall?' tall':''}${it.ground?' ground':''}${cell.flip?' flip':''}${sel.cell===key?' selected':''}" data-placed="${key}" title="${esc(itemName(it))}">${artHtml(it)}</div></div>`;
+    const changed=view==='char'&&OPS.length&&JSON.stringify(CHARB.cells[key]||null)!==JSON.stringify(cell||null);
+    if(it)p+=`<div class="gd-slot" style="grid-row:${r+1};grid-column:${c+1};z-index:${it.ground?1:r*2+10}"><div class="gd-item${it.tall?' tall':''}${it.ground?' ground':''}${cell.flip?' flip':''}${sel.cell===key?' selected':''}${changed?' suggested':''}" data-placed="${key}" title="${esc(itemName(it))}">${artHtml(it)}</div></div>`;
   }
   grid.innerHTML=h;items.innerHTML=p;
 }
 function renderTray(){
   const tray=root.querySelector('#gdTray');
   const ids=Object.keys(G.inv).filter(id=>G.inv[id]>0&&item(id));
-  tray.innerHTML=`<div class="gd-tray-head"><span class="gd-label">${L('SEED BAG','背包')}</span><small>${ids.length?L('Drag onto the garden, or tap an item then tap a plot.','拖到花园里，或先点物品再点格子。'):L('Empty — buy plants in the Shop.','空空的——去商城兑换植物吧。')}</small></div>
+  tray.innerHTML=`<div class="gd-tray-head"><span class="gd-label">${view==='char'?esc(L(`${cname().toUpperCase()}'S BAG`,`${cname()}的背包`)):L('SEED BAG','背包')}</span><small>${ids.length?L('Drag onto the garden, or tap an item then tap a plot.','拖到花园里，或先点物品再点格子。'):L('Empty — buy plants in the Shop.','空空的——去商城兑换植物吧。')}</small></div>
   <div class="gd-tray-items">${ids.map(id=>{const it=item(id);return `<button type="button" class="gd-chip${sel.inv===id?' selected':''}" data-inv="${esc(id)}" title="${esc(itemName(it))}"><span class="gd-chip-art">${artHtml(it)}</span><span class="gd-chip-count">×${G.inv[id]}</span></button>`}).join('')}</div>`;
 }
 function renderActions(){
@@ -223,30 +330,19 @@ function renderActions(){
 
 /* ---------- placing ---------- */
 function place(id,key){
-  if(G.cells[key])return false;
-  if(!(G.inv[id]>0))return false;
-  G.cells[key]={item:id,flip:false};
-  if(--G.inv[id]<=0){delete G.inv[id];if(sel.inv===id)sel.inv=null}
-  persist();pop(key);return true;
+  if(!doOp({t:'place',id,to:key}))return false;
+  if(!(G.inv[id]>0)&&sel.inv===id)sel.inv=null;
+  pop(key);return true;
 }
-function move(from,to){
-  if(from===to)return;
-  const a=G.cells[from],b=G.cells[to];if(!a)return;
-  G.cells[to]=a;if(b)G.cells[from]=b;else delete G.cells[from];
-  if(sel.cell===from)sel.cell=to;
-  persist();pop(to);
-}
-function store(key){
-  const c=G.cells[key];if(!c)return;
-  G.inv[c.item]=(G.inv[c.item]||0)+1;delete G.cells[key];if(sel.cell===key)sel.cell=null;persist();
-}
+function move(from,to){if(from===to)return;if(doOp({t:'move',from,to})){if(sel.cell===from)sel.cell=to;pop(to)}}
+function store(key){if(doOp({t:'store',at:key})&&sel.cell===key)sel.cell=null}
 function pop(key){requestAnimationFrame(()=>{const el=root.querySelector(`[data-placed="${key}"]`);if(el){el.classList.add('pop');setTimeout(()=>el.classList.remove('pop'),420)}})}
 
 /* ---------- pointer drag ---------- */
 let drag=null;
 function onPointerDown(e){
   if(e.button>0||drag)return;
-  const src=e.target.closest('[data-placed],[data-inv]');if(!src||!root.contains(src)||src.closest('#gdShop'))return;
+  const src=e.target.closest('[data-placed],[data-inv]');if(!src||!root.contains(src)||src.closest('#gdShop,#gdSheet'))return;
   if(e.pointerType==='mouse')e.preventDefault(); // no native image drag / text selection
   const from=src.dataset.placed?{type:'cell',key:src.dataset.placed}:{type:'inv',id:src.dataset.inv};
   drag={from,src,x:e.clientX,y:e.clientY,active:false,pid:e.pointerId,target:null};
@@ -315,11 +411,15 @@ function tap(from){
 function onClick(e){
   const a=e.target.closest('[data-gd]');
   if(a){
+    if(a.disabled)return;
     const act=a.dataset.gd;
     if(act==='close')return closeGarden();
+    if(act==='view')return setView(a.dataset.v);
     if(act==='shop')return openShop();
     if(act==='shopClose')return closeShop();
-    if(act==='flip'&&sel.cell&&G.cells[sel.cell]){G.cells[sel.cell].flip=!G.cells[sel.cell].flip;persist();return render()}
+    if(act==='sheetClose')return closeSheet();
+    if(act==='sayClose'){bubble=null;return renderSay()}
+    if(act==='flip'&&sel.cell&&G.cells[sel.cell]){doOp({t:'flip',at:sel.cell});return render()}
     if(act==='store'&&sel.cell){store(sel.cell);return render()}
     if(act==='deselect'){sel.cell=null;return render()}
     if(act==='tab'){tab=a.dataset.tab;return renderShop()}
@@ -328,6 +428,15 @@ function onClick(e){
     if(act==='expand')return expand(a.dataset.dir);
     if(act==='upload')return confirmUpload();
     if(act==='delCustom')return deleteCustom(a.dataset.id);
+    if(act==='borrowOpen')return openSheet('borrow');
+    if(act==='borrowStep'){const n=root.querySelector('#gdAmt');if(n){n.value=Math.max(1,Math.min(Number(n.max)||1,(Number(n.value)||1)+Number(a.dataset.d)));root.querySelector('#gdAmtVal').textContent=n.value}return}
+    if(act==='borrowSend')return sendBorrow();
+    if(act==='repay')return repayNow();
+    if(act==='decorate')return letDecorate();
+    if(act==='sendSuggest')return openSheet('suggest');
+    if(act==='suggestSend')return sendSuggestions();
+    if(act==='undoSuggest'){OPS=[];saveOps();recompute();sel={inv:null,cell:null};return render()}
+    if(act==='charSettings'){closeGarden();try{Char.openSettings()}catch{}return}
     return;
   }
   if(e.target.closest('[data-placed],[data-inv]'))return; // handled by pointer events
@@ -341,7 +450,7 @@ function onClick(e){
 }
 
 /* ---------- shop ---------- */
-function openShop(){shopOpen=true;const s=root.querySelector('#gdShop');s.classList.remove('hidden');requestAnimationFrame(()=>s.classList.add('open'));renderShop()}
+function openShop(){closeSheet();shopOpen=true;const s=root.querySelector('#gdShop');s.classList.remove('hidden');requestAnimationFrame(()=>s.classList.add('open'));renderShop()}
 function closeShop(){shopOpen=false;const s=root&&root.querySelector('#gdShop');if(!s)return;s.classList.remove('open');setTimeout(()=>{if(!shopOpen)s.classList.add('hidden')},220)}
 function card(it,btn){
   const owned=(G.inv[it.id]||0)+plantedCount(it.id);
@@ -349,7 +458,7 @@ function card(it,btn){
 }
 const priceBtn=(price,attrs,label)=>`<button type="button" class="gd-buy${available()<price?' poor':''}" ${attrs}>${label||`✓ ${price}`}</button>`;
 function renderShop(){
-  const s=root.querySelector('#gdShop');
+  const s=root.querySelector('#gdShop'),isChar=view==='char';
   let body='';
   if(['flowers','trees','decor'].includes(tab)){
     body=`<div class="gd-cards">${CATALOG.filter(x=>x.cat===tab).map(it=>card(it,priceBtn(it.price,`data-gd="buy" data-id="${it.id}"`))).join('')}</div>`;
@@ -363,6 +472,8 @@ function renderShop(){
       <div class="gd-land">${mini(Math.min(G.rows+1,MAX_ROWS),G.cols,!rowFull,false)}<div><strong>${L('Add a row','加一排（横向）')}</strong><p>${L(`One more row of ${G.cols} plots. Now ${G.rows} rows (max ${MAX_ROWS}).`,`增加一排 ${G.cols} 格。目前 ${G.rows} 排，最多 ${MAX_ROWS} 排。`)}</p>${rowFull?`<button type="button" class="gd-buy done" disabled>${L('Maxed out','已到最大')}</button>`:priceBtn(EXPAND_COST,'data-gd="expand" data-dir="row"',`✓ ${EXPAND_COST} · ${L('Add a row','加一排')}`)}</div></div>
       <div class="gd-land">${mini(G.rows,Math.min(G.cols+1,MAX_COLS),false,!colFull)}<div><strong>${L('Add a column','加一列（竖向）')}</strong><p>${L(`One more column of ${G.rows} plots. Now ${G.cols} columns (max ${MAX_COLS}).`,`增加一列 ${G.rows} 格。目前 ${G.cols} 列，最多 ${MAX_COLS} 列。`)}</p>${colFull?`<button type="button" class="gd-buy done" disabled>${L('Maxed out','已到最大')}</button>`:priceBtn(EXPAND_COST,'data-gd="expand" data-dir="col"',`✓ ${EXPAND_COST} · ${L('Add a column','加一列')}`)}</div></div>
     </div>`;
+  }else if(tab==='custom'&&isChar){
+    body=MINE.custom.length?`<p class="gd-note gd-note-top">${L('Your uploads are in this shop too. Uploading new ones happens in your own garden.','你上传的商品也会出现在这里。上传新图片请回到你自己的花园。')}</p><div class="gd-cards">${MINE.custom.map(it=>card(it,priceBtn(it.price,`data-gd="buy" data-id="${esc(it.id)}"`))).join('')}</div>`:`<p class="gd-note gd-note-top">${L('No uploads yet. Upload images from your own garden and they appear here too.','还没有上传的商品。在你自己的花园上传后，这里也能兑换。')}</p>`;
   }else if(tab==='custom'){
     const d=uploadDraft;
     body=`<div class="gd-upload">
@@ -375,30 +486,27 @@ function renderShop(){
         <p class="gd-note">${L('Uploading costs the price once and gives you the first copy. After that it stays in the shop at that price.','上传时扣除一次该价格并获得第一株；之后它会作为商品留在商城，按此价格兑换。')}</p>
         ${priceBtn(d?.price||5,`data-gd="upload"${d?.img?'':' disabled'}`,`✓ ${d?.price||5} · ${L('Upload & add','上传并兑换')}`)}
       </div></div>
-      ${G.custom.length?`<div class="gd-cards">${G.custom.map(it=>card(it,`<div class="gd-card-row">${priceBtn(it.price,`data-gd="buy" data-id="${esc(it.id)}"`)}<button type="button" class="gd-del" data-gd="delCustom" data-id="${esc(it.id)}" aria-label="${L('Remove product','删除商品')}">🗑</button></div>`)).join('')}</div>`:''}`;
+      ${MINE.custom.length?`<div class="gd-cards">${MINE.custom.map(it=>card(it,`<div class="gd-card-row">${priceBtn(it.price,`data-gd="buy" data-id="${esc(it.id)}"`)}<button type="button" class="gd-del" data-gd="delCustom" data-id="${esc(it.id)}" aria-label="${L('Remove product','删除商品')}">🗑</button></div>`)).join('')}</div>`:''}`;
   }
-  s.innerHTML=`<div class="gd-shop-head"><div><div class="gd-label">${L('GARDEN SHOP','花园商城')}</div><strong>${L('Trade completed tasks for plants','用已完成事项兑换植物')}</strong></div><span class="gd-coin" id="gdShopWallet">✓ ${available()}</span><button type="button" class="gd-icon" data-gd="shopClose" aria-label="${L('Close shop','关闭商城')}">×</button></div>
+  s.innerHTML=`<div class="gd-shop-head"><div><div class="gd-label">${isChar?esc(L(`${cname().toUpperCase()}'S SHOP`,`${cname()}的商城`)):L('GARDEN SHOP','花园商城')}</div><strong>${isChar?esc(L(`Spend ${cname()}'s ✓ — as a suggestion`,`用${cname()}的 ✓ 兑换（作为建议）`)):L('Trade completed tasks for plants','用已完成事项兑换植物')}</strong></div><span class="gd-coin" id="gdShopWallet">✓ ${fmt(available())}</span><button type="button" class="gd-icon" data-gd="shopClose" aria-label="${L('Close shop','关闭商城')}">×</button></div>
   <nav class="gd-tabs">${TABS.map(([id,en,cn])=>`<button type="button" class="${tab===id?'on':''}" data-gd="tab" data-tab="${id}">${L(en,cn)}</button>`).join('')}</nav>
   <div class="gd-shop-body">${body}</div>`;
 }
 function celebrate(){try{confetti()}catch{}}
+const suggested=()=>view==='char'?L(' (suggestion)','（建议）'):'';
 function buy(id){
-  const it=item(id);if(!it||!charge(it.price))return;
-  G.inv[id]=(G.inv[id]||0)+1;persist();celebrate();
-  say(`${itemName(it)} added to your seed bag.`,`${itemName(it)} 已放入背包。`);render();renderShop();
+  const it=item(id);if(!it||!doOp({t:'buy',id}))return;
+  if(view==='mine')celebrate();
+  say(`${itemName(it)} added to the bag${suggested()}.`,`${itemName(it)} 已放入背包${suggested()}。`);render();renderShop();
 }
-function buyFence(id){
-  const f=FENCES.find(x=>x.id===id);if(!f)return;
-  if(!G.fences.includes(id)){if(!charge(f.price))return;G.fences.push(id);celebrate()}
-  G.fence=id;persist();render();renderShop();
-}
+function buyFence(id){if(doOp({t:'fence',id})){if(view==='mine')celebrate();render();renderShop()}}
 function expand(dir){
-  if(dir==='col'){if(G.cols>=MAX_COLS||!charge(EXPAND_COST))return;G.cols++;say('Your garden grew by one column.','花园扩建了一列。')}
-  else{if(G.rows>=MAX_ROWS||!charge(EXPAND_COST))return;G.rows++;say('Your garden grew by one row.','花园扩建了一排。')}
-  persist();celebrate();render();renderShop();
+  if(!doOp({t:'expand',dir}))return;
+  if(view==='mine')celebrate();
+  say(dir==='col'?`The garden grew by one column${suggested()}.`:`The garden grew by one row${suggested()}.`,dir==='col'?`花园扩建了一列${suggested()}。`:`花园扩建了一排${suggested()}。`);render();renderShop();
 }
 
-/* ---------- custom uploads ---------- */
+/* ---------- custom uploads (your garden only) ---------- */
 function onChange(e){
   if(e.target.id!=='gdFile')return;
   const f=e.target.files&&e.target.files[0];if(!f)return;
@@ -419,44 +527,143 @@ function onChange(e){
 }
 function $name(){return root.querySelector('#gdName')?.value.trim()||''}
 function onInput(e){
-  if(!uploadDraft&&!['gdPrice','gdName'].includes(e.target.id))return;if(!uploadDraft)uploadDraft={img:'',name:'',tall:false,price:5};
-  if(e.target.id==='gdName'&&uploadDraft)uploadDraft.name=e.target.value.slice(0,24);
-  if(e.target.id==='gdPrice'){const p=Number(e.target.value);if(uploadDraft)uploadDraft.price=p;root.querySelector('#gdPriceVal').textContent=`✓ ${p}`;const b=root.querySelector('[data-gd="upload"]');if(b){b.textContent=`✓ ${p} · ${L('Upload & add','上传并兑换')}`;b.classList.toggle('poor',available()<p)}}
+  if(!['gdPrice','gdName'].includes(e.target.id))return;if(!uploadDraft)uploadDraft={img:'',name:'',tall:false,price:5};
+  if(e.target.id==='gdName')uploadDraft.name=e.target.value.slice(0,24);
+  if(e.target.id==='gdPrice'){const p=Number(e.target.value);uploadDraft.price=p;root.querySelector('#gdPriceVal').textContent=`✓ ${p}`;const b=root.querySelector('[data-gd="upload"]');if(b){b.textContent=`✓ ${p} · ${L('Upload & add','上传并兑换')}`;b.classList.toggle('poor',available()<p)}}
 }
 document.addEventListener('click',e=>{const b=e.target.closest('#gardenRoot .gd-seg [data-size]');if(!b)return;if(!uploadDraft)uploadDraft={img:'',name:$name(),tall:false,price:5};uploadDraft.tall=b.dataset.size==='tall';renderShop()});
 function confirmUpload(){
+  if(view!=='mine')return;
   const d=uploadDraft;if(!d||!d.img)return say('Choose an image first.','请先选择图片。');
-  if(G.custom.length>=CUSTOM_LIMIT)return say(`You can keep up to ${CUSTOM_LIMIT} uploads.`,`最多保存 ${CUSTOM_LIMIT} 个自定义商品。`);
+  if(MINE.custom.length>=CUSTOM_LIMIT)return say(`You can keep up to ${CUSTOM_LIMIT} uploads.`,`最多保存 ${CUSTOM_LIMIT} 个自定义商品。`);
   const name=(d.name||$name()).trim()||L('My plant','我的植物');
-  if(!charge(d.price))return;
-  const it={id:'u_'+(crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)),custom:true,name,img:d.img,tall:!!d.tall,price:d.price,cat:'custom'};
-  G.custom.push(it);G.inv[it.id]=(G.inv[it.id]||0)+1;uploadDraft=null;persist();celebrate();
+  if(!charge(MINE,d.price)){say(lastErr,lastErr);return}
+  const it={id:'u_'+uid(),custom:true,name,img:d.img,tall:!!d.tall,price:d.price,cat:'custom'};
+  MINE.custom.push(it);MINE.inv[it.id]=(MINE.inv[it.id]||0)+1;uploadDraft=null;persistMine();celebrate();
   say(`${name} is now in the shop and in your bag.`,`${name} 已上架商城并放入背包。`);render();renderShop();
 }
 function deleteCustom(id){
-  const it=G.custom.find(x=>x.id===id);if(!it)return;
-  const n=(G.inv[id]||0)+plantedCount(id);
+  const it=MINE.custom.find(x=>x.id===id);if(!it)return;
+  const n=(MINE.inv[id]||0)+Object.values(MINE.cells).filter(c=>c&&c.item===id).length;
   if(!confirm(L(`Remove “${it.name}” from the shop?${n?` The ${n} you own will also disappear (no refund).`:''}`,`从商城删除「${it.name}」？${n?`你拥有的 ${n} 株也会一起消失（不退还）。`:''}`)))return;
-  G.custom=G.custom.filter(x=>x.id!==id);delete G.inv[id];
-  for(const k of Object.keys(G.cells))if(G.cells[k]?.item===id)delete G.cells[k];
-  if(sel.inv===id)sel.inv=null;persist();render();renderShop();
+  MINE.custom=MINE.custom.filter(x=>x.id!==id);
+  for(const S of [MINE,CHARB]){delete S.inv[id];for(const k of Object.keys(S.cells))if(S.cells[k]?.item===id)delete S.cells[k]}
+  if(sel.inv===id)sel.inv=null;persistMine();persistChar();recompute();render();renderShop();
+}
+
+/* ---------- sheets: borrow & send suggestions ---------- */
+function openSheet(kind){closeShop();sheet=kind;const s=root.querySelector('#gdSheet');s.classList.remove('hidden');requestAnimationFrame(()=>s.classList.add('open'));renderSheet()}
+function closeSheet(){sheet='';const s=root&&root.querySelector('#gdSheet');if(!s)return;s.classList.remove('open');setTimeout(()=>{if(!sheet)s.classList.add('hidden')},220)}
+function sheetHead(label,title){return `<div class="gd-shop-head"><div><div class="gd-label">${label}</div><strong>${title}</strong></div><button type="button" class="gd-icon" data-gd="sheetClose" aria-label="${L('Close','关闭')}">×</button></div>`}
+function renderSheet(){
+  const s=root.querySelector('#gdSheet'),nm=esc(cname());
+  if(sheet==='borrow'){
+    const cAvail=availOf(CHARB),max=Math.max(1,Math.min(20,Math.floor(cAvail))),hist=MINE.loans.slice(-6).reverse();
+    const prev=Number(root.querySelector('#gdAmt')?.value)||Math.min(3,max);
+    s.innerHTML=sheetHead(L('BORROW','借 ✓'),L(`Borrow ✓ from ${nm}`,`向${nm}借 ✓`))+`<div class="gd-shop-body gd-form">
+      <div class="gd-stats"><span>${esc(cemoji())} ${L(`${nm} has`,`${nm}有`)} <b>✓ ${fmt(cAvail)}</b></span><span>${L('You have','你有')} <b>✓ ${fmt(availOf(MINE))}</b></span>${debt()>0?`<span>${L('You owe','你欠')} <b>✓ ${fmt(debt())}</b></span>`:''}</div>
+      <div class="gd-amount"><span>${L('How many','借多少')}</span><button type="button" class="gd-icon" data-gd="borrowStep" data-d="-1">−</button><strong id="gdAmtVal">${Math.min(prev,max)}</strong><button type="button" class="gd-icon" data-gd="borrowStep" data-d="1">＋</button><input id="gdAmt" type="hidden" value="${Math.min(prev,max)}" max="${max}"></div>
+      <label class="gd-field">${L('Say something (optional)','想说点什么（可选）')}<textarea id="gdMsg" rows="2" maxlength="200" placeholder="${L('e.g. I really want that Christmas tree…','比如：我真的很想要那棵圣诞树……')}"></textarea></label>
+      <label class="gd-toggle"><input id="gdRepay" type="checkbox" ${MINE.repayOn?'checked':''}><span><b>${L('I’ll pay it back','借了要还')}</b><small>${L(`On: your next finished tasks pay ${nm} back first. Off: it’s a gift from ${nm}.`,`打开：你之后完成的任务会先自动还给${nm}。关闭：相当于${nm}送你的。`)}</small></span></label>
+      <button type="button" class="gd-buy gd-wide" data-gd="borrowSend"${busy||cAvail<1?' disabled':''}>${cAvail<1?L(`${nm} has no ✓ to lend`,`${nm}现在没有 ✓ 可以借`):L(`Ask ${nm}`,`问问${nm}`)}</button>
+      ${hist.length?`<div class="gd-hist"><div class="gd-label">${L('HISTORY','记录')}</div>${hist.map(l=>`<div class="gd-hist-row"><span>${new Date(l.at).toLocaleDateString(uiLocale(),{month:'short',day:'numeric'})}</span><span>${l.amount?L(`lent ${l.amount}/${l.asked}`,`借到 ${l.amount}/${l.asked}`):L(`refused (${l.asked})`,`拒绝了（${l.asked}）`)}${l.amount?(l.repay?` · ${L('repaid','已还')} ${fmt(l.repaid)}/${l.amount}`:` · ${L('gift','送的')}`):''}</span>${l.reply?`<small>“${esc(l.reply)}”</small>`:''}</div>`).join('')}</div>`:''}
+    </div>`;
+  }else if(sheet==='suggest'){
+    s.innerHTML=sheetHead(L('SUGGESTIONS','修改建议'),L(`Send ${OPS.length} change${OPS.length>1?'s':''} to ${nm}`,`把 ${OPS.length} 条修改发给${nm}`))+`<div class="gd-shop-body gd-form">
+      <ol class="gd-ops">${OPS.map(o=>`<li>${esc(opTextHuman(o))}</li>`).join('')}</ol>
+      <label class="gd-field">${L('A note (optional)','附一句话（可选）')}<textarea id="gdNote" rows="2" maxlength="200" placeholder="${L('e.g. The pond would look nicer in front!','比如：池塘放前面更好看！')}"></textarea></label>
+      <button type="button" class="gd-buy gd-wide" data-gd="suggestSend"${busy?' disabled':''}>${L(`Send to ${nm}`,`发送给${nm}`)}</button>
+    </div>`;
+  }
+}
+function opTextHuman(op){
+  const nm=id=>itemName(item(id)),cell=k=>{const [r,c]=String(k).split(',');return L(`row ${+r+1}, col ${+c+1}`,`第 ${+r+1} 排第 ${+c+1} 列`)};
+  switch(op.t){
+    case 'buy':return L(`Buy ${nm(op.id)} (✓ ${item(op.id)?.price})`,`兑换 ${nm(op.id)}（✓ ${item(op.id)?.price}）`);
+    case 'place':return L(`Plant ${nm(op.id)} at ${cell(op.to)}`,`把 ${nm(op.id)} 种在${cell(op.to)}`);
+    case 'move':return L(`Move ${cell(op.from)} → ${cell(op.to)}`,`把${cell(op.from)}的东西移到${cell(op.to)}`);
+    case 'store':return L(`Put ${cell(op.at)} back in the bag`,`把${cell(op.at)}的东西收回背包`);
+    case 'flip':return L(`Flip ${cell(op.at)}`,`翻转${cell(op.at)}`);
+    case 'fence':{const f=FENCES.find(x=>x.id===op.id);return L(`Use the ${f?.en||op.id}`,`换成${f?.cn||op.id}`)}
+    case 'expand':return op.dir==='col'?L(`Add a column (✓ ${EXPAND_COST})`,`加一列（✓ ${EXPAND_COST}）`):L(`Add a row (✓ ${EXPAND_COST})`,`加一排（✓ ${EXPAND_COST}）`);
+  }
+  return op.t;
+}
+function setBusy(text){busy=text;if(isOpen()){renderSocial();renderSay();if(sheet)renderSheet()}}
+function speak(text,note){bubble={text,note};busy='';if(isOpen())render()}
+async function sendBorrow(){
+  const amount=Math.max(1,Number(root.querySelector('#gdAmt')?.value)||1),msg=(root.querySelector('#gdMsg')?.value||'').trim().slice(0,200),repay=!!root.querySelector('#gdRepay')?.checked;
+  MINE.repayOn=repay;
+  const ctx={amount,msg,repay,charAvail:availOf(CHARB),myAvail:availOf(MINE),debt:debt(),history:MINE.loans.slice(-5)};
+  closeSheet();setBusy(L('thinking','正在想'));
+  let res;
+  try{res=await Char.decideLoan(ctx)}catch(e){busy='';bubble={text:L(`(Couldn’t reach ${cname()}: ${e.message})`,`（联系不上${cname()}：${e.message}）`)};render();return}
+  const granted=Math.max(0,Math.min(res.amount|0,Math.floor(availOf(CHARB))));
+  MINE.loans.push({id:uid(),at:Date.now(),asked:amount,amount:granted,repay,repaid:0,msg,reply:res.reply||''});
+  persistMine();recompute();
+  if(granted)celebrate();
+  speak(res.reply||'',granted?L(`+✓ ${granted} from ${cname()}${repay?' · to pay back':' · a gift'}`,`${cname()}给了你 ✓ ${granted}${repay?' · 之后要还':' · 送你的'}`):L('Request declined.','没有借给你。'));
+}
+function repayNow(){
+  const n=Math.min(Math.floor(availOf(MINE)),Math.ceil(debt()));if(n<=0)return;
+  const paid=repayFrom(Math.min(n,debt()));if(!paid)return;
+  persistMine();recompute();
+  say(`Paid ${cname()} back ✓ ${fmt(paid)}.`,`还给${cname()} ✓ ${fmt(paid)}。`);render();
+}
+function resolveId(x){x=String(x||'').trim();if(item(x))return x;const lx=x.toLowerCase();const hit=[...CATALOG,...MINE.custom].find(i=>[i.en,i.cn,i.name].filter(Boolean).some(n=>String(n).toLowerCase()===lx));return hit?hit.id:''}
+function cellKey(v){if(Array.isArray(v))return `${v[0]},${v[1]}`;const m=/(\d+)\D+(\d+)/.exec(String(v||''));return m?`${+m[1]},${+m[2]}`:''}
+function decorateCtx(){
+  const S=CHARB,empty=[];for(let r=0;r<S.rows;r++)for(let c=0;c<S.cols;c++)if(!S.cells[`${r},${c}`])empty.push(`${r},${c}`);
+  return {avail:availOf(S),rows:S.rows,cols:S.cols,expandCost:EXPAND_COST,
+    catalog:[...CATALOG,...MINE.custom].map(i=>({id:i.id,name:itemName(i),price:i.price,kind:i.tall?'tree':i.ground?'ground decor':(i.cat==='decor'?'decor':'plant')})),
+    fences:FENCES.map(f=>({id:f.id,name:L(f.en,f.cn),price:f.price,owned:S.fences.includes(f.id)})),fence:S.fence,inv:{...S.inv},
+    placed:Object.entries(S.cells).map(([at,c])=>({at,id:c.item,name:itemName(item(c.item))})),empty};
+}
+async function letDecorate(){
+  if(busy)return;setBusy(L('decorating','正在布置'));
+  let plan;
+  try{plan=await Char.decorate(decorateCtx())}catch(e){busy='';bubble={text:L(`(Couldn’t reach ${cname()}: ${e.message})`,`（联系不上${cname()}：${e.message}）`)};render();return}
+  const S=CHARB;let n=0;const run=op=>{if(applyOp(S,op))n++};
+  if(plan.expand==='row'||plan.expand==='col')run({t:'expand',dir:plan.expand});
+  if(plan.fence&&FENCES.some(f=>f.id===plan.fence)&&plan.fence!==S.fence)run({t:'fence',id:plan.fence});
+  for(const b of (plan.buy||[]).slice(0,20)){const id=resolveId(b);if(id)run({t:'buy',id})}
+  for(const p of (plan.place||[]).slice(0,40)){const id=resolveId(p&&(p.id||p.item)),to=cellKey(p&&(p.to||p.cell||p.at));if(id&&to)run({t:'place',id,to})}
+  for(const m of (plan.move||[]).slice(0,20)){const from=cellKey(m&&m.from),to=cellKey(m&&m.to);if(from&&to)run({t:'move',from,to})}
+  persistChar(n>0);recompute();
+  speak(plan.say||'',n?L(`${cname()} made ${n} change${n>1?'s':''}.`,`${cname()}做了 ${n} 处改动。`):L('Nothing changed.','没有改动。'));
+}
+async function sendSuggestions(){
+  if(!OPS.length||busy)return;
+  const note=(root.querySelector('#gdNote')?.value||'').trim().slice(0,200);
+  const ops=[...OPS];closeSheet();setBusy(L('looking at your suggestions','正在看你的建议'));
+  let res;
+  const ctx={avail:availOf(CHARB),rows:CHARB.rows,cols:CHARB.cols,placed:Object.entries(CHARB.cells).map(([at,c])=>({at,name:itemName(item(c.item))})),ops:ops.map(opTextHuman),msg:note};
+  try{res=await Char.review(ctx)}catch(e){busy='';bubble={text:L(`(Couldn’t reach ${cname()}: ${e.message})`,`（联系不上${cname()}：${e.message}）`)};render();return}
+  const acc=new Set(res.accepted);let n=0;
+  ops.forEach((op,i)=>{if(acc.has(i)&&applyOp(CHARB,op))n++});
+  OPS=[];saveOps();persistChar(n>0);recompute();sel={inv:null,cell:null};
+  speak(res.reply||'',L(`${cname()} accepted ${n} of ${ops.length}.`,`${cname()}接受了 ${n}/${ops.length} 条。`));
 }
 
 /* ---------- hooks into the app ---------- */
 document.addEventListener('dragstart',e=>{if(root&&root.contains(e.target))e.preventDefault()});
-document.addEventListener('keydown',e=>{if(e.key==='Escape'&&drag){onPointerCancel();return}if(e.key==='Escape'&&isOpen()){if(shopOpen)closeShop();else closeGarden()}});
-try{const _ra=renderAll;renderAll=function(){_ra.apply(this,arguments);try{reconcile()}catch(err){console.error(err)}}}catch{}
-try{const _collect=collectGardenState;collectGardenState=async function(){const s=await _collect.apply(this,arguments);s.garden=G;return s}}catch{}
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&drag){onPointerCancel();return}if(e.key==='Escape'&&isOpen()){if(sheet)closeSheet();else if(shopOpen)closeShop();else closeGarden()}});
+try{const _ra=renderAll;renderAll=function(){_ra.apply(this,arguments);try{reconcileMine()}catch(err){console.error(err)}}}catch{}
+try{const _rl=renderLoki;renderLoki=function(){_rl.apply(this,arguments);try{reconcileChar();if(isOpen())render()}catch(err){console.error(err)}}}catch{}
+try{const _collect=collectGardenState;collectGardenState=async function(){const s=await _collect.apply(this,arguments);s.garden=MINE;s.charGarden=CHARB;return s}}catch{}
 try{const _apply=applyCloudState;applyCloudState=async function(state){
   let pushBack=false;
   if(state&&typeof state==='object'){
-    const remote=state.garden&&typeof state.garden==='object'?state.garden:null;
-    if(remote){
-      const merged=mergeGardens(G,remote);
-      if(hasContent(G)&&merged.editedAt>G.editedAt&&!sameGarden(G,merged))try{localStorage.setItem(GARDEN_KEY+'-backup',JSON.stringify(G))}catch{}
-      pushBack=!sameGarden(merged,remote);
-      G=merged;try{localStorage.setItem(GARDEN_KEY,JSON.stringify(G))}catch{}
-    }else pushBack=hasContent(G);
+    for(const [field,key,kind] of [['garden',GARDEN_KEY,'mine'],['charGarden',CHAR_KEY,'char']]){
+      const local=kind==='mine'?MINE:CHARB,remote=state[field]&&typeof state[field]==='object'?state[field]:null;
+      if(remote){
+        const merged=mergeGardens(local,remote,kind);
+        if(hasContent(local)&&merged.editedAt>local.editedAt&&!sameGarden(local,merged))try{localStorage.setItem(key+'-backup',JSON.stringify(local))}catch{}
+        if(!sameGarden(merged,remote))pushBack=true;
+        if(kind==='mine')MINE=merged;else CHARB=merged;saveRaw(key,merged);
+      }else if(hasContent(local)||Object.keys(local.earnedMap||{}).length)pushBack=true;
+    }
+    recompute();
   }
   await _apply.apply(this,arguments);
   if(isOpen())render();
@@ -465,10 +672,11 @@ try{const _apply=applyCloudState;applyCloudState=async function(state){
 function injectMenuItem(){
   const body=document.querySelector('#sidebarBody');if(!body||body.querySelector('#sbGarden'))return;
   const b=document.createElement('button');b.id='sbGarden';b.type='button';b.className='soft-btn sidebar-item sidebar-garden';
-  b.innerHTML=`<span>🌳 ${L('Garden','花园')}</span><small>✓ ${available()}</small>`;
+  b.innerHTML=`<span>🌳 ${L('Garden','花园')}</span><small>✓ ${fmt(availOf(MINE))}</small>`;
   b.onclick=()=>{try{closeSidebar()}catch{}openGarden()};
   body.prepend(b);
 }
 try{const _open=openSidebar;openSidebar=function(){_open.apply(this,arguments);injectMenuItem()};const sb=document.querySelector('#sidebarBtn');if(sb)sb.onclick=openSidebar}catch{}
-window.DeadlineGarden={open:openGarden,close:closeGarden};
+setTimeout(()=>{try{reconcileChar()}catch{}},1200);
+window.DeadlineGarden={open:openGarden,close:closeGarden,refresh:()=>{recompute();render()}};
 })();
