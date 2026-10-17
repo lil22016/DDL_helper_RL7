@@ -163,14 +163,9 @@ function fallbackDecorate(c){
 }
 async function decorate(c){
   if(!hasAI())return fallbackDecorate(c);
-  const user=`You are decorating YOUR OWN garden in Deadline Garden. It is a grid of ${c.rows} rows × ${c.cols} columns; cells are written "row,col" starting at 0,0 (row 0 is the back, the last row is the front).
-You have ${fmt(c.avail)} ✓ to spend. Shop (id | name | price | kind):
-${c.catalog.map(x=>`${x.id} | ${x.name} | ${x.price} | ${x.kind}`).join('\n')}
-Fences (id | name | price | owned): ${c.fences.map(f=>`${f.id} | ${f.name} | ${f.price} | ${f.owned?'owned':'no'}`).join('; ')}. Current fence: ${c.fence}.
-Adding a row or a column costs ${c.expandCost} ✓.
-Already in your bag (not placed): ${Object.entries(c.inv).map(([k,n])=>`${k}×${n}`).join(', ')||'nothing'}.
-Currently placed: ${c.placed.map(p=>`${p.at}=${p.id}`).join(', ')||'nothing yet'}.
-Decorate it the way ${charName()} would, with your own taste. Spend at most your balance. Every item you buy must be placed on an empty cell (or kept in the bag). You may move things too.
+  const user=`You are decorating YOUR OWN garden in Deadline Garden.
+${gardenText(c)}
+${c.auto?'Nobody asked you — you just felt like tending your garden today. ':''}Decorate it the way ${charName()} would, with your own taste. Spend at most your balance. Every item you buy must be placed on an empty cell (or kept in the bag). You may move things too.
 JSON shape: {"buy":["id",...],"place":[{"id":"id","to":"r,c"}],"move":[{"from":"r,c","to":"r,c"}],"fence":"id or empty","expand":"row|col|empty","say":"one or two sentences in character about your garden"}`;
   const j=await askJSON(personaSystem(),user,{maxTokens:900,temperature:1});
   return {buy:Array.isArray(j.buy)?j.buy.map(String):[],place:Array.isArray(j.place)?j.place:[],move:Array.isArray(j.move)?j.move:[],fence:String(j.fence||''),expand:String(j.expand||''),say:String(j.say||'').trim().slice(0,400)};
@@ -193,6 +188,34 @@ JSON shape: {"accepted":[0,1],"reply":"what you say to them, 1-3 sentences"}`;
   return {accepted:(Array.isArray(j.accepted)?j.accepted:[]).map(Number).filter(n=>Number.isInteger(n)&&n>=0&&n<c.ops.length),reply:String(j.reply||'').trim().slice(0,400)};
 }
 
+function gardenText(g){
+  return `Your garden: ${g.rows} rows × ${g.cols} columns, cells "row,col" from 0,0 (row 0 = back). Balance ${fmt(g.avail)} ✓. Adding a row/column costs ${g.expandCost} ✓.
+Shop (id | name | price | kind):
+${g.catalog.map(x=>`${x.id} | ${x.name} | ${x.price} | ${x.kind}`).join('\n')}
+Fences: ${g.fences.map(f=>`${f.id} (${f.name}, ${f.price}${f.owned?', owned':''})`).join('; ')}. Current fence: ${g.fence}.
+In your bag: ${Object.entries(g.inv).map(([k,n])=>`${k}×${n}`).join(', ')||'nothing'}.
+Placed: ${g.placed.map(p=>`${p.at}=${p.id}`).join(', ')||'nothing yet'}.`;
+}
+function fallbackChat(c){
+  const t=String(c.message||'');
+  if(/种|布置|装饰|花园|plant|garden|decorat|grow/i.test(t)){const plan=fallbackDecorate(c.garden);return {reply:plan.say,actions:plan,lend:0}}
+  if(/借|lend|borrow/i.test(t)){const n=Math.max(1,Math.min(20,parseInt((t.match(/\d+/)||['2'])[0],10)||2));const r=fallbackLoan({amount:n,charAvail:c.garden.avail,debt:c.debt,repay:c.repay});return {reply:r.reply,actions:null,lend:r.agree?r.amount:0}}
+  return {reply:L('(No API is set up, so I only understand “plant something” or “lend me 2”.)','（还没配置 API，我现在只听得懂“种点东西”或者“借我 2 个”。）'),actions:null,lend:0};
+}
+async function chat(c){
+  if(!hasAI())return fallbackChat(c);
+  const hist=(c.history||[]).slice(-12).map(m=>`${m.role==='user'?userName():charName()}: ${m.text}`).join('\n');
+  const user=`You are chatting with ${userName()} inside Deadline Garden, mostly about your garden and plants.
+${gardenText(c.garden)}
+${userName()} has ${fmt(c.myAvail)} ✓ and owes you ${fmt(c.debt)} ✓. If you lend them ✓ they ${c.repay?'will pay it back from their next finished tasks':'won’t pay it back (a gift)'}.
+${hist?`Conversation so far:\n${hist}\n`:''}${userName()} now says: "${c.message}"
+Answer in character (1-3 sentences). If you decide to plant, buy, move things or change your garden — because they asked, or because you feel like it — put it in "actions" (spend at most your balance; place bought items on empty cells). If they ask to borrow ✓ and you agree, set "lend" to the number (at most ${Math.floor(c.garden.avail)}). Otherwise leave actions empty and lend 0.
+JSON shape: {"reply":"...","actions":{"buy":[],"place":[{"id":"id","to":"r,c"}],"move":[{"from":"r,c","to":"r,c"}],"fence":"","expand":""},"lend":0}`;
+  const j=await askJSON(personaSystem(),user,{maxTokens:900});
+  const a=j.actions&&typeof j.actions==='object'?j.actions:null;
+  return {reply:String(j.reply||'').trim().slice(0,600),actions:a?{buy:Array.isArray(a.buy)?a.buy.map(String):[],place:Array.isArray(a.place)?a.place:[],move:Array.isArray(a.move)?a.move:[],fence:String(a.fence||''),expand:String(a.expand||'')}:null,lend:Math.max(0,Math.floor(Number(j.lend)||0))};
+}
+
 /* ---------- settings modal ---------- */
 function field(id,label,val,ph='',type='text'){return `<div class="field full"><label for="${id}">${label}</label><input id="${id}" type="${type}" value="${esc(val)}" placeholder="${esc(ph)}" autocomplete="off" spellcheck="false"></div>`}
 function area(id,label,val,ph=''){return `<div class="field full"><label for="${id}">${label}</label><textarea id="${id}" rows="3" placeholder="${esc(ph)}">${esc(val)}</textarea></div>`}
@@ -211,8 +234,8 @@ function openSettings(){
   </div>
   ${mode==='uranus'?`<div class="cs-block"><div class="cs-block-title">${L('Companion link','Companion 链接')}</div><div class="next-meta">Companion → Settings → “DDL Garden connection”: ${L('generate, copy the link, paste it here once.','生成并复制链接，粘贴到这里一次即可。')}</div>
     <div class="cs-row"><input id="csLink" type="text" autocomplete="off" spellcheck="false" placeholder="https://…/garden/feed?t=…" value="${esc(link)}"><button id="csLinkSave" class="soft-btn" type="button">${L('Save & sync','保存并同步')}</button></div><div id="lokiConnStatus" class="next-meta"></div></div>`:''}
-  <details class="cs-block" ${mode==='api'||cfg.apiKey?'open':''}><summary class="cs-block-title">${mode==='api'?L('API','API'):L('API for in-character replies (optional)','用于角色回复的 API（可选）')}</summary>
-    <div class="next-meta">${mode==='api'?L('Used to write the daily schedule and the character’s replies.','用来每天生成日程，以及角色的回复。'):L('Used only when you borrow ✓, ask the character to decorate, or send suggestions. Without it the character answers with simple rules.','只在借 ✓、让角色布置、发送修改建议时调用。不填的话角色会按简单规则回复。')} ${L('The key is saved with your account so every device can use it.','Key 会随账号同步，所有设备都能用。')}</div>
+  <details class="cs-block" ${mode==='api'||cfg.apiKey?'open':''}><summary class="cs-block-title">${mode==='api'?L('API','API'):L('Garden’s own API — chat, lending, decorating (optional)','Garden 自己用的 API——聊天、借 ✓、布置（可选）')}</summary>
+    <div class="next-meta">${mode==='api'?L('Used to write the daily schedule and the character’s replies.','用来每天生成日程，以及角色的回复。'):L('Garden can’t use Uranus’s API: the Companion link only shares the schedule (read-only) and Uranus keeps its key on its own server. Fill one in here for chatting, lending ✓, decorating and reviewing suggestions. Without it the character follows simple rules.','Garden 用不了 Uranus 的 API：Companion 链接只共享日程（只读），Uranus 的 Key 存在它自己的服务器上。要聊天、借 ✓、布置、审核建议，就在这里另填一个。不填的话角色会按简单规则回复。')} ${L('The key is saved with your account so every device can use it.','Key 会随账号同步，所有设备都能用。')}</div>
     <div class="form-grid">
       <div class="field full"><label for="csProvider">${L('Format','接口格式')}</label><select id="csProvider"><option value="openai" ${cfg.provider==='openai'?'selected':''}>${L('OpenAI-compatible (OpenAI, DeepSeek, OpenRouter, Gemini…)','OpenAI 兼容（OpenAI、DeepSeek、OpenRouter、Gemini 等）')}</option><option value="anthropic" ${cfg.provider==='anthropic'?'selected':''}>Anthropic (Claude)</option></select></div>
       ${field('csBase','Base URL',cfg.baseUrl,cfg.provider==='anthropic'?'https://api.anthropic.com':'https://api.openai.com/v1')}
@@ -282,7 +305,7 @@ setTimeout(()=>{if(cfg.mode==='api'){refreshLoki();generateDay().catch(()=>{})}}
 
 window.Char={
   get cfg(){return cfg},get sched(){return sched},saveCfg,name:charName,emoji:charEmoji,userName,hasAI,mode:()=>cfg.mode,
-  ask,askJSON,decideLoan,decorate,review,openSettings,generateDay,loadIntoLoki,isGenerating:()=>generating,
+  ask,askJSON,decideLoan,decorate,review,chat,openSettings,generateDay,loadIntoLoki,isGenerating:()=>generating,
   onChange(f){listeners.add(f);return()=>listeners.delete(f)},fmt
 };
 })();

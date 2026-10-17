@@ -7,7 +7,7 @@ body.gd-open .toast{z-index:1100!important}body.gd-open #confettiCanvas{z-index:
 .gd-root{position:fixed;inset:0;z-index:900;display:flex;justify-content:center;background:
   radial-gradient(120% 70% at 50% 0%,#eef7e8 0%,transparent 60%),linear-gradient(180deg,#dfeedd,#f4f1e6);color:#24342b;overflow-y:auto;-webkit-overflow-scrolling:touch}
 .gd-root.hidden{display:none}
-.gd-shell{position:relative;width:min(860px,100%);min-height:100%;display:flex;flex-direction:column;gap:14px;padding:calc(14px + env(safe-area-inset-top)) 16px calc(22px + env(safe-area-inset-bottom))}
+.gd-shell{position:relative;width:100%;min-height:100%;display:flex;flex-direction:column;gap:14px;padding:calc(14px + env(safe-area-inset-top)) 16px calc(22px + env(safe-area-inset-bottom))}
 .gd-head{display:flex;align-items:center;gap:12px}
 .gd-title{flex:1;min-width:0}.gd-title strong{display:block;font-size:24px;letter-spacing:-.02em}
 .gd-wallet{display:grid;justify-items:end;gap:2px}.gd-wallet small{font-size:11px;color:#6d7c72;white-space:nowrap}
@@ -212,3 +212,40 @@ html[data-theme] .gd-root .gd-amount .gd-icon{width:34px;height:34px}
 .sidebar-character small{padding:3px 9px;border-radius:99px;background:rgba(255,255,255,.7);font-size:11px}
 @media(max-width:560px){.cs-modes{grid-template-columns:1fr}.gd-social .gd-hint{flex-basis:100%}}
 .gd-shell>*{flex-shrink:0}
+
+/* ---- v5: full-width layout, size slider, shapes, chat, album ---- */
+.gd-shell{padding-left:max(16px,2.4vw);padding-right:max(16px,2.4vw);transition:padding-right .22s ease}
+.gd-plot{width:calc(var(--gd-cell,72px) * var(--gd-cols,8) + var(--gd-ft) * 2);max-width:100%;margin:0 auto}
+.gd-stage{overflow:visible}
+.gd-tools{display:flex;align-items:center;flex-wrap:wrap;gap:8px 14px;padding:8px 12px;border-radius:16px;background:rgba(255,255,255,.7)}
+.gd-tool{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:800}
+.gd-tool select{padding:7px 10px;border:1px solid #d6e0d2;border-radius:10px;font:inherit;font-weight:700;background:#fff}
+.gd-zoom input{width:min(220px,40vw);accent-color:#3f7650}
+.gd-season{font-size:12px;margin-left:auto}
+.gd-dot{display:inline-block;width:8px;height:8px;margin-left:6px;border-radius:50%;background:#e0573f;vertical-align:middle}
+.gd-chipcheck{display:inline-flex;align-items:center;gap:8px;padding:6px 12px;border-radius:12px;background:#f2f6ee;cursor:pointer}
+.gd-chipcheck input{width:18px;height:18px;accent-color:#3f7650}.gd-chipcheck span{display:grid;font-size:12px;font-weight:800;line-height:1.25}.gd-chipcheck small{font-size:10px;font-weight:600}
+.gd-chat{position:fixed;top:0;right:0;bottom:0;z-index:970;width:min(390px,100%);display:flex;flex-direction:column;background:#fbfcf8;box-shadow:-20px 0 60px rgba(30,50,30,.18);transform:translateX(102%);transition:transform .22s ease;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}
+.gd-chat.open{transform:none}.gd-chat.hidden{display:none}
+.gd-chat-head{display:flex;align-items:center;gap:10px;padding:14px 14px 10px;border-bottom:1px solid #e3ebdf}.gd-chat-head>div{flex:1;min-width:0;display:grid}.gd-chat-head small{font-size:11px}
+.gd-chat-log{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:8px;padding:14px}
+.gd-chat-empty{margin:auto 0;font-size:13px;line-height:1.6;text-align:center}
+.gd-msg{max-width:84%;display:grid;gap:3px}.gd-msg p{margin:0;padding:9px 12px;border-radius:16px;font-size:14px;line-height:1.5;white-space:pre-wrap;overflow-wrap:anywhere}.gd-msg small{font-size:11px;padding:0 6px}
+.gd-msg.me{align-self:flex-end}.gd-msg.me p{background:#3f7650;border-bottom-right-radius:5px}
+.gd-msg.them{align-self:flex-start}.gd-msg.them p{background:#eef3ea;border-bottom-left-radius:5px}
+.gd-chat-input{display:flex;gap:8px;align-items:flex-end;padding:10px 12px 14px;border-top:1px solid #e3ebdf}
+.gd-chat-input textarea{flex:1;min-height:40px;max-height:120px;padding:10px 12px;border:1px solid #d6e0d2;border-radius:14px;font:inherit;resize:vertical}
+@media(min-width:1000px){.gd-root.chat-open .gd-shell{padding-right:414px}}
+.gd-album{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px}
+.gd-album-card{display:grid;gap:6px;justify-items:start;padding:12px;border:0;border-radius:18px;background:#fff;box-shadow:0 4px 16px rgba(50,80,50,.08);cursor:pointer;text-align:left;font:inherit}
+.gd-album-card strong{font-size:14px}.gd-album-card small{font-size:11px}
+.gd-static{pointer-events:none;box-shadow:none;margin:0}.gd-static .gd-item{cursor:default;filter:drop-shadow(0 1px 1px rgba(30,60,20,.2))}
+.gd-album-big{display:flex;justify-content:center;padding:28px 0 10px}
+html[data-theme] .gd-root .gd-tool select{color:#24342b!important;background:#fff!important}
+html[data-theme] .gd-root .gd-chipcheck{background:#f2f6ee!important}
+html[data-theme] .gd-root .gd-chipcheck small,html[data-theme] .gd-root .gd-season,html[data-theme] .gd-root .gd-chat-head small,html[data-theme] .gd-root .gd-chat-empty,html[data-theme] .gd-root .gd-msg small,html[data-theme] .gd-root .gd-album-card small{color:#5f6e64!important}
+html[data-theme] .gd-root .gd-msg.me p{color:#fff!important;background:#3f7650!important}
+html[data-theme] .gd-root .gd-msg.them p{color:#24342b!important;background:#eef3ea!important}
+html[data-theme] .gd-root .gd-chat,html[data-theme] .gd-root .gd-tools{color:#24342b!important}
+html[data-theme] .gd-root .gd-album-card{background:#fff!important}
+@media(max-width:560px){.gd-tools{gap:8px}.gd-zoom{flex-basis:100%}.gd-zoom input{flex:1;width:auto}.gd-season{margin-left:0}.gd-chat{width:100%}}
