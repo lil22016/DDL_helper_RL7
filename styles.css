@@ -4217,3 +4217,14 @@ html[data-theme="liquid"] .loki-todo-item .todo-title-btn,html[data-theme="glass
 .loki-chip.done .loki-badge{opacity:.8}
 .loki-todo-item.done{opacity:.55}
 .loki-todo-item.done .loki-title{text-decoration:line-through}
+
+/* Loki detail: what actually happened */
+.loki-outcome{display:grid;gap:2px;width:100%;margin:10px 0 0;padding:10px 12px;border:1px solid var(--loki,#8b7bd8);border-radius:14px;background:var(--loki-bg);color:inherit;text-align:left;font:inherit}
+.loki-outcome span{font-size:11px;font-weight:850;letter-spacing:.06em;text-transform:uppercase;opacity:.75}
+.loki-outcome strong{font-size:15px}.loki-outcome small{font-size:12px;opacity:.75}
+.loki-jump{cursor:pointer}.loki-jump:hover{filter:brightness(1.04)}
+.loki-from{border-style:dashed}
+.loki-say{margin:10px 0 0;padding:10px 12px;border-left:3px solid var(--loki,#8b7bd8);border-radius:4px 12px 12px 4px;background:var(--loki-bg)}
+.loki-say span{font-size:12px;font-weight:850}.loki-say p{margin:4px 0 0;font-size:14px;line-height:1.5;white-space:pre-wrap}
+.task-notes.loki-was{opacity:.7}
+html[data-theme="liquid"] .loki-outcome,html[data-theme="glass"] .loki-outcome,html[data-theme="liquid"] .loki-say,html[data-theme="glass"] .loki-say{background:var(--loki-glass);color:#fff}

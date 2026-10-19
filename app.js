@@ -2032,8 +2032,26 @@ function openLokiDetails(id){
   const it=lokiData.items.find(x=>x.id===id);if(!it)return;
   const e=lokiEffective(it),label=LOKI_LABEL[e.status],struck=['failed','changed','cancelled'].includes(e.status);
   const when=new Date(`${it.date}T12:00:00`).toLocaleDateString(uiLocale(),{weekday:'long',month:'long',day:'numeric'}),time=lokiTimeText(it);
-  showModal(`<div class="section-label">${escapeHtml(lokiName().toUpperCase())} · READ ONLY</div><h3 class="${struck?'loki-struck-title':''}">${escapeHtml(lokiCfg.emoji||'✨')} ${escapeHtml(lokiT(it))}</h3><div class="next-meta">${escapeHtml(when)} · ${time?escapeHtml(time):'Any time'}</div>${label?`<div class="loki-status-line loki-${e.status}">${e.status==='done'?'✓ ':''}${label}</div>`:''}${lokiD(it)&&e.status!=='changed'?`<div class="task-notes">${escapeHtml(lokiD(it))}</div>`:''}${e.auto?`<div class="next-meta" style="margin-top:10px">Shown as Complete by Garden after 11:59 PM. ${escapeHtml(lokiName())} has not confirmed this in Companion.</div>`:''}<div class="next-meta" style="margin-top:10px">Managed in Companion. It can’t be edited here and doesn’t affect your own tasks or reminders.</div><div class="modal-actions"><button id="lokiDetailClose" class="soft-btn">Close</button></div>`);
+  showModal(`<div class="section-label">${escapeHtml(lokiName().toUpperCase())} · READ ONLY</div><h3 class="${struck?'loki-struck-title':''}">${escapeHtml(lokiCfg.emoji||'✨')} ${escapeHtml(lokiT(it))}</h3><div class="next-meta">${escapeHtml(when)} · ${time?escapeHtml(time):'Any time'}</div>${label?`<div class="loki-status-line loki-${e.status}">${e.status==='done'?'✓ ':''}${label}</div>`:''}${lokiD(it)?`<div class="task-notes${e.status==='changed'?' loki-was':''}">${escapeHtml(lokiD(it))}</div>`:''}${lokiOutcomeHtml(it,e)}${e.auto?`<div class="next-meta" style="margin-top:10px">Shown as Complete by Garden after 11:59 PM. ${escapeHtml(lokiName())} has not confirmed this in Companion.</div>`:''}<div class="next-meta" style="margin-top:10px">Managed in Companion. It can’t be edited here and doesn’t affect your own tasks or reminders.</div><div class="modal-actions"><button id="lokiDetailClose" class="soft-btn">Close</button></div>`);
   const b=$('#lokiDetailClose');if(b)b.onclick=closeModal;
+  document.querySelectorAll('[data-loki-jump]').forEach(x=>x.onclick=()=>openLokiDetails(x.dataset.lokiJump));
+}
+/* What actually happened: the character's own note on the status (Uranus statusNote / doneText),
+   what a changed plan became (changedTo → the replacement activity, or legacy actualText),
+   and on a replacement activity, which plan it replaced (changedFrom). Only shown when present. */
+function lokiOutcomeHtml(it,e){
+  const zh=uiLanguage==='zh',nm=escapeHtml(lokiName()),out=[];
+  const note=String(it.statusNote||it.note||it.reason||'').trim();
+  if(e.status==='changed'){
+    const rep=it.changedTo?lokiData.items.find(x=>String(x.id)===String(it.changedTo)):null;
+    const actual=String(it.actualText||it.changedToText||'').trim();
+    if(rep)out.push(`<button type="button" class="loki-outcome loki-jump" data-loki-jump="${escapeHtml(rep.id)}"><span>${zh?'改成了':'Changed to'}</span><strong>${escapeHtml(lokiT(rep))}</strong><small>${escapeHtml(new Date(`${rep.date}T12:00:00`).toLocaleDateString(uiLocale(),{month:'short',day:'numeric'}))}${lokiTimeText(rep)?' · '+escapeHtml(lokiTimeText(rep)):''} ›</small></button>`);
+    else if(actual)out.push(`<div class="loki-outcome"><span>${zh?'改成了':'Changed to'}</span><strong>${escapeHtml(actual)}</strong></div>`);
+  }
+  if(e.status==='done'){const d=String(it.doneText||'').trim();if(d&&d!==String(it.title||'').trim())out.push(`<div class="loki-outcome"><span>${zh?'实际完成':'What got done'}</span><strong>${escapeHtml(d)}</strong></div>`)}
+  if(note&&e.status!=='planned')out.push(`<div class="loki-say"><span>${escapeHtml(lokiCfg.emoji||'✨')} ${nm}</span><p>${escapeHtml(note)}</p></div>`);
+  if(it.changedFrom){const from=lokiData.items.find(x=>String(x.id)===String(it.changedFrom));if(from)out.push(`<button type="button" class="loki-outcome loki-jump loki-from" data-loki-jump="${escapeHtml(from.id)}"><span>${zh?'原本的计划':'Originally planned'}</span><strong>${escapeHtml(lokiT(from))}</strong><small>›</small></button>`)}
+  return out.join('');
 }
 function bindLokiClicks(){
   document.querySelectorAll('[data-loki]').forEach(el=>el.onclick=e=>{e.stopPropagation();openLokiDetails(el.dataset.loki)});

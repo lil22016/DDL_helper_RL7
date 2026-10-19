@@ -95,7 +95,8 @@ function schedItems(){
   const out=[],now=Date.now();
   for(const [d,v] of Object.entries(sched.days))for(const it of v.items){
     const base={id:it.id,date:d,time:it.time||'',end:it.end||'',title:it.title,desc:it.desc||''};
-    out.push({...base,status:now>endMs(base)?(OUTCOMES.includes(it.outcome)?it.outcome:'done'):'planned'});
+    const ended=now>endMs(base),st=ended?(OUTCOMES.includes(it.outcome)?it.outcome:'done'):'planned';
+    out.push({...base,status:st,...(ended&&st==='changed'&&it.changedTo?{actualText:it.changedTo}:{}),...(ended&&st!=='done'&&it.note?{statusNote:it.note}:{})}); // revealed only after the activity ends
   }
   return out;
 }
@@ -117,9 +118,10 @@ async function generateDay(force=false){
     const user=`Today is ${d} (${weekday}). Plan ${charName()}'s day: 4 to 8 activities with specific start and end times, realistic for the persona and background, in character.
 For each activity also decide in advance how it will actually turn out (revealed only after it ends): "done" for most, "changed" when the plan changes (about 15%), "failed" when it doesn't get done (about 10%), "cancelled" rarely.
 ${recent?`Recent days, for continuity:\n${recent}\n`:''}
-JSON shape: {"items":[{"time":"HH:MM","end":"HH:MM","title":"short title (max 16 chars)","desc":"one sentence","outcome":"done"}]}`;
+For "changed", also say what was done instead in "changedTo" (a short title). For anything other than "done", you may add "note": one sentence in your own voice about why or how it went (skip it sometimes — not every change needs an explanation).
+JSON shape: {"items":[{"time":"HH:MM","end":"HH:MM","title":"short title (max 16 chars)","desc":"one sentence","outcome":"done","changedTo":"","note":""}]}`;
     const j=await askJSON(personaSystem(),user,{maxTokens:1400});
-    const items=(Array.isArray(j.items)?j.items:[]).slice(0,10).map((x,i)=>({id:`ai-${d}-${i}`,time:hhmm(x.time),end:hhmm(x.end),title:String(x.title||'').trim().slice(0,60),desc:String(x.desc||'').trim().slice(0,240),outcome:OUTCOMES.includes(x.outcome)?x.outcome:'done'})).filter(x=>x.title);
+    const items=(Array.isArray(j.items)?j.items:[]).slice(0,10).map((x,i)=>({id:`ai-${d}-${i}`,time:hhmm(x.time),end:hhmm(x.end),title:String(x.title||'').trim().slice(0,60),desc:String(x.desc||'').trim().slice(0,240),outcome:OUTCOMES.includes(x.outcome)?x.outcome:'done',changedTo:String(x.changedTo||'').trim().slice(0,60),note:String(x.note||'').trim().slice(0,240)})).filter(x=>x.title);
     if(!items.length)throw new Error(L('The AI returned an empty schedule.','AI 返回的日程是空的。'));
     items.sort((a,b)=>(a.time||'99').localeCompare(b.time||'99'));
     sched.days[d]={at:Date.now(),items};sched.error='';saveSched();
