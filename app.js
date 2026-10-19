@@ -2046,7 +2046,7 @@ function lokiOutcomeHtml(it,e){
     const rep=it.changedTo?lokiData.items.find(x=>String(x.id)===String(it.changedTo)):null;
     const actual=String(it.actualText||it.changedToText||'').trim();
     if(rep)out.push(`<button type="button" class="loki-outcome loki-jump" data-loki-jump="${escapeHtml(rep.id)}"><span>${zh?'改成了':'Changed to'}</span><strong>${escapeHtml(lokiT(rep))}</strong><small>${escapeHtml(new Date(`${rep.date}T12:00:00`).toLocaleDateString(uiLocale(),{month:'short',day:'numeric'}))}${lokiTimeText(rep)?' · '+escapeHtml(lokiTimeText(rep)):''} ›</small></button>`);
-    else if(actual)out.push(`<div class="loki-outcome"><span>${zh?'改成了':'Changed to'}</span><strong>${escapeHtml(actual)}</strong></div>`);
+    else if(actual){const d=it.changedToDate?new Date(`${it.changedToDate}T12:00:00`).toLocaleDateString(uiLocale(),{month:'short',day:'numeric'}):'',t=it.changedToTime?new Date(`2000-01-01T${it.changedToTime}:00`).toLocaleTimeString(uiLocale(),{hour:'numeric',minute:'2-digit'}):'';out.push(`<div class="loki-outcome"><span>${zh?'改成了':'Changed to'}</span><strong>${escapeHtml(actual)}</strong>${d||t?`<small>${escapeHtml([d,t].filter(Boolean).join(' · '))}</small>`:''}</div>`)}
   }
   if(e.status==='done'){const d=String(it.doneText||'').trim();if(d&&d!==String(it.title||'').trim())out.push(`<div class="loki-outcome"><span>${zh?'实际完成':'What got done'}</span><strong>${escapeHtml(d)}</strong></div>`)}
   if(note&&e.status!=='planned')out.push(`<div class="loki-say"><span>${escapeHtml(lokiCfg.emoji||'✨')} ${nm}</span><p>${escapeHtml(note)}</p></div>`);
