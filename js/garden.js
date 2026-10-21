@@ -1093,5 +1093,9 @@ setTimeout(()=>{maybeVisit().catch(()=>{})},15000);
 setInterval(()=>{if(!document.hidden)maybeVisit().catch(()=>{})},45*60000);
 setInterval(()=>{if(!document.hidden){try{checkSeasons()}catch{}maybeAutoPlant().catch(()=>{})}},30*60000);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden){try{checkSeasons()}catch{}setTimeout(()=>maybeAutoPlant().catch(()=>{}),4000)}});
-window.DeadlineGarden={open:openGarden,close:closeGarden,refresh:()=>{recompute();render()},_autoPlant:()=>{CHARB.lastAuto='';return maybeAutoPlant()},_visit:()=>maybeVisit(true)};
+window.DeadlineGarden={open:openGarden,close:closeGarden,refresh:()=>{recompute();render()},
+  /* pantry access for the feeding screen */
+  goods:GOODS,goodName,pantry:()=>({...MINE.pantry}),
+  consume:id=>{if(!(MINE.pantry[id]>0))return false;MINE.pantry[id]--;if(!MINE.pantry[id])delete MINE.pantry[id];persistMine();if(view==='mine')G=MINE;if(isOpen())render();return true},
+  openMarket:()=>{openGarden('mine');tab='market';openShop()},_autoPlant:()=>{CHARB.lastAuto='';return maybeAutoPlant()},_visit:()=>maybeVisit(true)};
 })();

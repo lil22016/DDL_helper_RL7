@@ -1,0 +1,66 @@
+/* ==== Deadline Garden · Feeding ==== */
+.fd-root{position:fixed;inset:0;z-index:905;display:flex;justify-content:center;overflow-y:auto;background:radial-gradient(120% 70% at 50% 0%,#fff3e6 0%,transparent 60%),linear-gradient(180deg,#f7ecdf,#f4f1e6);color:#3a2c22;opacity:0;transition:opacity .22s ease}
+.fd-root.hidden{display:none}.fd-root.show{opacity:1}.fd-root.closing{opacity:0;pointer-events:none}
+.fd-shell{width:min(900px,100%);display:flex;flex-direction:column;gap:14px;padding:calc(14px + env(safe-area-inset-top)) max(16px,2.4vw) calc(24px + env(safe-area-inset-bottom));transform:translateY(18px) scale(.975);transition:transform .28s cubic-bezier(.2,.9,.3,1.15)}
+.fd-root.show .fd-shell{transform:none}
+.fd-shell>*{flex-shrink:0}
+.fd-head{display:flex;align-items:center;gap:12px}.fd-title{flex:1}.fd-title strong{display:block;font-size:24px;letter-spacing:-.02em}
+.fd-who{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;padding:2px}
+.fd-who button{flex:none;display:flex;align-items:center;gap:8px;padding:6px 14px 6px 6px;border:0;border-radius:99px;background:rgba(255,255,255,.75);font:inherit;font-weight:800;font-size:13px;cursor:pointer}
+.fd-who button.on{background:#7a4a2a;color:#fff}
+.fd-mini,.sb-feed-ava{width:30px;height:30px;border-radius:50%;object-fit:cover;background:#fff;flex:none}
+.fd-ava-emoji{display:grid;place-items:center;font-size:16px;box-shadow:0 0 0 2px var(--c) inset;background:#fff}
+.fd-stage{position:relative;display:grid;place-items:center;min-height:clamp(260px,46vh,440px);border-radius:28px;background:radial-gradient(60% 60% at 50% 60%,#fff 0%,#fbefe1 70%);box-shadow:inset 0 0 0 1px rgba(122,74,42,.08)}
+.fd-pet{position:relative;display:grid;place-items:center;width:min(300px,70vw);height:min(300px,70vw);transform-origin:50% 100%}
+.fd-pet img{max-width:100%;max-height:100%;object-fit:contain;filter:drop-shadow(0 14px 18px rgba(80,50,30,.18))}
+.fd-placeholder{display:grid;place-items:center;align-content:center;gap:8px;width:220px;height:220px;border-radius:50%;font-size:96px;background:#fff;box-shadow:0 0 0 4px var(--c) inset,0 18px 30px rgba(80,50,30,.12)}
+.fd-placeholder small{font-size:12px;font-weight:700;opacity:.6}
+.fd-pet.eating{animation:fdNom .5s ease-in-out infinite}
+.fd-pet.bounce{animation:fdBounce .9s cubic-bezier(.3,1.6,.5,1)}
+.fd-pet.shake{animation:fdShake .7s ease}
+@keyframes fdNom{50%{transform:scale(1.03,.97)}}
+@keyframes fdBounce{0%{transform:scale(1)}20%{transform:translateY(0) scale(1.12,.86)}45%{transform:translateY(-34px) scale(.94,1.08)}70%{transform:translateY(0) scale(1.06,.94)}100%{transform:none}}
+@keyframes fdShake{0%,100%{transform:none}15%{transform:translateX(-10px) rotate(-4deg)}35%{transform:translateX(9px) rotate(3deg)}55%{transform:translateX(-6px) rotate(-2deg)}75%{transform:translateX(4px)}}
+.fd-fx{position:absolute;inset:0;pointer-events:none;overflow:hidden;border-radius:28px}
+.fd-p{position:absolute;bottom:38%;font-size:28px;opacity:0}
+.fd-p.up{animation:fdUp 1.5s ease-out forwards}.fd-p.puff{animation:fdPuff 1.4s ease-out forwards;bottom:58%}
+@keyframes fdUp{0%{opacity:0;transform:translate(0,0) scale(.6)}15%{opacity:1}100%{opacity:0;transform:translate(var(--dx),-180px) scale(1.2)}}
+@keyframes fdPuff{0%{opacity:0;transform:translate(0,0) scale(.5) rotate(0)}20%{opacity:1}100%{opacity:0;transform:translate(var(--dx),-70px) scale(1.1) rotate(25deg)}}
+.fd-bubble{position:absolute;top:18px;left:50%;z-index:3;max-width:min(420px,86%);transform:translateX(-50%);padding:12px 16px;border-radius:18px;background:#fff;box-shadow:0 10px 26px rgba(80,50,30,.16);font-size:15px;font-weight:700;line-height:1.45;text-align:center;animation:fdPop .35s cubic-bezier(.3,1.6,.5,1)}
+.fd-bubble::after{content:'';position:absolute;left:50%;bottom:-7px;width:14px;height:14px;background:inherit;transform:translateX(-50%) rotate(45deg);border-radius:3px}
+.fd-bubble.good{background:#fff0f4}.fd-bubble.bad{background:#eef5e6}
+.fd-bubble.hidden{display:none}
+@keyframes fdPop{from{opacity:0;transform:translate(-50%,8px) scale(.85)}}
+.fd-tray,.fd-mem,.fd-settings{padding:14px;border-radius:20px;background:rgba(255,255,255,.85)}
+.fd-foods{display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:8px}
+.fd-food{position:relative;display:grid;justify-items:center;gap:2px;padding:10px 6px;border:0;border-radius:16px;background:#fbf3ea;font:inherit;cursor:pointer;transition:transform .12s}
+.fd-food:hover{transform:translateY(-2px)}.fd-food:disabled{opacity:.5}
+.fd-food span{font-size:30px}.fd-food b{position:absolute;top:4px;right:6px;font-size:11px}.fd-food small{font-size:11px;font-weight:700}
+.fd-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.fd-memlist{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.fd-memitem{padding:4px 10px;border-radius:99px;background:#f4efe8;font-size:15px}.fd-memitem.love{background:#ffe6ee}.fd-memitem.hate{background:#e9f1e1}
+.fd-ups{display:flex;gap:10px;flex-wrap:wrap}
+.fd-up{position:relative;display:grid;place-items:center;align-content:center;gap:4px;width:104px;height:120px;border:2px dashed #e2cdb8;border-radius:16px;cursor:pointer;background:repeating-conic-gradient(#f7f1ea 0 25%,#fff 0 50%) 0 0/14px 14px}
+.fd-up img{max-width:88px;max-height:84px;object-fit:contain}.fd-up span{font-size:26px;color:#a0714c}.fd-up small{font-size:11px;font-weight:800}
+.fd-x{position:absolute;top:4px;right:4px;width:22px;height:22px;border:0;border-radius:50%;background:#fff;cursor:pointer;font-weight:900}
+.fd-replies{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+.sidebar-feed .sb-feed-list{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.sb-feed-who{display:flex;align-items:center;gap:8px;padding:5px 12px 5px 5px;border:1px solid var(--border);border-radius:99px;background:rgba(255,255,255,.6);color:inherit;font:inherit;font-weight:800;font-size:13px;cursor:pointer}
+.sb-feed-add{padding:5px 12px;font-weight:700}
+/* readable in every theme: the feeding screen is always a light surface */
+html[data-theme] .fd-root,html[data-theme] .fd-root *{text-shadow:none!important}
+html[data-theme] .fd-root{color:#3a2c22!important}
+html[data-theme] .fd-root :is(h1,h2,h3,strong,small,span,label,p,div,b,textarea){color:inherit!important}
+html[data-theme] .fd-root .gd-label{color:#7a4a2a!important}
+html[data-theme] .fd-root .gd-btn,html[data-theme] .fd-root .gd-icon{color:#5a3a22!important;background:#f3e6d8!important;border:0!important;box-shadow:none!important;backdrop-filter:none!important}
+html[data-theme] .fd-root .gd-gear.on{background:#7a4a2a!important;color:#fff!important}
+html[data-theme] .fd-root .fd-who button{background:rgba(255,255,255,.8)!important}
+html[data-theme] .fd-root .fd-who button.on{background:#7a4a2a!important;color:#fff!important}
+html[data-theme] .fd-root .fd-who button.on span{color:#fff!important}
+html[data-theme] .fd-root textarea{background:#fff!important;color:#3a2c22!important;border:1px solid #e6d6c4!important}
+html[data-theme] .fd-root .gd-note,html[data-theme] .fd-root small{color:#7b6758!important}
+html[data-theme] .fd-root .fd-food{background:#fbf3ea!important}
+html[data-theme] .fd-root .fd-bubble.good{background:#fff0f4!important}html[data-theme] .fd-root .fd-bubble.bad{background:#eef5e6!important}
+html[data-theme] .fd-root .gd-toggle{background:#fbf3ea!important}
+@media(max-width:560px){.fd-title strong{font-size:20px}.fd-stage{min-height:300px}.fd-up{width:92px;height:108px}}
+@media(prefers-reduced-motion:reduce){.fd-pet,.fd-p,.fd-bubble{animation:none!important}}
