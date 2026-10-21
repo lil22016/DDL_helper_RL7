@@ -140,7 +140,7 @@ const r1=n=>Math.round((Number(n)||0)*10)/10;
 const fmt=n=>{n=r1(n);return Number.isInteger(n)?String(n):n.toFixed(1)};
 const clone=o=>JSON.parse(JSON.stringify(o));
 const uid=()=>crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+Math.random().toString(36).slice(2);
-function blank(kind){return {version:1,kind,earned:[],earnedMap:{},spent:0,inv:{},cells:{},rows:BASE_ROWS,cols:BASE_COLS,fence:'wood',fences:['wood'],custom:[],loans:[],repayOn:true,period:'none',periodKey:'',archives:[],autoPlant:true,lastAuto:'',news:null,updatedAt:0,editedAt:0}}
+function blank(kind){return {version:1,kind,earned:[],earnedMap:{},spent:0,inv:{},cells:{},rows:BASE_ROWS,cols:BASE_COLS,fence:'wood',fences:['wood'],custom:[],loans:[],repayOn:true,pantry:{},gold:0,boughtChecks:0,period:'none',periodKey:'',archives:[],autoPlant:true,lastAuto:'',news:null,updatedAt:0,editedAt:0}}
 function normalize(g,kind='mine'){
   const b=blank(kind);if(!g||typeof g!=='object')return b;
   const out={...b,...g,kind};
@@ -163,7 +163,7 @@ function normalize(g,kind='mine'){
   out.custom=Array.isArray(g.custom)?g.custom.filter(c=>c&&c.id&&typeof c.img==='string'&&c.img.startsWith('data:image/')):[];
   out.loans=Array.isArray(g.loans)?g.loans.filter(l=>l&&l.id).map(l=>({id:String(l.id),at:Number(l.at)||0,asked:Math.max(0,Math.floor(Number(l.asked)||0)),dir:l.dir==='out'?'out':'in',amount:Math.max(0,Math.floor(Number(l.amount)||0)),repay:!!l.repay,repaid:Math.max(0,r1(l.repaid)),msg:String(l.msg||''),reply:String(l.reply||'')})):[];
   out.repayOn=g.repayOn!==false;
-  out.allowVisits=!!g.allowVisits;out.lastVisitCheck=String(g.lastVisitCheck||'');
+  out.allowVisits=!!g.allowVisits;out.lastGift=String(g.lastGift||'');out.lastVisitCheck=String(g.lastVisitCheck||'');
   out.visit=g.visit&&typeof g.visit==='object'&&g.visit.id&&['suggest','borrow'].includes(g.visit.kind)?{id:String(g.visit.id),at:Number(g.visit.at)||0,kind:g.visit.kind,ops:Array.isArray(g.visit.ops)?g.visit.ops.filter(o=>o&&o.t):[],amount:Math.max(0,Math.floor(Number(g.visit.amount)||0)),repay:g.visit.repay!==false,say:String(g.visit.say||'')}:null;
   out.updatedAt=Number(g.updatedAt)||0;
   // editedAt only moves on real actions (buy / place / borrow …), never on the automatic ✓ ledger.
@@ -524,6 +524,19 @@ function market(act,id,n){
   else if(act==='buyfood')say(`Bought ${goodName(id)}.`,`买了${GOODS[id].e}${goodName(id)}。`);
   render();renderShop();
 }
+/* now and then (at most once a day) the character leaves you something from their pantry — cooked food first */
+function charGift(){
+  let mode='';try{mode=Char.mode()}catch{}
+  const S=CHARB,today=ymd(new Date());if(!mode||S.lastGift===today)return;
+  const ks=Object.keys(S.pantry).filter(k=>S.pantry[k]>0).sort((a,b)=>(GOODS[b].food?1:0)-(GOODS[a].food?1:0));if(!ks.length)return;
+  S.lastGift=today;if(Math.random()>.4){persistChar(false);return}
+  const id=ks[0];S.pantry[id]--;if(!S.pantry[id])delete S.pantry[id];MINE.pantry[id]=(MINE.pantry[id]||0)+1;
+  let lr=(en,cn)=>L(en,cn);try{lr=Char.LR}catch{}
+  const text=lr(`I made too much. Here — ${GOODS[id].en} for you.`,`做多了，${GOODS[id].cn}给你。`);
+  S.news={text,note:L(`${cname()} left you ${GOODS[id].e} ${goodName(id)} · in your pantry`,`${cname()}送了你 ${GOODS[id].e}${goodName(id)} · 已放进你的仓库`),at:Date.now(),seen:false};
+  persistChar(true);persistMine(true);recompute();
+  logChat('char',text,S.news.note);try{window.Feed?.log('main','char',text,S.news.note)}catch{}
+}
 /* the character runs their own little farm: harvest what's ripe, cook when possible, sell the surplus, trade gold for ✓ */
 function charFarm(){
   const S=CHARB,got={},made=[];let sold=0,ex=0;
@@ -531,6 +544,7 @@ function charFarm(){
   for(let i=0;i<6;i++){const r=RECIPES.find(r=>Object.entries(r.need).every(([k,n])=>(S.pantry[k]||0)>=n)&&(S.pantry[r.id]||0)<2);if(!r||!applyOp(S,{t:'cook',id:r.id}))break;made.push(r.id)}
   for(const [k,n] of Object.entries(S.pantry)){const keep=GOODS[k].food?2:3;if(n>keep){const g=S.gold;applyOp(S,{t:'sell',id:k,n:n-keep});sold+=S.gold-g}}
   const canEx=Math.floor((S.gold||0)/GOLD_PER_CHECK);if(canEx>0&&applyOp(S,{t:'exchange',n:canEx}))ex=canEx;
+  charGift();
   if(!Object.keys(got).length&&!made.length&&!sold)return;
   const bits=[Object.keys(got).length?L('harvested ','收了 ')+Object.entries(got).map(([k,n])=>`${GOODS[k].e}×${n}`).join(' '):'',made.length?L('cooked ','做了 ')+made.map(k=>GOODS[k].e).join(''):'',sold?L(`sold for 🪙${fmt(sold)}`,`卖了 🪙${fmt(sold)}`):'',ex?L(`traded for ✓${ex}`,`换了 ✓${ex}`):''].filter(Boolean);
   S.news={text:'',note:`${cname()} · ${bits.join(' · ')}`,at:Date.now(),seen:false};
@@ -1097,5 +1111,7 @@ window.DeadlineGarden={open:openGarden,close:closeGarden,refresh:()=>{recompute(
   /* pantry access for the feeding screen */
   goods:GOODS,goodName,pantry:()=>({...MINE.pantry}),
   consume:id=>{if(!(MINE.pantry[id]>0))return false;MINE.pantry[id]--;if(!MINE.pantry[id])delete MINE.pantry[id];persistMine();if(view==='mine')G=MINE;if(isOpen())render();return true},
-  openMarket:()=>{openGarden('mine');tab='market';openShop()},_autoPlant:()=>{CHARB.lastAuto='';return maybeAutoPlant()},_visit:()=>maybeVisit(true)};
+  openMarket:()=>{openGarden('mine');tab='market';openShop()},
+  charPantry:()=>({...CHARB.pantry}),
+  giftToChar:id=>{if(!(MINE.pantry[id]>0))return false;MINE.pantry[id]--;if(!MINE.pantry[id])delete MINE.pantry[id];CHARB.pantry[id]=(CHARB.pantry[id]||0)+1;persistMine();persistChar(true);recompute();if(isOpen())render();return true},_autoPlant:()=>{CHARB.lastAuto='';return maybeAutoPlant()},_visit:()=>maybeVisit(true)};
 })();
