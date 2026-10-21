@@ -47,6 +47,13 @@ rock:svg(S,`<path d="M18 92 C14 76 26 60 42 58 C52 50 70 54 78 66 C88 74 88 88 8
 path:svg(S,`<ellipse cx="34" cy="80" rx="18" ry="10" fill="#b9b2a5"/><ellipse cx="34" cy="78" rx="16" ry="8" fill="#d2ccc0"/><ellipse cx="68" cy="66" rx="16" ry="9" fill="#b9b2a5"/><ellipse cx="68" cy="64" rx="14" ry="7" fill="#d2ccc0"/><ellipse cx="62" cy="90" rx="10" ry="5" fill="#c6bfb2"/>`),
 pond:svg(S,`<ellipse cx="50" cy="72" rx="46" ry="24" fill="#8a9298"/><ellipse cx="50" cy="71" rx="41" ry="20" fill="#5fa6cf"/><ellipse cx="44" cy="66" rx="28" ry="10" fill="#86c3e3"/><path d="M62 80 a9 5 0 1 0 1 -.5 L60 78Z" fill="#5aa34f"/><circle cx="66" cy="77" r="3.2" fill="#f4a6c0"/><circle cx="66" cy="77" r="1.3" fill="#ffe08a"/>${dots([[8,74,3.5],[92,72,3.5],[24,92,3],[76,92,3],[50,48,3]],'#a7afb4')}`),
 bench:svg(S,`<rect x="14" y="40" width="72" height="8" rx="2" fill="#b07d50"/><rect x="14" y="52" width="72" height="8" rx="2" fill="#a06f45"/><rect x="10" y="66" width="80" height="9" rx="2" fill="#c08a5a"/><rect x="18" y="38" width="6" height="56" rx="2" fill="#5b4636"/><rect x="76" y="38" width="6" height="56" rx="2" fill="#5b4636"/><rect x="26" y="75" width="5" height="19" fill="#5b4636"/><rect x="69" y="75" width="5" height="19" fill="#5b4636"/>`),
+sprout:svg(S,`<ellipse cx="50" cy="92" rx="22" ry="5" fill="#7a5a3a" opacity=".55"/>${stem('M50 92 C50 82 50 76 50 70','#5c9a4e',3)}${leaf('M50 76 C40 74 34 66 36 60 C44 62 50 68 50 76Z','#7cc46a')}${leaf('M50 72 C60 70 66 62 64 56 C56 58 50 64 50 72Z','#6bb35a')}`),
+wheat:svg(S,[30,40,50,60,70].map((x,i)=>{const h=i%2?34:42;return stem(`M${x} 94 L${x} ${94-h}`,'#c9a34a',2.4)+[0,1,2,3].map(k=>`<ellipse cx="${x+(k%2?3:-3)}" cy="${94-h+4+k*6}" rx="3" ry="5" fill="${k%2?'#e8c15a':'#dcae3f'}"/>`).join('')}).join('')),
+carrot:svg(S,[34,50,66].map(x=>`<path d="M${x-6} 76 L${x+6} 76 L${x} 96Z" fill="#ef8a2e"/>`+leaf(`M${x} 76 C${x-12} 66 ${x-10} 52 ${x-6} 48 C${x-2} 58 ${x} 66 ${x} 76Z`,'#5aa34f')+leaf(`M${x} 76 C${x+12} 66 ${x+10} 54 ${x+6} 50 C${x+2} 60 ${x} 66 ${x} 76Z`,'#6fba5d')).join('')+`<rect x="20" y="74" width="60" height="6" rx="3" fill="#7a5a3a" opacity=".6"/>`),
+tomato:svg(S,stem('M50 96 L50 24','#5c9a4e',3)+stem('M38 96 L38 40','#8a6a44',2)+stem('M62 96 L62 40','#8a6a44',2)+leaf('M50 60 C38 58 32 50 34 44 C42 46 48 52 50 60Z')+leaf('M50 46 C62 44 68 36 66 30 C58 32 52 38 50 46Z','#5aa34f')+leaf('M50 78 C62 76 68 68 66 62 C58 64 52 70 50 78Z','#5aa34f')+dots([[40,52,7],[60,38,6.5],[58,70,7.5],[42,80,6]],'#e2473b')+dots([[38,50,2],[58,36,2],[56,68,2]],'#ff8a7a')),
+strawberry:svg(S,dots([[34,74,16],[52,66,18],[68,76,14]],'#4f9a4f')+dots([[30,70,5],[52,58,6],[70,72,5]],'#6cb35d')+[[30,84],[48,82],[64,86],[56,74]].map(([x,y])=>`<path d="M${x-6} ${y-4} Q${x} ${y-8} ${x+6} ${y-4} Q${x+5} ${y+6} ${x} ${y+9} Q${x-5} ${y+6} ${x-6} ${y-4}Z" fill="#e23b4e"/><circle cx="${x-2}" cy="${y}" r="1" fill="#ffe08a"/><circle cx="${x+2}" cy="${y+3}" r="1" fill="#ffe08a"/>`).join('')),
+pumpkin:svg(S,`<path d="M50 50 C48 42 52 36 58 34" stroke="#5c7a3a" stroke-width="4" fill="none" stroke-linecap="round"/>${leaf('M58 40 C70 32 82 36 84 44 C74 46 66 46 58 40Z','#5aa34f')}<ellipse cx="50" cy="74" rx="34" ry="22" fill="#e07a24"/><ellipse cx="36" cy="74" rx="14" ry="20" fill="#ea8a30"/><ellipse cx="64" cy="74" rx="14" ry="20" fill="#ea8a30"/><ellipse cx="50" cy="74" rx="11" ry="22" fill="#f29a3a"/>`),
+corn:svg(T,stem('M50 146 L50 24','#6d9a3d',5)+leaf('M50 120 C30 112 20 96 20 86 C34 92 46 104 50 120Z','#7cb14a')+leaf('M50 96 C70 88 82 72 82 62 C68 68 56 80 50 96Z','#6aa340')+leaf('M50 70 C34 62 28 50 28 42 C40 48 48 58 50 70Z','#7cb14a')+`<ellipse cx="60" cy="74" rx="8" ry="20" fill="#f3cf4a"/>`+[0,1,2,3,4].map(k=>`<line x1="54" y1="${62+k*6}" x2="66" y2="${62+k*6}" stroke="#d9ae2c" stroke-width="1.2"/>`).join('')+leaf('M60 96 C52 88 50 74 54 60 C56 76 60 86 60 96Z','#8ac25a')),
 lamp:svg(S,`<circle cx="50" cy="26" r="20" fill="#ffe7a3" opacity=".35"/><rect x="47" y="34" width="6" height="56" fill="#3f4a4f"/><rect x="40" y="88" width="20" height="6" rx="2" fill="#3f4a4f"/><path d="M40 16 L60 16 L57 36 L43 36Z" fill="#ffe08a"/><path d="M38 14 L62 14 L56 8 L44 8Z" fill="#3f4a4f"/><rect x="40" y="35" width="20" height="4" rx="1" fill="#3f4a4f"/>`),
 };
 
@@ -73,10 +80,16 @@ const CATALOG=[
  {id:'cactus',cat:'flowers',price:4,en:'Potted cactus',cn:'盆栽仙人掌'},
  {id:'pine',cat:'trees',price:5,tall:true,en:'Pine',cn:'松树'},
  {id:'oak',cat:'trees',price:5,tall:true,en:'Oak',cn:'橡树'},
- {id:'apple',cat:'trees',price:6,tall:true,en:'Apple tree',cn:'苹果树'},
+ {id:'apple',cat:'trees',price:6,tall:true,crop:{y:'apple',n:3},en:'Apple tree',cn:'苹果树'},
  {id:'maple',cat:'trees',price:6,tall:true,en:'Autumn maple',cn:'秋枫'},
- {id:'cherry',cat:'trees',price:7,tall:true,en:'Cherry blossom',cn:'樱花树'},
+ {id:'cherry',cat:'trees',price:7,tall:true,crop:{y:'cherry',n:4},en:'Cherry blossom',cn:'樱花树'},
  {id:'christmas',cat:'trees',price:8,tall:true,en:'Christmas tree',cn:'圣诞树'},
+ {id:'wheat',cat:'crops',price:3,crop:{y:'wheat',n:3},en:'Wheat',cn:'麦子'},
+ {id:'carrot',cat:'crops',price:2,crop:{y:'carrot',n:2},en:'Carrots',cn:'胡萝卜'},
+ {id:'tomato',cat:'crops',price:3,crop:{y:'tomato',n:3},en:'Tomato vine',cn:'番茄'},
+ {id:'strawberry',cat:'crops',price:4,crop:{y:'strawberry',n:3},en:'Strawberries',cn:'草莓'},
+ {id:'pumpkin',cat:'crops',price:4,crop:{y:'pumpkin',n:1},en:'Pumpkin',cn:'南瓜'},
+ {id:'corn',cat:'crops',price:3,tall:true,crop:{y:'corn',n:2},en:'Corn',cn:'玉米'},
  {id:'path',cat:'decor',price:1,ground:true,en:'Stepping stones',cn:'石板路'},
  {id:'rock',cat:'decor',price:2,en:'Boulder',cn:'石头'},
  {id:'lamp',cat:'decor',price:3,en:'Garden lamp',cn:'庭院灯'},
@@ -90,7 +103,32 @@ const FENCES=[
  {id:'stone',price:6,en:'Stone wall',cn:'石墙'},
  {id:'iron',price:8,en:'Iron railing',cn:'铁艺围栏'},
 ];
-const TABS=[['flowers','Flowers','花草'],['trees','Trees','树木'],['decor','Decor','装饰'],['fences','Fences','围栏'],['land','Land','土地'],['custom','My uploads','自定义']];
+/* ---------- farming: produce, food, recipes ----------
+   Crops ripen every 24 h. Water (1 ✓) takes 6 h off, fertiliser (2 ✓) 12 h, each once per cycle.
+   Produce and food live in the pantry; sell for 🪙 gold, buy food with gold, or cook. 10 🪙 = 1 ✓. */
+const GROW_MS=24*3600e3,WATER_MS=6*3600e3,FERT_MS=12*3600e3,WATER_COST=1,FERT_COST=2,GOLD_PER_CHECK=10;
+const GOODS={
+  wheat:{e:'🌾',en:'Wheat',cn:'麦子',sell:2,buy:4},carrot:{e:'🥕',en:'Carrot',cn:'胡萝卜',sell:2,buy:4},tomato:{e:'🍅',en:'Tomato',cn:'番茄',sell:2,buy:4},
+  strawberry:{e:'🍓',en:'Strawberry',cn:'草莓',sell:3,buy:6},pumpkin:{e:'🎃',en:'Pumpkin',cn:'南瓜',sell:6,buy:12},corn:{e:'🌽',en:'Corn',cn:'玉米',sell:3,buy:6},
+  apple:{e:'🍎',en:'Apple',cn:'苹果',sell:3,buy:6},cherry:{e:'🍒',en:'Cherries',cn:'樱桃',sell:2,buy:4},
+  bread:{e:'🍞',en:'Bread',cn:'小面包',sell:8,buy:12,food:1},cookie:{e:'🍪',en:'Cookie',cn:'饼干',sell:5,buy:8,food:1},applepie:{e:'🥧',en:'Apple pie',cn:'苹果派',sell:12,buy:18,food:1},
+  juice:{e:'🧃',en:'Apple juice',cn:'苹果汁',sell:8,buy:12,food:1},cake:{e:'🍰',en:'Strawberry cake',cn:'草莓蛋糕',sell:16,buy:24,food:1},cupcake:{e:'🧁',en:'Cherry cupcake',cn:'樱桃纸杯蛋糕',sell:11,buy:16,food:1},
+  soup:{e:'🍲',en:'Pumpkin soup',cn:'南瓜汤',sell:12,buy:18,food:1},salad:{e:'🥗',en:'Salad',cn:'沙拉',sell:6,buy:10,food:1},popcorn:{e:'🍿',en:'Popcorn',cn:'爆米花',sell:7,buy:10,food:1},
+  milk:{e:'🥛',en:'Milk',cn:'牛奶',sell:2,buy:4},egg:{e:'🥚',en:'Egg',cn:'鸡蛋',sell:2,buy:4},
+};
+const RECIPES=[
+  {id:'bread',need:{wheat:3}},{id:'cookie',need:{wheat:2,egg:1}},{id:'applepie',need:{apple:2,wheat:1}},{id:'juice',need:{apple:2}},
+  {id:'cake',need:{strawberry:2,wheat:2,egg:1}},{id:'cupcake',need:{cherry:3,wheat:1}},{id:'soup',need:{pumpkin:1,carrot:1,milk:1}},
+  {id:'salad',need:{tomato:1,carrot:1}},{id:'popcorn',need:{corn:2}},
+];
+const goodName=id=>{const g=GOODS[id];return g?L(g.en,g.cn):id};
+const isCrop=it=>!!(it&&it.crop);
+const readyAt=c=>(Number(c.t0)||0)+GROW_MS-(c.w?WATER_MS:0)-(c.f?FERT_MS:0);
+const isRipe=c=>{const it=c&&item(c.item);return isCrop(it)&&Date.now()>=readyAt(c)};
+function fmtLeft(ms){const t=Math.max(1,Math.ceil(Math.max(0,ms)/60e3)),h=Math.floor(t/60),m=t%60;return h?L(`${h}h ${m}m`,`${h}小时${m}分`):L(`${m}m`,`${m}分钟`)}
+function shortLeft(ms){const h=ms/3600e3;return h>=1?`${Math.ceil(h)}h`:`${Math.max(1,Math.ceil(ms/60e3))}m`}
+const ripeCells=S=>Object.keys(S.cells).filter(k=>isRipe(S.cells[k]));
+const TABS=[['flowers','Flowers','花草'],['trees','Trees','树木'],['crops','Crops','可收成'],['decor','Decor','装饰'],['fences','Fences','围栏'],['land','Land','土地'],['custom','My uploads','自定义'],['market','Market','市场'],['kitchen','Kitchen','厨房']];
 
 /* ---------- state ----------
    MINE  – your garden. ✓ = completed tasks (+ borrowed − repaid).
@@ -109,6 +147,8 @@ function normalize(g,kind='mine'){
   out.earned=Array.isArray(g.earned)?[...new Set(g.earned.map(String))]:[];
   out.earnedMap={};if(g.earnedMap&&typeof g.earnedMap==='object')for(const [k,v] of Object.entries(g.earnedMap)){const n=Number(v);if(n>0)out.earnedMap[k]=Math.min(1,n)}
   out.spent=Math.max(0,r1(g.spent));
+  out.gold=Math.max(0,r1(g.gold));out.boughtChecks=Math.max(0,Math.floor(Number(g.boughtChecks)||0));
+  out.pantry=g.pantry&&typeof g.pantry==='object'?Object.fromEntries(Object.entries(g.pantry).filter(([k,n])=>GOODS[k]&&Number(n)>0).map(([k,n])=>[k,Math.floor(n)])):{};
   out.inv=g.inv&&typeof g.inv==='object'?Object.fromEntries(Object.entries(g.inv).filter(([,n])=>Number(n)>0).map(([k,n])=>[k,Math.floor(n)])):{};
   out.cells=g.cells&&typeof g.cells==='object'?g.cells:{};
   out.rows=Math.min(MAX_SIDE,Math.max(MIN_SIDE,Number(g.rows)||BASE_ROWS));
@@ -130,7 +170,7 @@ function normalize(g,kind='mine'){
   out.editedAt=Number(g.editedAt)||(hasContent(out)?(out.updatedAt||1):0);
   return out;
 }
-function hasContent(g){return !!(g&&(g.spent>0||Object.keys(g.cells||{}).length||Object.keys(g.inv||{}).length||(g.custom||[]).length||(g.loans||[]).length||(g.fences||[]).length>1||(g.archives||[]).length||g.rows*g.cols>BASE_ROWS*BASE_COLS))}
+function hasContent(g){return !!(g&&(g.spent>0||g.gold>0||Object.keys(g.pantry||{}).length||Object.keys(g.cells||{}).length||Object.keys(g.inv||{}).length||(g.custom||[]).length||(g.loans||[]).length||(g.fences||[]).length>1||(g.archives||[]).length||g.rows*g.cols>BASE_ROWS*BASE_COLS))}
 /* Merge this device's copy with the cloud's. The most recently *edited* copy decides layout, bag, spending and land;
    ledgers, fences, uploads and loans are unioned so nothing earned, bought or borrowed is lost. */
 function mergeGardens(a,b,kind){
@@ -151,7 +191,7 @@ function mergeGardens(a,b,kind){
   out.editedAt=Math.max(A.editedAt,B.editedAt);out.updatedAt=Math.max(A.updatedAt,B.updatedAt);
   return out;
 }
-const sig=g=>{g=normalize(g,g&&g.kind);return JSON.stringify([g.editedAt,g.spent,g.rows,g.cols,g.fence,g.cells,g.inv,[...g.earned].sort(),Object.entries(g.earnedMap).sort(),[...g.fences].sort(),g.custom.map(c=>c.id).sort(),g.loans.map(l=>[l.id,l.repaid]),g.repayOn,g.period,g.periodKey,g.archives.map(a=>a.id),g.autoPlant,g.lastAuto,g.allowVisits,g.visit&&g.visit.id,g.lastVisitCheck,g.news&&g.news.at])};
+const sig=g=>{g=normalize(g,g&&g.kind);return JSON.stringify([g.editedAt,g.spent,g.rows,g.cols,g.fence,g.cells,g.inv,[...g.earned].sort(),Object.entries(g.earnedMap).sort(),[...g.fences].sort(),g.custom.map(c=>c.id).sort(),g.loans.map(l=>[l.id,l.repaid]),g.repayOn,g.period,g.periodKey,g.archives.map(a=>a.id),g.autoPlant,g.lastAuto,g.gold,g.pantry,g.boughtChecks,g.allowVisits,g.visit&&g.visit.id,g.lastVisitCheck,g.news&&g.news.at])};
 const sameGarden=(a,b)=>sig(a)===sig(b);
 
 let MINE=blank('mine'),CHARB=blank('char'),OPS=[],CHAT={msgs:[]};
@@ -185,7 +225,7 @@ const repaidTotal=()=>MINE.loans.filter(l=>l.dir!=='out').reduce((s,l)=>s+l.repa
 const debt=()=>r1(MINE.loans.reduce((s,l)=>s+(l.dir!=='out'&&l.repay?Math.max(0,l.amount-l.repaid):0),0));
 const charDebt=()=>r1(MINE.loans.reduce((s,l)=>s+(l.dir==='out'&&l.repay?Math.max(0,l.amount-l.repaid):0),0));
 const earnedOf=S=>S.kind==='char'?r1(Object.values(S.earnedMap).reduce((a,b)=>a+b,0)):S.earned.length;
-const availOf=S=>Math.max(0,r1(earnedOf(S)-S.spent+(S.kind==='char'?-netToMine():netToMine())));
+const availOf=S=>Math.max(0,r1(earnedOf(S)+(S.boughtChecks||0)-S.spent+(S.kind==='char'?-netToMine():netToMine())));
 const available=()=>availOf(G);
 let lastErr='';
 function charge(S,n){if(availOf(S)+1e-9<n){lastErr=L(`You need ${fmt(n-availOf(S))} more ✓.`,`还差 ${fmt(n-availOf(S))} 个 ✓。`);return false}S.spent=r1(S.spent+n);return true}
@@ -237,7 +277,13 @@ const inRange=(S,key)=>{const m=/^(\d+),(\d+)$/.exec(String(key||''));return !!m
 function applyOp(S,op){
   lastErr='';
   switch(op&&op.t){
-    case 'place':{if(!inRange(S,op.to)||S.cells[op.to]||!(S.inv[op.id]>0)||!item(op.id))return false;S.cells[op.to]={item:op.id,flip:false};if(--S.inv[op.id]<=0)delete S.inv[op.id];return true}
+    case 'place':{if(!inRange(S,op.to)||S.cells[op.to]||!(S.inv[op.id]>0)||!item(op.id))return false;S.cells[op.to]={item:op.id,flip:false};if(isCrop(item(op.id)))S.cells[op.to].t0=op.at0||Date.now();if(--S.inv[op.id]<=0)delete S.inv[op.id];return true}
+    case 'harvest':{const c=S.cells[op.at],it=c&&item(c.item);if(!isCrop(it)||!isRipe(c))return false;S.pantry[it.crop.y]=(S.pantry[it.crop.y]||0)+it.crop.n;c.t0=Date.now();delete c.w;delete c.f;return true}
+    case 'tend':{const c=S.cells[op.at],it=c&&item(c.item),k=op.k==='f'?'f':'w';if(!isCrop(it)||isRipe(c)||c[k])return false;if(!charge(op.payer||S,k==='f'?FERT_COST:WATER_COST))return false;c[k]=1;return true}
+    case 'sell':{const n=Math.min(S.pantry[op.id]||0,Math.max(1,op.n|0));if(!n||!GOODS[op.id])return false;S.pantry[op.id]-=n;if(!S.pantry[op.id])delete S.pantry[op.id];S.gold=r1((S.gold||0)+GOODS[op.id].sell*n);return true}
+    case 'buyfood':{const g=GOODS[op.id];if(!g||!g.buy)return false;if((S.gold||0)<g.buy){lastErr=L(`You need ${g.buy-(S.gold||0)} more 🪙.`,`还差 ${g.buy-(S.gold||0)} 🪙。`);return false}S.gold=r1(S.gold-g.buy);S.pantry[op.id]=(S.pantry[op.id]||0)+1;return true}
+    case 'cook':{const r=RECIPES.find(x=>x.id===op.id);if(!r)return false;for(const [k,n] of Object.entries(r.need))if((S.pantry[k]||0)<n){lastErr=L(`Not enough ${goodName(k)}.`,`${goodName(k)}不够。`);return false}for(const [k,n] of Object.entries(r.need)){S.pantry[k]-=n;if(!S.pantry[k])delete S.pantry[k]}S.pantry[r.id]=(S.pantry[r.id]||0)+1;return true}
+    case 'exchange':{const n=Math.max(1,op.n|0);if((S.gold||0)<n*GOLD_PER_CHECK){lastErr=L(`You need ${n*GOLD_PER_CHECK} 🪙.`,`需要 ${n*GOLD_PER_CHECK} 🪙。`);return false}S.gold=r1(S.gold-n*GOLD_PER_CHECK);S.boughtChecks=(S.boughtChecks||0)+n;return true}
     case 'move':{if(op.from===op.to||!S.cells[op.from]||!inRange(S,op.to))return false;const a=S.cells[op.from],b=S.cells[op.to];S.cells[op.to]=a;if(b)S.cells[op.from]=b;else delete S.cells[op.from];return true}
     case 'store':{const c=S.cells[op.at];if(!c)return false;S.inv[c.item]=(S.inv[c.item]||0)+1;delete S.cells[op.at];return true}
     case 'flip':{const c=S.cells[op.at];if(!c)return false;c.flip=!c.flip;return true}
@@ -349,6 +395,7 @@ function renderHud(){
   if(!root)return;const w=root.querySelector('#gdWallet');if(!w)return;
   if(view==='char'){const {d,c}=charCounts();w.innerHTML=`<span class="gd-coin">✓ ${fmt(available())}</span><small>${L(`${d} done · ${c} changed · ${fmt(G.spent)} spent`,`完成 ${d} · 改计划 ${c} · 已花 ${fmt(G.spent)}`)}</small>`}
   else{const net=lentTotal()-repaidTotal();w.innerHTML=`<span class="gd-coin">✓ ${fmt(available())}</span><small>${L(`${earnedOf(MINE)} completed · ${fmt(MINE.spent)} spent`,`已完成 ${earnedOf(MINE)} · 已花 ${fmt(MINE.spent)}`)}${net?` · ${L('borrowed','借入')} ${fmt(net)}`:''}</small>`}
+  w.insertAdjacentHTML('afterbegin',`<span class="gd-coin gd-coin-gold">🪙 ${fmt((view==='char'?CHARB:MINE).gold||0)}</span>`);
   const sw=root.querySelector('#gdShopWallet');if(sw)sw.textContent=`✓ ${fmt(available())}`;
 }
 function renderTitle(){
@@ -366,7 +413,8 @@ function paintSocial(){
   if(view==='mine'){
     const d=debt();
     const v=MINE.visit,cd=charDebt();
-    el.innerHTML=`${mode?`<button type="button" class="gd-btn gd-btn-primary" data-gd="chatOpen">💬 ${L(`Chat with ${nm}`,`和${nm}聊天`)}</button>`:''}${v?`<button type="button" class="gd-btn gd-visit" data-gd="visitOpen">📬 ${v.kind==='borrow'?L(`${nm} wants to borrow ✓ ${v.amount}`,`${nm}想借 ✓ ${v.amount}`):L(`${nm} left ${v.ops.length} suggestion${v.ops.length>1?'s':''}`,`${nm}留了 ${v.ops.length} 条建议`)}</button>`:''}${cd>0?`<span class="gd-debt gd-debt-in">${L(`${nm} owes you ✓ ${fmt(cd)}`,`${nm}欠你 ✓ ${fmt(cd)}`)}</span>`:''}<button type="button" class="gd-btn" data-gd="borrowOpen"${dis}>🤝 ${L(`Borrow ✓ from ${nm}`,`向${nm}借 ✓`)}</button>${d>0?`<span class="gd-debt">${L(`You owe ${nm} ✓ ${fmt(d)}`,`欠${nm} ✓ ${fmt(d)}`)}</span><button type="button" class="gd-btn" data-gd="repay"${dis}${available()<1?' disabled':''}>${L('Pay back','还')}</button>`:''}`;
+    const ripeN=ripeCells(MINE).length;
+    el.innerHTML=`${ripeN?`<button type="button" class="gd-btn gd-btn-primary gd-harvest-all" data-gd="harvestAll">🧺 ${L(`Harvest all (${ripeN})`,`全部收成（${ripeN}）`)}</button>`:''}${mode?`<button type="button" class="gd-btn gd-btn-primary" data-gd="chatOpen">💬 ${L(`Chat with ${nm}`,`和${nm}聊天`)}</button>`:''}${v?`<button type="button" class="gd-btn gd-visit" data-gd="visitOpen">📬 ${v.kind==='borrow'?L(`${nm} wants to borrow ✓ ${v.amount}`,`${nm}想借 ✓ ${v.amount}`):L(`${nm} left ${v.ops.length} suggestion${v.ops.length>1?'s':''}`,`${nm}留了 ${v.ops.length} 条建议`)}</button>`:''}${cd>0?`<span class="gd-debt gd-debt-in">${L(`${nm} owes you ✓ ${fmt(cd)}`,`${nm}欠你 ✓ ${fmt(cd)}`)}</span>`:''}<button type="button" class="gd-btn" data-gd="borrowOpen"${dis}>🤝 ${L(`Borrow ✓ from ${nm}`,`向${nm}借 ✓`)}</button>${d>0?`<span class="gd-debt">${L(`You owe ${nm} ✓ ${fmt(d)}`,`欠${nm} ✓ ${fmt(d)}`)}</span><button type="button" class="gd-btn" data-gd="repay"${dis}${available()<1?' disabled':''}>${L('Pay back','还')}</button>`:''}`;
   }else if(!mode){
     el.innerHTML=`<span class="gd-hint">${L('Set up your character first — their finished plans become their ✓.','先设置角色——角色完成的日程就是它的 ✓。')}</span><button type="button" class="gd-btn" data-gd="charSettings">🤖 ${L('Character & API','角色与 API')}</button>`;
   }else{
@@ -410,7 +458,15 @@ function renderPlot(){
     const cls=['gd-cell',(r+c)%2?'alt':'',sel.cell===key?'selected':'',!it&&(sel.inv||sel.cell)?'target':''].join(' ');
     h+=`<div class="${cls}" data-cell="${key}"></div>`;
     const changed=view==='char'&&OPS.length&&JSON.stringify(CHARB.cells[key]||null)!==JSON.stringify(cell||null);
-    if(it)p+=`<div class="gd-slot" style="grid-row:${r+1};grid-column:${c+1};z-index:${it.ground?1:r*2+10}"><div class="gd-item${it.tall?' tall':''}${it.ground?' ground':''}${cell.flip?' flip':''}${sel.cell===key?' selected':''}${changed?' suggested':''}" data-placed="${key}" title="${esc(itemName(it))}">${artHtml(it)}</div></div>`;
+    if(it){
+      let extra='',art=artHtml(it),stage='';
+      if(isCrop(it)){
+        const left=readyAt(cell)-Date.now(),prog=1-Math.max(0,left)/GROW_MS;
+        if(left<=0){extra=`<button type="button" class="gd-ripe" data-gd="harvest" data-at="${key}" title="${L('Harvest','收成')}">${GOODS[it.crop.y]?.e||'✨'}</button>`;stage=' ripe'}
+        else{extra=`<span class="gd-timer${cell.w?' w':''}${cell.f?' f':''}">${cell.w?'💧':''}${cell.f?'🌱':''}${shortLeft(left)}</span>`;if(!it.tall&&prog<.35){art=ART.sprout;stage=' young'}else stage=' growing'}
+      }
+      p+=`<div class="gd-slot" style="grid-row:${r+1};grid-column:${c+1};z-index:${it.ground?1:r*2+10}"><div class="gd-item${it.tall&&stage!==' young'?' tall':''}${it.ground?' ground':''}${cell.flip?' flip':''}${sel.cell===key?' selected':''}${changed?' suggested':''}${stage}" data-placed="${key}" title="${esc(itemName(it))}">${art}</div>${extra}</div>`;
+    }
   }
   grid.innerHTML=h;items.innerHTML=p;
 }
@@ -418,14 +474,66 @@ function renderTray(){
   const tray=root.querySelector('#gdTray');
   const ids=Object.keys(G.inv).filter(id=>G.inv[id]>0&&item(id));
   tray.innerHTML=`<div class="gd-tray-head"><span class="gd-label">${view==='char'?esc(L(`${cname().toUpperCase()}'S BAG`,`${cname()}的背包`)):L('SEED BAG','背包')}</span><small>${ids.length?L('Drag onto the garden, or tap an item then tap a plot.','拖到花园里，或先点物品再点格子。'):L('Empty — buy plants in the Shop.','空空的——去商城兑换植物吧。')}</small></div>
-  <div class="gd-tray-items">${ids.map(id=>{const it=item(id);return `<button type="button" class="gd-chip${sel.inv===id?' selected':''}" data-inv="${esc(id)}" title="${esc(itemName(it))}"><span class="gd-chip-art">${artHtml(it)}</span><span class="gd-chip-count">×${G.inv[id]}</span></button>`}).join('')}</div>`;
+  <div class="gd-tray-items">${ids.map(id=>{const it=item(id);return `<button type="button" class="gd-chip${sel.inv===id?' selected':''}" data-inv="${esc(id)}" title="${esc(itemName(it))}"><span class="gd-chip-art">${artHtml(it)}</span><span class="gd-chip-count">×${G.inv[id]}</span></button>`}).join('')}</div>
+  ${pantryRow(view==='char'?CHARB:MINE)}`;
+}
+function pantryRow(S){
+  const ks=Object.keys(S.pantry||{}).filter(k=>S.pantry[k]>0);
+  return `<div class="gd-pantry"><span class="gd-label">🧺 ${view==='char'?esc(L(`${cname().toUpperCase()}'S PANTRY`,`${cname()}的仓库`)):L('PANTRY','仓库')}</span><span class="gd-gold">🪙 ${fmt(S.gold||0)}</span>${ks.length?ks.map(k=>`<span class="gd-good" title="${esc(goodName(k))}">${GOODS[k].e}<b>${S.pantry[k]}</b></span>`).join(''):`<small>${L('Harvest crops to fill it.','收成后的作物会放在这里。')}</small>`}${view==='mine'?`<button type="button" class="gd-btn gd-btn-quiet" data-gd="openTab" data-tab="market">${L('Market','市场')} ›</button><button type="button" class="gd-btn gd-btn-quiet" data-gd="openTab" data-tab="kitchen">${L('Kitchen','厨房')} ›</button>`:''}</div>`;
 }
 function renderActions(){
   const bar=root.querySelector('#gdActions');
   const cell=sel.cell&&G.cells[sel.cell],it=cell&&item(cell.item);
   if(!it){bar.classList.add('hidden');bar.innerHTML='';return}
   bar.classList.remove('hidden');
+  if(isCrop(it)){
+    const left=readyAt(cell)-Date.now(),ripe=left<=0,g=GOODS[it.crop.y],mineView=view==='mine';
+    const tend=(k,icon,label,cost)=>`<button type="button" class="gd-btn" data-gd="tend" data-k="${k}"${ripe||cell[k]||availOf(MINE)<cost?' disabled':''} title="${L(`${cost} ✓ · ${k==='f'?'12':'6'} h sooner`,`${cost} ✓ · 提前 ${k==='f'?12:6} 小时`)}">${icon} ${label} <small>✓${cost}</small></button>`;
+    bar.innerHTML=`<strong>${esc(itemName(it))}</strong><span class="gd-crop-status">${ripe?L(`Ready — ${it.crop.n} ${g.e} ${goodName(it.crop.y)}`,`可以收成了：${g.e} ${goodName(it.crop.y)} ×${it.crop.n}`):L(`Ripe in ${fmtLeft(left)} · ${it.crop.n} ${g.e} every 24 h`,`还要 ${fmtLeft(left)} 成熟 · 每 24 小时收 ${g.e}×${it.crop.n}`)}${!mineView?` · ${L(`${cname()} harvests it`,`由${cname()}收成`)}`:''}</span>${ripe&&mineView?`<button type="button" class="gd-btn gd-btn-primary" data-gd="harvest" data-at="${sel.cell}">🧺 ${L('Harvest','收成')}</button>`:''}${!ripe?tend('w','💧',L('Water','浇水'),WATER_COST)+tend('f','🌱',L('Fertilise','施肥'),FERT_COST):''}<button type="button" class="gd-btn" data-gd="flip">↔</button><button type="button" class="gd-btn" data-gd="store">${L('Put in bag','收回背包')}</button><button type="button" class="gd-icon" data-gd="deselect" aria-label="${L('Done','完成')}">✓</button>`;
+    return;
+  }
   bar.innerHTML=`<strong>${esc(itemName(it))}</strong><span>${L('Tap an empty plot to move it','点空格子即可移动')}</span><button type="button" class="gd-btn" data-gd="flip">↔ ${L('Flip','翻转')}</button><button type="button" class="gd-btn" data-gd="store">${L('Put in bag','收回背包')}</button><button type="button" class="gd-icon" data-gd="deselect" aria-label="${L('Done','完成')}">✓</button>`;
+}
+
+/* ---------- farming actions ---------- */
+function harvest(at){
+  if(view!=='mine'){say(`That's ${cname()}'s — they harvest it.`,`这是${cname()}的，由它来收成。`);return}
+  const c=MINE.cells[at],it=c&&item(c.item);
+  if(!applyOp(MINE,{t:'harvest',at}))return;
+  persistMine();G=MINE;celebrate();say(`+${it.crop.n} ${goodName(it.crop.y)}`,`收获 ${GOODS[it.crop.y].e} ${goodName(it.crop.y)} ×${it.crop.n}`);render();
+}
+function harvestAll(){
+  const got={};for(const k of ripeCells(MINE)){const it=item(MINE.cells[k].item);if(applyOp(MINE,{t:'harvest',at:k}))got[it.crop.y]=(got[it.crop.y]||0)+it.crop.n}
+  if(!Object.keys(got).length)return;persistMine();G=MINE;celebrate();
+  say('Harvested: '+Object.entries(got).map(([k,n])=>`${GOODS[k].e}×${n}`).join(' '),'收成：'+Object.entries(got).map(([k,n])=>`${GOODS[k].e}×${n}`).join(' '));render();
+}
+/* water / fertilise — always paid with YOUR ✓; in the character's garden it's a gift (applied at once, not a suggestion) */
+function tend(at,k){
+  const S=view==='char'?CHARB:MINE,c=S.cells[at],it=c&&item(c.item);if(!c)return;
+  if(!applyOp(S,{t:'tend',at,k,payer:MINE})){if(lastErr)say(lastErr,lastErr);return}
+  persistMine();if(S===CHARB){persistChar();logChat('user',L(`${k==='f'?'🌱 Fertilised':'💧 Watered'} your ${itemName(it)}.`,`${k==='f'?'🌱 给你的':'💧 给你的'}${itemName(it)}${k==='f'?'施了肥':'浇了水'}。`))}
+  recompute();say(k==='f'?'12 h sooner.':'6 h sooner.',k==='f'?'施肥了，提前 12 小时。':'浇水了，提前 6 小时。');render();
+}
+function market(act,id,n){
+  const op=act==='sell'?{t:'sell',id,n}:act==='buyfood'?{t:'buyfood',id}:act==='cook'?{t:'cook',id}:{t:'exchange',n};
+  if(!applyOp(MINE,op)){if(lastErr)say(lastErr,lastErr);return}
+  persistMine();G=view==='mine'?MINE:G;
+  if(act==='cook'){celebrate();say(`Made ${goodName(id)}!`,`做好了${GOODS[id].e}${goodName(id)}！`)}
+  else if(act==='exchange'){celebrate();say(`+${n} ✓`,`换到 ${n} ✓`)}
+  else if(act==='buyfood')say(`Bought ${goodName(id)}.`,`买了${GOODS[id].e}${goodName(id)}。`);
+  render();renderShop();
+}
+/* the character runs their own little farm: harvest what's ripe, cook when possible, sell the surplus, trade gold for ✓ */
+function charFarm(){
+  const S=CHARB,got={},made=[];let sold=0,ex=0;
+  for(const k of ripeCells(S)){const it=item(S.cells[k].item);if(applyOp(S,{t:'harvest',at:k}))got[it.crop.y]=(got[it.crop.y]||0)+it.crop.n}
+  for(let i=0;i<6;i++){const r=RECIPES.find(r=>Object.entries(r.need).every(([k,n])=>(S.pantry[k]||0)>=n)&&(S.pantry[r.id]||0)<2);if(!r||!applyOp(S,{t:'cook',id:r.id}))break;made.push(r.id)}
+  for(const [k,n] of Object.entries(S.pantry)){const keep=GOODS[k].food?2:3;if(n>keep){const g=S.gold;applyOp(S,{t:'sell',id:k,n:n-keep});sold+=S.gold-g}}
+  const canEx=Math.floor((S.gold||0)/GOLD_PER_CHECK);if(canEx>0&&applyOp(S,{t:'exchange',n:canEx}))ex=canEx;
+  if(!Object.keys(got).length&&!made.length&&!sold)return;
+  const bits=[Object.keys(got).length?L('harvested ','收了 ')+Object.entries(got).map(([k,n])=>`${GOODS[k].e}×${n}`).join(' '):'',made.length?L('cooked ','做了 ')+made.map(k=>GOODS[k].e).join(''):'',sold?L(`sold for 🪙${fmt(sold)}`,`卖了 🪙${fmt(sold)}`):'',ex?L(`traded for ✓${ex}`,`换了 ✓${ex}`):''].filter(Boolean);
+  S.news={text:'',note:`${cname()} · ${bits.join(' · ')}`,at:Date.now(),seen:false};
+  persistChar(true);recompute();if(isOpen())render();
 }
 
 /* ---------- placing ---------- */
@@ -544,6 +652,11 @@ function onClick(e){
     if(act==='album')return openSheet('album');
     if(act==='albumView'){albumId=a.dataset.id;return openSheet('albumView')}
     if(act==='visitOpen')return openSheet('visit');
+    if(act==='harvest')return harvest(a.dataset.at);
+    if(act==='harvestAll')return harvestAll();
+    if(act==='tend')return tend(sel.cell,a.dataset.k);
+    if(act==='openTab'){tab=a.dataset.tab;return openShop()}
+    if(act==='sell'||act==='buyfood'||act==='cook'||act==='exchange')return market(act,a.dataset.id,+a.dataset.n||1);
     if(act==='visitAccept')return resolveVisit(true);
     if(act==='visitDecline')return resolveVisit(false);
     return;
@@ -569,8 +682,21 @@ const priceBtn=(price,attrs,label)=>`<button type="button" class="gd-buy${availa
 function renderShop(){
   const s=root.querySelector('#gdShop'),isChar=view==='char';
   let body='';
+  if(isChar&&(tab==='market'||tab==='kitchen'))tab='crops';
   if(['flowers','trees','decor'].includes(tab)){
     body=`<div class="gd-cards">${CATALOG.filter(x=>x.cat===tab).map(it=>card(it,priceBtn(it.price,`data-gd="buy" data-id="${it.id}"`))).join('')}</div>`;
+  }else if(tab==='crops'){
+    body=`<p class="gd-note gd-note-top">${L(`Crops ripen every 24 hours. Water (✓${WATER_COST}) = 6 h sooner, fertiliser (✓${FERT_COST}) = 12 h sooner, once each per harvest.`,`作物每 24 小时成熟一次。浇水（✓${WATER_COST}）提前 6 小时，施肥（✓${FERT_COST}）提前 12 小时，每轮各一次。`)}</p><div class="gd-cards">${CATALOG.filter(x=>x.crop).map(it=>card(it,priceBtn(it.price,`data-gd="buy" data-id="${it.id}"`)).replace('<div class="gd-card-meta">',`<div class="gd-card-meta">${GOODS[it.crop.y].e}×${it.crop.n}/24h · `)).join('')}</div>`;
+  }else if(tab==='market'){
+    const S=MINE,ks=Object.keys(S.pantry).filter(k=>S.pantry[k]>0),maxEx=Math.floor((S.gold||0)/GOLD_PER_CHECK);
+    body=`<div class="gd-market">
+      <section><div class="gd-label">${L('SELL','卖出')}</div>${ks.length?`<div class="gd-goods">${ks.map(k=>`<div class="gd-goodrow"><span class="gd-goodico">${GOODS[k].e}</span><span><strong>${esc(goodName(k))}</strong><small>×${S.pantry[k]} · 🪙${GOODS[k].sell}</small></span><button type="button" class="gd-buy" data-gd="sell" data-id="${k}" data-n="1">${L('Sell 1','卖 1 个')}</button>${S.pantry[k]>1?`<button type="button" class="gd-btn" data-gd="sell" data-id="${k}" data-n="${S.pantry[k]}">${L('All','全部')} 🪙${GOODS[k].sell*S.pantry[k]}</button>`:''}</div>`).join('')}</div>`:`<p class="gd-note">${L('Nothing to sell yet — plant crops and harvest them.','还没有可卖的东西——种点作物收成吧。')}</p>`}</section>
+      <section><div class="gd-label">${L('BUY WITH GOLD','用金币买')}</div><div class="gd-goods gd-goods-grid">${Object.entries(GOODS).filter(([,g])=>g.buy).map(([k,g])=>`<button type="button" class="gd-goodbuy${(S.gold||0)<g.buy?' poor':''}" data-gd="buyfood" data-id="${k}"><span>${g.e}</span><strong>${esc(goodName(k))}</strong><small>🪙${g.buy}</small></button>`).join('')}</div></section>
+      <section><div class="gd-label">${L('EXCHANGE','兑换')}</div><div class="gd-goodrow"><span class="gd-goodico">🪙</span><span><strong>${GOLD_PER_CHECK} 🪙 → 1 ✓</strong><small>${L(`You have 🪙${fmt(S.gold||0)}`,`你有 🪙${fmt(S.gold||0)}`)}</small></span><button type="button" class="gd-buy" data-gd="exchange" data-n="1"${maxEx<1?' disabled':''}>${L('Exchange 1','换 1 个')}</button>${maxEx>1?`<button type="button" class="gd-btn" data-gd="exchange" data-n="${maxEx}">${L(`All (${maxEx} ✓)`,`全部（${maxEx} ✓）`)}</button>`:''}</div></section>
+    </div>`;
+  }else if(tab==='kitchen'){
+    const S=MINE;
+    body=`<p class="gd-note gd-note-top">${L('Cook what you harvested. Missing an egg or milk? Buy it in the Market.','用收成的作物做吃的。缺鸡蛋或牛奶，可以去市场买。')}</p><div class="gd-cards gd-recipes">${RECIPES.map(r=>{const ok=Object.entries(r.need).every(([k,n])=>(S.pantry[k]||0)>=n);return `<div class="gd-card"><div class="gd-card-art gd-food-art">${GOODS[r.id].e}</div><div class="gd-card-name">${esc(goodName(r.id))}</div><div class="gd-card-meta gd-need">${Object.entries(r.need).map(([k,n])=>`<span class="${(S.pantry[k]||0)>=n?'ok':'no'}">${GOODS[k].e}${S.pantry[k]||0}/${n}</span>`).join(' ')}</div><button type="button" class="gd-buy${ok?'':' poor'}" data-gd="cook" data-id="${r.id}">${L('Cook','制作')}${S.pantry[r.id]?` · ${L('have','已有')} ${S.pantry[r.id]}`:''}</button></div>`}).join('')}</div>`;
   }else if(tab==='fences'){
     body=`<div class="gd-cards wide">${FENCES.map(f=>{const own=G.fences.includes(f.id),cur=G.fence===f.id;const art=FENCE_ART[f.id];
       return `<div class="gd-card"><div class="gd-card-art fence" style="--gd-fh:url(&quot;data:image/svg+xml,${encodeURIComponent(art.h)}&quot;)"></div><div class="gd-card-name">${L(f.en,f.cn)}</div><div class="gd-card-meta">${cur?L('In use','使用中'):own?L('Owned','已拥有'):'&nbsp;'}</div>${cur?`<button type="button" class="gd-buy done" disabled>${L('Using','使用中')}</button>`:own?`<button type="button" class="gd-buy" data-gd="fence" data-id="${f.id}">${L('Use','使用')}</button>`:priceBtn(f.price,`data-gd="fence" data-id="${f.id}"`)}</div>`}).join('')}</div>`;
@@ -598,8 +724,8 @@ function renderShop(){
       </div></div>
       ${MINE.custom.length?`<div class="gd-cards">${MINE.custom.map(it=>card(it,`<div class="gd-card-row">${priceBtn(it.price,`data-gd="buy" data-id="${esc(it.id)}"`)}<button type="button" class="gd-del" data-gd="delCustom" data-id="${esc(it.id)}" aria-label="${L('Remove product','删除商品')}">🗑</button></div>`)).join('')}</div>`:''}`;
   }
-  s.innerHTML=`<div class="gd-shop-head"><div><div class="gd-label">${isChar?esc(L(`${cname().toUpperCase()}'S SHOP`,`${cname()}的商城`)):L('GARDEN SHOP','花园商城')}</div><strong>${isChar?esc(L(`Spend ${cname()}'s ✓ — as a suggestion`,`用${cname()}的 ✓ 兑换（作为建议）`)):L('Trade completed tasks for plants','用已完成事项兑换植物')}</strong></div><span class="gd-coin" id="gdShopWallet">✓ ${fmt(available())}</span><button type="button" class="gd-icon" data-gd="shopClose" aria-label="${L('Close shop','关闭商城')}">×</button></div>
-  <nav class="gd-tabs">${TABS.map(([id,en,cn])=>`<button type="button" class="${tab===id?'on':''}" data-gd="tab" data-tab="${id}">${L(en,cn)}</button>`).join('')}</nav>
+  s.innerHTML=`<div class="gd-shop-head"><div><div class="gd-label">${isChar?esc(L(`${cname().toUpperCase()}'S SHOP`,`${cname()}的商城`)):L('GARDEN SHOP','花园商城')}</div><strong>${isChar?esc(L(`Spend ${cname()}'s ✓ — as a suggestion`,`用${cname()}的 ✓ 兑换（作为建议）`)):L('Trade completed tasks for plants','用已完成事项兑换植物')}</strong></div>${!isChar?`<span class="gd-coin gd-coin-gold">🪙 ${fmt(MINE.gold||0)}</span>`:''}<span class="gd-coin" id="gdShopWallet">✓ ${fmt(available())}</span><button type="button" class="gd-icon" data-gd="shopClose" aria-label="${L('Close shop','关闭商城')}">×</button></div>
+  <nav class="gd-tabs">${TABS.filter(([id])=>!(isChar&&(id==='market'||id==='kitchen'))).map(([id,en,cn])=>`<button type="button" class="${tab===id?'on':''}" data-gd="tab" data-tab="${id}">${L(en,cn)}</button>`).join('')}</nav>
   <div class="gd-shop-body">${body}</div>`;
 }
 function celebrate(){try{confetti()}catch{}}
@@ -771,7 +897,7 @@ function cellKey(v){let a,b;if(Array.isArray(v)){a=+v[0];b=+v[1]}else{const m=/(
 function decorateCtx(S=CHARB){
   const empty=[];for(let r=0;r<S.rows;r++)for(let c=0;c<S.cols;c++)if(!S.cells[`${r},${c}`])empty.push(toAI(`${r},${c}`));
   return {avail:availOf(S),rows:S.rows,cols:S.cols,expandCost:EXPAND_COST,
-    catalog:[...CATALOG,...MINE.custom].map(i=>({id:i.id,name:itemName(i),price:i.price,kind:i.tall?'tree':i.ground?'ground decor':(i.cat==='decor'?'decor':'plant')})),
+    catalog:[...CATALOG,...MINE.custom].map(i=>({id:i.id,name:itemName(i),price:i.price,kind:(i.crop?`crop: gives ${i.crop.n} ${GOODS[i.crop.y].en} every 24h, `:'')+(i.tall?'tree':i.ground?'ground decor':(i.cat==='decor'?'decor':'plant'))})),
     fences:FENCES.map(f=>({id:f.id,name:L(f.en,f.cn),price:f.price,owned:S.fences.includes(f.id)})),fence:S.fence,inv:{...S.inv},
     placed:Object.entries(S.cells).map(([at,c])=>({at:toAI(at),id:c.item,name:itemName(item(c.item))})),empty};
 }
@@ -959,6 +1085,9 @@ function injectMenuItem(){
 try{const _open=openSidebar;openSidebar=function(){_open.apply(this,arguments);injectMenuItem()};const sb=document.querySelector('#sidebarBtn');if(sb)sb.onclick=openSidebar}catch{}
 setTimeout(()=>{try{reconcileChar();checkSeasons()}catch{}},1200);
 setTimeout(()=>{maybeAutoPlant().catch(()=>{})},9000);
+setTimeout(()=>{try{charFarm()}catch(e){console.warn(e)}},5000);
+setInterval(()=>{try{if(!document.hidden)charFarm()}catch{}},20*60000);
+setInterval(()=>{if(isOpen()&&!drag&&!document.hidden){renderPlot();renderActions();if(view==='mine')renderSocial()}},30000);
 setTimeout(()=>{maybeVisit().catch(()=>{})},15000);
 setInterval(()=>{if(!document.hidden)maybeVisit().catch(()=>{})},45*60000);
 setInterval(()=>{if(!document.hidden){try{checkSeasons()}catch{}maybeAutoPlant().catch(()=>{})}},30*60000);

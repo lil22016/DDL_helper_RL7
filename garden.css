@@ -283,3 +283,37 @@ html[data-theme] .gd-root .gd-gear.on{background:#3f7650!important;color:#fff!im
 @media(max-width:560px){.gd-visit-grid{grid-template-columns:1fr}.gd-row2{flex-direction:column}}
 html[data-theme] .gd-root .gd-quote,html[data-theme] .gd-root .gd-debt-in{background:#eef6e9!important}
 html[data-theme] .gd-root .gd-debt-in{color:#2f6a3d!important}
+
+/* ---- v8: farming, pantry, market, kitchen ---- */
+.gd-ripe{position:absolute;left:50%;top:-18%;z-index:5;transform:translateX(-50%);width:clamp(22px,46%,40px);aspect-ratio:1;display:grid;place-items:center;padding:0;border:0;border-radius:50%;background:#fff;box-shadow:0 4px 12px rgba(40,70,30,.25);font-size:clamp(13px,calc(var(--gd-cell,72px)*.26),24px);cursor:pointer;pointer-events:auto;animation:gdRipe 1.6s ease-in-out infinite}
+.gd-ripe::after{content:'';position:absolute;left:50%;bottom:-5px;width:9px;height:9px;background:#fff;transform:translateX(-50%) rotate(45deg);border-radius:2px;z-index:-1}
+@keyframes gdRipe{50%{transform:translate(-50%,-5px)}}
+.gd-timer{position:absolute;left:50%;bottom:2%;z-index:5;transform:translateX(-50%);padding:1px 6px;border-radius:99px;background:rgba(36,52,43,.72);color:#fff!important;font-size:clamp(9px,calc(var(--gd-cell,72px)*.15),12px);font-weight:800;white-space:nowrap;pointer-events:none}
+.gd-item.young{width:70%;bottom:6%}
+.gd-item.growing{filter:saturate(.9) drop-shadow(0 3px 2px rgba(30,60,20,.22))}
+.gd-crop-status{flex:1;min-width:160px;font-size:12px}
+.gd-actionbar .gd-btn small{font-size:10px;opacity:.75;margin-left:2px}
+.gd-harvest-all{animation:gdPulse 2s ease-in-out infinite}
+.gd-coin-gold{background:#fff6dc}
+.gd-wallet{grid-auto-flow:row}.gd-wallet .gd-coin-gold{justify-self:end;margin-bottom:4px;font-size:13px;padding:4px 10px}
+.gd-pantry{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-top:12px;padding-top:12px;border-top:1px dashed #dfe8da}
+.gd-pantry small{font-size:12px}
+.gd-gold{padding:3px 10px;border-radius:99px;background:#fff6dc;font-size:12px;font-weight:850}
+.gd-good{display:inline-flex;align-items:center;gap:3px;padding:3px 9px;border-radius:99px;background:#f2f6ee;font-size:16px}.gd-good b{font-size:11px}
+.gd-market{display:grid;gap:18px}.gd-market section{display:grid;gap:10px}
+.gd-goods{display:grid;gap:8px}
+.gd-goodrow{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:14px;background:#fff}
+.gd-goodrow>span:nth-child(2){flex:1;display:grid}.gd-goodrow small{font-size:11px}
+.gd-goodico{font-size:24px;width:32px;text-align:center}
+.gd-goods-grid{grid-template-columns:repeat(auto-fill,minmax(92px,1fr))}
+.gd-goodbuy{display:grid;justify-items:center;gap:2px;padding:10px 6px;border:0;border-radius:14px;background:#fff;cursor:pointer;font:inherit}
+.gd-goodbuy span{font-size:26px}.gd-goodbuy strong{font-size:12px}.gd-goodbuy small{font-size:11px;font-weight:800}
+.gd-goodbuy.poor{opacity:.55}
+.gd-food-art{font-size:44px;align-items:center}
+.gd-need{display:flex;flex-wrap:wrap;gap:4px;min-height:18px}.gd-need span{padding:1px 6px;border-radius:99px;font-size:12px}.gd-need .ok{background:#e6f3df}.gd-need .no{background:#fbe9e7}
+html[data-theme] .gd-root .gd-timer{color:#fff!important;background:rgba(36,52,43,.72)!important}
+html[data-theme] .gd-root .gd-coin-gold,html[data-theme] .gd-root .gd-gold{background:#fff6dc!important;color:#7a5410!important}
+html[data-theme] .gd-root .gd-good{background:#f2f6ee!important}
+html[data-theme] .gd-root .gd-goodrow,html[data-theme] .gd-root .gd-goodbuy{background:#fff!important;color:#24342b!important}
+html[data-theme] .gd-root .gd-need .ok{background:#e6f3df!important}html[data-theme] .gd-root .gd-need .no{background:#fbe9e7!important}
+html[data-theme] .gd-root .gd-pantry small,html[data-theme] .gd-root .gd-goodrow small,html[data-theme] .gd-root .gd-crop-status{color:#5f6e64!important}
