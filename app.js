@@ -2009,30 +2009,35 @@ function lokiFirstClause(text){
 function lokiT(it){return lokiFirstClause(it.title)}
 function lokiD(it){const t=String(it.title||'').trim(),short=lokiT(it);const d=String(it.desc||'').trim();return short!==t&&!d.includes(t)?(t+(d?'\n'+d:'')):d}
 const LOKI_LABEL={done:'Complete',failed:'Not completed',changed:'Changed plan',cancelled:'Cancelled',planned:''};
-function lokiOn(ds){return lokiData.items.filter(i=>i.date===ds).sort((a,b)=>String(a.time||'99:99').localeCompare(String(b.time||'99:99')))}
+function lokiOn(ds){return lokiData.items.filter(i=>i.date===ds&&!i.hidden).sort((a,b)=>String(a.time||'99:99').localeCompare(String(b.time||'99:99')))}
 function lokiTimeText(it){
   const f=v=>new Date(`${it.date}T${v}:00`).toLocaleTimeString(uiLocale(),{hour:'numeric',minute:'2-digit'});
   return it.time?(it.end?`${f(it.time)}–${f(it.end)}`:f(it.time)):'';
 }
 function lokiClasses(it){const e=lokiEffective(it);return `loki-item loki-${e.status}${e.status==='done'?' done':''}${['failed','changed','cancelled'].includes(e.status)?' loki-struck':''}`}
-function lokiBadge(){return `<span class="loki-badge" title="${escapeHtml(lokiName())}">${escapeHtml(lokiName())}</span>`}
+/* several characters can share the calendar: extras carry a cid and their own name / emoji / colour */
+function lokiWho(it){const p=it&&it.cid&&window.Char?Char.profileById(it.cid):null;return p&&!p.main?p:null}
+function lokiItemName(it){return lokiWho(it)?.name||lokiName()}
+function lokiEmoji(it){return lokiWho(it)?.emoji||lokiCfg.emoji||'✨'}
+function lokiStyle(it){const p=lokiWho(it);if(!p)return '';const v=lokiColorVars(p.color);return ` style="--loki:${v.loki};--loki-bg:${v.bg};--loki-ink:${v.ink};--loki-glass:${v.glass};--loki-on:${v.on}"`}
+function lokiBadge(it){const n=lokiItemName(it);return `<span class="loki-badge" title="${escapeHtml(n)}">${escapeHtml(n)}</span>`}
 function lokiChipHtml(it){
   const e=lokiEffective(it),label=e.status==='done'?'':LOKI_LABEL[e.status],time=calendarDisplay.time?lokiTimeText(it):'',desc=calendarDisplay.description&&e.status!=='changed'&&lokiD(it)?lokiD(it).replace(/\s+/g,' ').trim():'';
-  return `<button class="event-chip loki-chip ${lokiClasses(it)}" data-loki="${escapeHtml(it.id)}" title="${escapeHtml(`${lokiName()} · ${lokiT(it)}${label?' · '+label:''}`)}">${lokiBadge()}<span class="event-main-line"><span class="task-icon emoji">${escapeHtml(lokiCfg.emoji||'✨')}</span><span class="loki-title">${escapeHtml(lokiT(it))}</span></span>${time?`<span class="event-meta-line">${escapeHtml(time)}</span>`:''}${desc?`<span class="event-desc-line">${escapeHtml(desc)}</span>`:''}${label?`<span class="event-meta-line loki-status">${e.status==='done'?'✓ ':''}${label}</span>`:''}</button>`;
+  return `<button class="event-chip loki-chip ${lokiClasses(it)}"${lokiStyle(it)} data-loki="${escapeHtml(it.id)}" title="${escapeHtml(`${lokiItemName(it)} · ${lokiT(it)}${label?' · '+label:''}`)}">${lokiBadge(it)}<span class="event-main-line"><span class="task-icon emoji">${escapeHtml(lokiEmoji(it))}</span><span class="loki-title">${escapeHtml(lokiT(it))}</span></span>${time?`<span class="event-meta-line">${escapeHtml(time)}</span>`:''}${desc?`<span class="event-desc-line">${escapeHtml(desc)}</span>`:''}${label?`<span class="event-meta-line loki-status">${e.status==='done'?'✓ ':''}${label}</span>`:''}</button>`;
 }
 function lokiDayHtml(it){
   const e=lokiEffective(it),label=e.status==='done'?'':LOKI_LABEL[e.status],desc=calendarDisplay.description&&e.status!=='changed'&&lokiD(it)?lokiD(it).replace(/\s+/g,' ').trim():'';
-  return `<button class="daily-task-card loki-chip ${lokiClasses(it)}" data-loki="${escapeHtml(it.id)}">${lokiBadge()}<span class="daily-task-time">${escapeHtml(lokiTimeText(it)||'Any time')}</span><span class="daily-task-main"><span class="event-main-line"><span class="task-icon emoji">${escapeHtml(lokiCfg.emoji||'✨')}</span><span class="loki-title">${escapeHtml(lokiT(it))}</span></span>${desc?`<span class="event-desc-line">${escapeHtml(desc)}</span>`:''}${label?`<span class="event-meta-line loki-status">${e.status==='done'?'✓ ':''}${label}</span>`:''}</span></button>`;
+  return `<button class="daily-task-card loki-chip ${lokiClasses(it)}"${lokiStyle(it)} data-loki="${escapeHtml(it.id)}">${lokiBadge(it)}<span class="daily-task-time">${escapeHtml(lokiTimeText(it)||'Any time')}</span><span class="daily-task-main"><span class="event-main-line"><span class="task-icon emoji">${escapeHtml(lokiEmoji(it))}</span><span class="loki-title">${escapeHtml(lokiT(it))}</span></span>${desc?`<span class="event-desc-line">${escapeHtml(desc)}</span>`:''}${label?`<span class="event-meta-line loki-status">${e.status==='done'?'✓ ':''}${label}</span>`:''}</span></button>`;
 }
 function lokiMarkerHtml(it){
   const e=lokiEffective(it);
-  return `<button class="month-task-marker has-emoji loki-marker ${lokiClasses(it)}" data-loki="${escapeHtml(it.id)}" title="${escapeHtml(`${lokiName()} · ${lokiT(it)}${LOKI_LABEL[e.status]?' · '+LOKI_LABEL[e.status]:''}`)}"><span class="month-marker-emoji">${escapeHtml(lokiCfg.emoji||'✨')}</span></button>`;
+  return `<button class="month-task-marker has-emoji loki-marker ${lokiClasses(it)}"${lokiStyle(it)} data-loki="${escapeHtml(it.id)}" title="${escapeHtml(`${lokiItemName(it)} · ${lokiT(it)}${LOKI_LABEL[e.status]?' · '+LOKI_LABEL[e.status]:''}`)}"><span class="month-marker-emoji">${escapeHtml(lokiEmoji(it))}</span></button>`;
 }
 function openLokiDetails(id){
   const it=lokiData.items.find(x=>x.id===id);if(!it)return;
   const e=lokiEffective(it),label=LOKI_LABEL[e.status],struck=['failed','changed','cancelled'].includes(e.status);
   const when=new Date(`${it.date}T12:00:00`).toLocaleDateString(uiLocale(),{weekday:'long',month:'long',day:'numeric'}),time=lokiTimeText(it);
-  showModal(`<div class="section-label">${escapeHtml(lokiName().toUpperCase())} · READ ONLY</div><h3 class="${struck?'loki-struck-title':''}">${escapeHtml(lokiCfg.emoji||'✨')} ${escapeHtml(lokiT(it))}</h3><div class="next-meta">${escapeHtml(when)} · ${time?escapeHtml(time):'Any time'}</div>${label?`<div class="loki-status-line loki-${e.status}">${e.status==='done'?'✓ ':''}${label}</div>`:''}${lokiD(it)?`<div class="task-notes${e.status==='changed'?' loki-was':''}">${escapeHtml(lokiD(it))}</div>`:''}${lokiOutcomeHtml(it,e)}${e.auto?`<div class="next-meta" style="margin-top:10px">Shown as Complete by Garden after 11:59 PM. ${escapeHtml(lokiName())} has not confirmed this in Companion.</div>`:''}<div class="next-meta" style="margin-top:10px">Managed in Companion. It can’t be edited here and doesn’t affect your own tasks or reminders.</div><div class="modal-actions"><button id="lokiDetailClose" class="soft-btn">Close</button></div>`);
+  showModal(`<div class="section-label">${escapeHtml(lokiItemName(it).toUpperCase())} · READ ONLY</div><h3 class="${struck?'loki-struck-title':''}">${escapeHtml(lokiEmoji(it))} ${escapeHtml(lokiT(it))}</h3><div class="next-meta">${escapeHtml(when)} · ${time?escapeHtml(time):'Any time'}</div>${label?`<div class="loki-status-line loki-${e.status}">${e.status==='done'?'✓ ':''}${label}</div>`:''}${lokiD(it)?`<div class="task-notes${e.status==='changed'?' loki-was':''}">${escapeHtml(lokiD(it))}</div>`:''}${lokiOutcomeHtml(it,e)}${e.auto?`<div class="next-meta" style="margin-top:10px">Shown as Complete by Garden after 11:59 PM. ${escapeHtml(lokiName())} has not confirmed this in Companion.</div>`:''}<div class="next-meta" style="margin-top:10px">${it.cid||lokiApiMode()?(uiLanguage==='zh'?'由 Garden 按角色人设生成，只读，不影响你自己的任务和提醒。':'Written by Garden from the character’s persona. Read-only; doesn’t affect your own tasks or reminders.'):'Managed in Companion. It can’t be edited here and doesn’t affect your own tasks or reminders.'}</div><div class="modal-actions"><button id="lokiDetailClose" class="soft-btn">Close</button></div>`);
   const b=$('#lokiDetailClose');if(b)b.onclick=closeModal;
   document.querySelectorAll('[data-loki-jump]').forEach(x=>x.onclick=()=>openLokiDetails(x.dataset.lokiJump));
 }
@@ -2049,7 +2054,7 @@ function lokiOutcomeHtml(it,e){
     else if(actual){const d=it.changedToDate?new Date(`${it.changedToDate}T12:00:00`).toLocaleDateString(uiLocale(),{month:'short',day:'numeric'}):'',t=it.changedToTime?new Date(`2000-01-01T${it.changedToTime}:00`).toLocaleTimeString(uiLocale(),{hour:'numeric',minute:'2-digit'}):'';out.push(`<div class="loki-outcome"><span>${zh?'改成了':'Changed to'}</span><strong>${escapeHtml(actual)}</strong>${d||t?`<small>${escapeHtml([d,t].filter(Boolean).join(' · '))}</small>`:''}</div>`)}
   }
   if(e.status==='done'){const d=String(it.doneText||'').trim();if(d&&d!==String(it.title||'').trim())out.push(`<div class="loki-outcome"><span>${zh?'实际完成':'What got done'}</span><strong>${escapeHtml(d)}</strong></div>`)}
-  if(note&&e.status!=='planned')out.push(`<div class="loki-say"><span>${escapeHtml(lokiCfg.emoji||'✨')} ${nm}</span><p>${escapeHtml(note)}</p></div>`);
+  if(note&&e.status!=='planned')out.push(`<div class="loki-say"><span>${escapeHtml(lokiEmoji(it))} ${nm}</span><p>${escapeHtml(note)}</p></div>`);
   if(it.changedFrom){const from=lokiData.items.find(x=>String(x.id)===String(it.changedFrom));if(from)out.push(`<button type="button" class="loki-outcome loki-jump loki-from" data-loki-jump="${escapeHtml(from.id)}"><span>${zh?'原本的计划':'Originally planned'}</span><strong>${escapeHtml(lokiT(from))}</strong><small>›</small></button>`)}
   return out.join('');
 }
@@ -2060,28 +2065,28 @@ function renderLokiTodo(){
   const root=$('#lokiTodo');if(!root)return;
   if(!lokiActive()){root.innerHTML='';return}
   const today=fmtDateInput(new Date()),end=fmtDateInput(addDays(new Date(),7));
-  const items=lokiData.items.filter(i=>i.date>=today&&i.date<=end).sort((a,b)=>String(a.date+(a.time||'99:99')).localeCompare(String(b.date+(b.time||'99:99'))));
-  root.innerHTML=`<details class="todo-section loki-todo-section" open><summary><span class="todo-arrow">›</span><span class="todo-section-label">${escapeHtml(lokiName())} · next 7 days</span><span class="todo-section-count">${items.length}</span></summary><div class="todo-section-items">${items.length?items.map(it=>{const e=lokiEffective(it),label=LOKI_LABEL[e.status];return `<div class="todo-item loki-todo-item ${lokiClasses(it)}"><button class="todo-title-btn" data-loki="${escapeHtml(it.id)}">${escapeHtml(lokiCfg.emoji||'✨')} <span class="loki-title">${escapeHtml(lokiT(it))}</span><small>${escapeHtml(new Date(`${it.date}T12:00:00`).toLocaleDateString(uiLocale(),{month:'short',day:'numeric'}))}${lokiTimeText(it)?' · '+escapeHtml(lokiTimeText(it)):''}${label?' · '+label:''}</small></button></div>`}).join(''):'<div class="todo-empty">Nothing planned.</div>'}</div></details>`;
+  const items=lokiData.items.filter(i=>!i.hidden&&i.date>=today&&i.date<=end).sort((a,b)=>String(a.date+(a.time||'99:99')).localeCompare(String(b.date+(b.time||'99:99'))));
+  root.innerHTML=`<details class="todo-section loki-todo-section" open><summary><span class="todo-arrow">›</span><span class="todo-section-label">${escapeHtml(lokiName())} · next 7 days</span><span class="todo-section-count">${items.length}</span></summary><div class="todo-section-items">${items.length?items.map(it=>{const e=lokiEffective(it),label=LOKI_LABEL[e.status];return `<div class="todo-item loki-todo-item ${lokiClasses(it)}"${lokiStyle(it)}><button class="todo-title-btn" data-loki="${escapeHtml(it.id)}">${escapeHtml(lokiEmoji(it))} <span class="loki-title">${escapeHtml(lokiT(it))}</span><small>${escapeHtml(new Date(`${it.date}T12:00:00`).toLocaleDateString(uiLocale(),{month:'short',day:'numeric'}))}${lokiTimeText(it)?' · '+escapeHtml(lokiTimeText(it)):''}${label?' · '+label:''}</small></button></div>`}).join(''):'<div class="todo-empty">Nothing planned.</div>'}</div></details>`;
   bindLokiClicks();
 }
-function applyLokiAppearance(){
-  const c=String(lokiCfg.color||'#8b7bd8'),m=/^#([0-9a-f]{6})$/i.exec(c)||/^#([0-9a-f]{6})$/i.exec('#8b7bd8'),n=parseInt(m[1],16),r=n>>16&255,g=n>>8&255,b=n&255;
-  const st=document.documentElement.style;
-  st.setProperty('--loki',`rgb(${r},${g},${b})`);st.setProperty('--loki-bg',`rgba(${r},${g},${b},.16)`);
-  st.setProperty('--loki-ink',`rgb(${Math.round(r*.45+30*.55)},${Math.round(g*.45+30*.55)},${Math.round(b*.45+30*.55)})`);
-  st.setProperty('--loki-glass',`rgba(${r},${g},${b},.34)`);
-  st.setProperty('--loki-on',(0.299*r+0.587*g+0.114*b)>165?'#1d2230':'#ffffff');
+function lokiColorVars(hex){
+  const m=/^#([0-9a-f]{6})$/i.exec(String(hex||''))||/^#([0-9a-f]{6})$/i.exec('#8b7bd8'),n=parseInt(m[1],16),r=n>>16&255,g=n>>8&255,b=n&255;
+  return {loki:`rgb(${r},${g},${b})`,bg:`rgba(${r},${g},${b},.16)`,ink:`rgb(${Math.round(r*.45+30*.55)},${Math.round(g*.45+30*.55)},${Math.round(b*.45+30*.55)})`,glass:`rgba(${r},${g},${b},.34)`,on:(0.299*r+0.587*g+0.114*b)>165?'#1d2230':'#ffffff'};
 }
-function lokiSignature(){return JSON.stringify([fmtDateInput(new Date()),lokiData.items.map(i=>[i.id,lokiEffective(i).status,i.date,i.time,i.title,i.desc]),calendarDisplay.description,calendarDisplay.time,lokiCfg.emoji,lokiCfg.color,lokiData.name])}
+function applyLokiAppearance(){
+  const v=lokiColorVars(lokiCfg.color||'#8b7bd8'),st=document.documentElement.style;
+  st.setProperty('--loki',v.loki);st.setProperty('--loki-bg',v.bg);st.setProperty('--loki-ink',v.ink);st.setProperty('--loki-glass',v.glass);st.setProperty('--loki-on',v.on);
+}
+function lokiSignature(){return JSON.stringify([fmtDateInput(new Date()),lokiData.items.map(i=>[i.id,lokiEffective(i).status,i.date,i.time,i.title,i.desc,i.cid,i.hidden]),calendarDisplay.description,calendarDisplay.time,lokiCfg.emoji,lokiCfg.color,lokiData.name])}
 function renderLoki(){lokiSig=lokiSignature();renderCalendar();renderLokiTodo()}
 async function fetchLoki(){
   if(lokiApiMode()){Char.loadIntoLoki();renderLoki();updateLokiStatus();return}
-  if(!lokiCfg.url||!lokiCfg.token){lokiData.error='';return}
+  if(!lokiCfg.url||!lokiCfg.token){lokiData.error='';if(window.Char){lokiData.items=Char.extraItems();renderLoki()}return}
   try{
     const r=await fetch(`${lokiCfg.url.replace(/\/+$/,'')}/garden/feed?t=${encodeURIComponent(lokiCfg.token)}`,{cache:'no-store'});
     const o=await r.json().catch(()=>null);
     if(!r.ok||!o?.ok)throw new Error(o?.error||`HTTP ${r.status}`);
-    lokiData={name:String(o.characterName||''),items:Array.isArray(o.items)?o.items.filter(i=>i&&i.id&&/^\d{4}-\d{2}-\d{2}$/.test(i.date||'')):[],fetchedAt:Date.now(),error:''};
+    lokiData={name:String(o.characterName||''),items:(Array.isArray(o.items)?o.items.filter(i=>i&&i.id&&/^\d{4}-\d{2}-\d{2}$/.test(i.date||'')):[]).map(i=>window.Char&&Char.cfg.mainShow===false?{...i,hidden:true}:i).concat(window.Char?Char.extraItems():[]),fetchedAt:Date.now(),error:''};
     try{localStorage.setItem(LOKI_CACHE_KEY,JSON.stringify({name:lokiData.name,items:lokiData.items,fetchedAt:lokiData.fetchedAt}))}catch{}
   }catch(e){lokiData.error=String(e?.message||e)}
   renderLoki();updateLokiStatus();

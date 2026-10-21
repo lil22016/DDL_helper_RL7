@@ -14,8 +14,12 @@ const day=d=>{const x=d||new Date();return `${x.getFullYear()}-${String(x.getMon
 const OUTCOMES=['done','changed','failed','cancelled'];
 
 /* ---------- config ---------- */
-function blankCfg(){return {mode:'',name:'',userName:'',persona:'',background:'',extra:'',replyLang:'auto',provider:'openai',baseUrl:'',apiKey:'',model:'',updatedAt:0}}
-function normCfg(c){const b=blankCfg();if(!c||typeof c!=='object')return b;const o={...b};for(const k of Object.keys(b))if(c[k]!=null)o[k]=typeof b[k]==='number'?Number(c[k])||0:String(c[k]);if(!['','uranus','api'].includes(o.mode))o.mode='';if(!['openai','anthropic'].includes(o.provider))o.provider='openai';if(!['auto','zh','en'].includes(o.replyLang))o.replyLang='auto';return o}
+function blankCfg(){return {mode:'',name:'',userName:'',persona:'',background:'',extra:'',replyLang:'auto',provider:'openai',baseUrl:'',apiKey:'',model:'',extras:[],mainShow:true,updatedAt:0}}
+/* more characters besides the main one (the garden partner). Each can get its own daily schedule and be shown on the calendar. */
+function normExtra(x){if(!x||typeof x!=='object'||!x.id)return null;const t=v=>String(v??'');return {id:t(x.id).slice(0,40),name:t(x.name).slice(0,40),emoji:t(x.emoji||'🌟').slice(0,8),color:/^#[0-9a-f]{6}$/i.test(x.color||'')?x.color:'#e0873a',persona:t(x.persona).slice(0,4000),background:t(x.background).slice(0,4000),extra:t(x.extra).slice(0,4000),replyLang:['auto','zh','en'].includes(x.replyLang)?x.replyLang:'auto',schedule:x.schedule!==false,show:x.show!==false}}
+function normCfg(c){const b=blankCfg();if(!c||typeof c!=='object')return b;const o={...b};
+  o.extras=Array.isArray(c.extras)?c.extras.map(normExtra).filter(Boolean).slice(0,12):[];o.mainShow=c.mainShow!==false;
+  for(const k of Object.keys(b))if(k!=='extras'&&k!=='mainShow'&&c[k]!=null)o[k]=typeof b[k]==='number'?Number(c[k])||0:String(c[k]);if(!['','uranus','api'].includes(o.mode))o.mode='';if(!['openai','anthropic'].includes(o.provider))o.provider='openai';if(!['auto','zh','en'].includes(o.replyLang))o.replyLang='auto';return o}
 let cfg=blankCfg();
 try{cfg=normCfg(JSON.parse(localStorage.getItem(CFG_KEY)||'null'))}catch{}
 try{if(!cfg.mode&&typeof lokiCfg!=='undefined'&&lokiCfg.url&&lokiCfg.token)cfg.mode='uranus'}catch{}
@@ -23,6 +27,11 @@ function saveCfg(sync=true){cfg.updatedAt=Date.now();try{localStorage.setItem(CF
 const hasAI=()=>!!(cfg.apiKey&&cfg.model);
 const charName=()=>cfg.name.trim()||(typeof lokiData!=='undefined'&&lokiData.name)||L('Character','角色');
 const charEmoji=()=>{try{return lokiCfg.emoji||'✨'}catch{return '✨'}};
+const mainColor=()=>{try{return lokiCfg.color||'#8b7bd8'}catch{return '#8b7bd8'}};
+/* one shape for every character: the main one (id 'main') and the extras */
+function mainProfile(){return {id:'main',main:true,name:charName(),emoji:charEmoji(),color:mainColor(),persona:cfg.persona,background:cfg.background,extra:cfg.extra,replyLang:cfg.replyLang,schedule:cfg.mode==='api',show:cfg.mainShow!==false}}
+function profiles(){return [mainProfile(),...cfg.extras.map(e=>({...e,name:e.name||L('Character','角色')}))]}
+function profileById(id){return !id||id==='main'?mainProfile():profiles().find(p=>p.id===id)||null}
 const userName=()=>cfg.userName.trim()||L('the user','用户');
 /* the character's language is independent of the app's interface language */
 const LR=(en,cn)=>cfg.replyLang==='zh'?cn:cfg.replyLang==='en'?en:L(en,cn);
@@ -61,75 +70,100 @@ function parseJSON(text){
 }
 async function askJSON(system,user,opts){return parseJSON(await ask(system,user+`\n\nRespond with ONLY the JSON object, no other text.`,opts))}
 
-function personaSystem(){
-  const lines=[`You are role-playing ${charName()}. Stay fully in character at all times; never mention being an AI or a model.`];
-  if(cfg.persona.trim())lines.push(`Persona / personality:\n${cfg.persona.trim()}`);
-  if(cfg.background.trim())lines.push(`Background:\n${cfg.background.trim()}`);
-  if(cfg.extra.trim())lines.push(`Other details:\n${cfg.extra.trim()}`);
+function personaSystem(pf){
+  const p=pf||mainProfile(),lang=p.replyLang||'auto';
+  const lines=[`You are role-playing ${p.name}. Stay fully in character at all times; never mention being an AI or a model.`];
+  if((p.persona||'').trim())lines.push(`Persona / personality:\n${p.persona.trim()}`);
+  if((p.background||'').trim())lines.push(`Background:\n${p.background.trim()}`);
+  if((p.extra||'').trim())lines.push(`Other details:\n${p.extra.trim()}`);
   lines.push(`The person you talk to is ${userName()}. You both use an app called Deadline Garden: finishing plans earns ✓ (check marks), and ✓ buy plants and decorations for your own little fenced garden.`);
-  lines.push(cfg.replyLang==='zh'?'Language: write every human-readable text (titles, replies) in Simplified Chinese.':cfg.replyLang==='en'?'Language: write every human-readable text (titles, replies) in English.':'Language: use whatever language suits your persona and the conversation — usually the language the other person writes to you in. The app’s interface language does not matter.');
+  lines.push(lang==='zh'?'Language: write every human-readable text (titles, replies) in Simplified Chinese.':lang==='en'?'Language: write every human-readable text (titles, replies) in English.':'Language: use whatever language suits your persona and the conversation — usually the language the other person writes to you in. The app’s interface language does not matter.');
   lines.push('Garden positions are always written "row,col" counting from 1: row 1 is the back row (top of the screen), column 1 is the left edge. Use exactly this convention in your answers.');
   return lines.join('\n\n');
 }
 
 /* ---------- daily schedule for own-API mode ---------- */
-function blankSched(){return {days:{},error:'',updatedAt:0}}
-function normSched(s){const o=blankSched();if(!s||typeof s!=='object')return o;if(s.days&&typeof s.days==='object')for(const [d,v] of Object.entries(s.days))if(/^\d{4}-\d{2}-\d{2}$/.test(d)&&v&&Array.isArray(v.items))o.days[d]={at:Number(v.at)||0,items:v.items.filter(i=>i&&i.id&&i.title)};o.error=String(s.error||'');o.updatedAt=Number(s.updatedAt)||0;return o}
+function blankSched(){return {days:{},extra:{},error:'',updatedAt:0}}
+function normDays(src){const o={};if(src&&typeof src==='object')for(const [d,v] of Object.entries(src))if(/^\d{4}-\d{2}-\d{2}$/.test(d)&&v&&Array.isArray(v.items))o[d]={at:Number(v.at)||0,items:v.items.filter(i=>i&&i.id&&i.title)};return o}
+function normSched(s){const o=blankSched();if(!s||typeof s!=='object')return o;o.days=normDays(s.days);if(s.extra&&typeof s.extra==='object')for(const [id,v] of Object.entries(s.extra))o.extra[id]={days:normDays(v&&v.days),error:String(v&&v.error||'')};o.error=String(s.error||'');o.updatedAt=Number(s.updatedAt)||0;return o}
+const trimDays=days=>{const keys=Object.keys(days).sort();while(keys.length>60)delete days[keys.shift()]};
 let sched=blankSched();
 try{sched=normSched(JSON.parse(localStorage.getItem(SCHED_KEY)||'null'))}catch{}
 function saveSched(sync=true){
   sched.updatedAt=Date.now();
-  const keys=Object.keys(sched.days).sort();while(keys.length>60)delete sched.days[keys.shift()];
+  trimDays(sched.days);for(const v of Object.values(sched.extra))trimDays(v.days);
   try{localStorage.setItem(SCHED_KEY,JSON.stringify(sched))}catch{}
   if(sync)try{queueCloudSync()}catch{}
 }
 function mergeSched(a,b){
   const A=normSched(a),B=normSched(b),o=blankSched();
-  for(const d of new Set([...Object.keys(A.days),...Object.keys(B.days)])){const x=A.days[d],y=B.days[d];o.days[d]=!x?y:!y?x:(y.at>x.at?y:x)}
+  const md=(a,b)=>{const r={};for(const d of new Set([...Object.keys(a),...Object.keys(b)])){const x=a[d],y=b[d];r[d]=!x?y:!y?x:(y.at>x.at?y:x)}return r};
+  o.days=md(A.days,B.days);
+  for(const id of new Set([...Object.keys(A.extra),...Object.keys(B.extra)]))o.extra[id]={days:md(A.extra[id]?.days||{},B.extra[id]?.days||{}),error:(B.extra[id]||A.extra[id]).error||''};
   o.error=(B.updatedAt>A.updatedAt?B:A).error;o.updatedAt=Math.max(A.updatedAt,B.updatedAt);return o;
 }
 const hhmm=v=>/^([01]\d|2[0-3]):[0-5]\d$/.test(String(v||''))?String(v):'';
 function endMs(it){const e=it.end||it.time;return e?new Date(`${it.date}T${e}:00`).getTime():new Date(`${it.date}T23:59:59`).getTime()}
 /* Outcomes are decided when the day is planned but only revealed once each activity has ended. */
-function schedItems(){
+function schedItems(days=sched.days,extra={}){
   const out=[],now=Date.now();
-  for(const [d,v] of Object.entries(sched.days))for(const it of v.items){
-    const base={id:it.id,date:d,time:it.time||'',end:it.end||'',title:it.title,desc:it.desc||''};
+  for(const [d,v] of Object.entries(days))for(const it of v.items){
+    const base={id:it.id,date:d,time:it.time||'',end:it.end||'',title:it.title,desc:it.desc||'',...extra};
     const ended=now>endMs(base),st=ended?(OUTCOMES.includes(it.outcome)?it.outcome:'done'):'planned';
     out.push({...base,status:st,...(ended&&st==='changed'&&it.changedTo?{actualText:it.changedTo}:{}),...(ended&&st!=='done'&&it.note?{statusNote:it.note}:{})}); // revealed only after the activity ends
   }
   return out;
 }
+/* schedules of the extra characters, tagged with their id (cid) so the calendar can style them */
+function extraItems(){
+  const out=[];
+  for(const e of cfg.extras){if(!e.schedule)continue;const days=sched.extra[e.id]?.days||{};out.push(...schedItems(days,{cid:e.id,...(e.show?{}:{hidden:true})}))}
+  return out;
+}
 function loadIntoLoki(){
   if(typeof lokiData==='undefined')return;
   const today=sched.days[day()];
-  lokiData={name:charName(),items:schedItems(),fetchedAt:today?.at||0,error:sched.error||''};
+  lokiData={name:charName(),items:[...schedItems(sched.days,cfg.mainShow===false?{hidden:true}:{}),...extraItems()],fetchedAt:today?.at||0,error:sched.error||''};
 }
 let generating=false;
-async function generateDay(force=false){
-  if(cfg.mode!=='api'||!hasAI()||generating)return false;
-  const d=day();if(!force&&sched.days[d])return false;
-  try{const lk=JSON.parse(localStorage.getItem(LOCK_KEY)||'null');if(!force&&lk&&lk.day===d&&Date.now()-lk.at<120000)return false}catch{}
-  try{localStorage.setItem(LOCK_KEY,JSON.stringify({day:d,at:Date.now()}))}catch{}
-  generating=true;notify();
-  try{
-    const now=new Date(),weekday=now.toLocaleDateString('en-US',{weekday:'long'});
-    const recent=Object.keys(sched.days).filter(x=>x<d).sort().slice(-2).map(x=>`${x}: `+sched.days[x].items.map(i=>`${i.time||'?'} ${i.title} (${i.outcome||'done'})`).join('; ')).join('\n');
-    const user=`Today is ${d} (${weekday}). Plan ${charName()}'s day: 4 to 8 activities with specific start and end times, realistic for the persona and background, in character.
+function writeDayPrompt(p,d,days){
+  const weekday=new Date(d+'T12:00:00').toLocaleDateString('en-US',{weekday:'long'});
+  const recent=Object.keys(days).filter(x=>x<d).sort().slice(-2).map(x=>`${x}: `+days[x].items.map(i=>`${i.time||'?'} ${i.title} (${i.outcome||'done'})`).join('; ')).join('\n');
+  return `Today is ${d} (${weekday}). Plan ${p.name}'s day: 4 to 8 activities with specific start and end times, realistic for the persona and background, in character.
 For each activity also decide in advance how it will actually turn out (revealed only after it ends): "done" for most, "changed" when the plan changes (about 15%), "failed" when it doesn't get done (about 10%), "cancelled" rarely.
 ${recent?`Recent days, for continuity:\n${recent}\n`:''}
 For "changed", also say what was done instead in "changedTo" (a short title). For anything other than "done", you may add "note": one sentence in your own voice about why or how it went (skip it sometimes — not every change needs an explanation).
 JSON shape: {"items":[{"time":"HH:MM","end":"HH:MM","title":"short title (max 16 chars)","desc":"one sentence","outcome":"done","changedTo":"","note":""}]}`;
-    const j=await askJSON(personaSystem(),user,{maxTokens:1400});
-    const items=(Array.isArray(j.items)?j.items:[]).slice(0,10).map((x,i)=>({id:`ai-${d}-${i}`,time:hhmm(x.time),end:hhmm(x.end),title:String(x.title||'').trim().slice(0,60),desc:String(x.desc||'').trim().slice(0,240),outcome:OUTCOMES.includes(x.outcome)?x.outcome:'done',changedTo:String(x.changedTo||'').trim().slice(0,60),note:String(x.note||'').trim().slice(0,240)})).filter(x=>x.title);
-    if(!items.length)throw new Error(L('The AI returned an empty schedule.','AI 返回的日程是空的。'));
-    items.sort((a,b)=>(a.time||'99').localeCompare(b.time||'99'));
-    sched.days[d]={at:Date.now(),items};sched.error='';saveSched();
-    return true;
-  }catch(e){sched.error=String(e?.message||e);saveSched(false);return false}
-  finally{generating=false;try{localStorage.removeItem(LOCK_KEY)}catch{}refreshLoki();notify()}
 }
-function refreshLoki(){if(cfg.mode==='api'){loadIntoLoki();try{renderLoki();updateLokiStatus()}catch{}}}
+async function planDay(p,d,days,idPrefix){
+  const j=await askJSON(personaSystem(p),writeDayPrompt(p,d,days),{maxTokens:1400});
+  const items=(Array.isArray(j.items)?j.items:[]).slice(0,10).map((x,i)=>({id:`${idPrefix}${d}-${i}`,time:hhmm(x.time),end:hhmm(x.end),title:String(x.title||'').trim().slice(0,60),desc:String(x.desc||'').trim().slice(0,240),outcome:OUTCOMES.includes(x.outcome)?x.outcome:'done',changedTo:String(x.changedTo||'').trim().slice(0,60),note:String(x.note||'').trim().slice(0,240)})).filter(x=>x.title);
+  if(!items.length)throw new Error(L('The AI returned an empty schedule.','AI 返回的日程是空的。'));
+  items.sort((a,b)=>(a.time||'99').localeCompare(b.time||'99'));
+  return {at:Date.now(),items};
+}
+/* main character (own-API mode) + every extra character with a schedule; one call per character per day */
+async function generateDay(force=false,onlyId=''){
+  if(!hasAI()||generating)return false;
+  const d=day(),todo=[];
+  if(cfg.mode==='api'&&(!onlyId||onlyId==='main')&&(force||!sched.days[d]))todo.push(mainProfile());
+  for(const e of cfg.extras)if(e.schedule&&(!onlyId||onlyId===e.id)&&(force||!sched.extra[e.id]?.days?.[d]))todo.push(e);
+  if(!todo.length)return false;
+  try{const lk=JSON.parse(localStorage.getItem(LOCK_KEY)||'null');if(!force&&lk&&lk.day===d&&Date.now()-lk.at<120000)return false}catch{}
+  try{localStorage.setItem(LOCK_KEY,JSON.stringify({day:d,at:Date.now()}))}catch{}
+  generating=true;notify();let ok=false;
+  try{
+    for(const p of todo){
+      if(p.main){try{sched.days[d]=await planDay(p,d,sched.days,'ai-');sched.error='';ok=true}catch(e){sched.error=String(e?.message||e)}}
+      else{const box=sched.extra[p.id]||(sched.extra[p.id]={days:{},error:''});try{box.days[d]=await planDay(p,d,box.days,`ai-${p.id}-`);box.error='';ok=true}catch(e){box.error=String(e?.message||e)}}
+    }
+    saveSched(ok);return ok;
+  }finally{generating=false;try{localStorage.removeItem(LOCK_KEY)}catch{}refreshLoki();notify()}
+}
+function refreshLoki(){
+  if(cfg.mode==='api'){loadIntoLoki();try{renderLoki();updateLokiStatus()}catch{}return}
+  try{if(typeof lokiData!=='undefined'){lokiData.items=[...lokiData.items.filter(i=>!i.cid),...extraItems()];renderLoki()}}catch{}
+}
 const listeners=new Set();function notify(){for(const f of listeners)try{f()}catch{}}
 
 /* ---------- in-character decisions (with rule-based fallbacks) ---------- */
@@ -292,9 +326,10 @@ function openSettings(){
     </div>
   </details>
   ${mode==='api'?`<div class="cs-block"><div class="cs-block-title">${L('Daily schedule','每日日程')}</div><div id="csSchedStatus" class="next-meta"></div><div class="cs-row"><button id="csGen" class="soft-btn" type="button">${sched.days[day()]?L('Regenerate today','重新生成今天'):L('Generate today now','现在生成今天')}</button></div></div>`:''}
+  <div class="cs-block"><div class="cs-block-title">${L('All characters','全部角色')}</div><div class="next-meta">${L(`${cfg.extras.length} more besides ${esc(charName())}. Each can have its own schedule on the calendar, and all of them can be fed.`,`除了${esc(charName())}还有 ${cfg.extras.length} 个。每个都可以有自己的日程显示在日历上，也都可以喂食。`)}</div><div class="cs-row"><label class="cs-check"><input id="csMainShow" type="checkbox" ${cfg.mainShow!==false?'checked':''}> ${L(`Show ${esc(charName())}'s schedule on the calendar`,`在日历上显示${esc(charName())}的日程`)}</label><button id="csCharList" class="soft-btn" type="button">👥 ${L('Manage characters','管理角色')}</button></div></div>
   <div class="modal-actions"><button id="csCancel" class="soft-btn" type="button">${L('Close','关闭')}</button><button id="csSave" class="primary-btn" type="button">${L('Save','保存')}</button></div>`;
   const read=()=>{const v=id=>document.getElementById(id)?.value??null;const set=(k,id,trim=true)=>{const x=v(id);if(x!=null)cfg[k]=trim?x.trim():x};
-    cfg.mode=mode;set('name','csName');set('userName','csUser');set('replyLang','csLang');set('provider','csProvider');set('baseUrl','csBase');set('apiKey','csKey');set('model','csModel');set('persona','csPersona',false);set('background','csBackground',false);set('extra','csExtra',false)};
+    cfg.mode=mode;set('name','csName');set('userName','csUser');set('replyLang','csLang');{const ms=document.getElementById('csMainShow');if(ms)cfg.mainShow=ms.checked}set('provider','csProvider');set('baseUrl','csBase');set('apiKey','csKey');set('model','csModel');set('persona','csPersona',false);set('background','csBackground',false);set('extra','csExtra',false)};
   const statusText=()=>{const t=sched.days[day()];return generating?L('Writing today’s schedule…','正在生成今天的日程…'):sched.error?L(`Last attempt failed: ${sched.error}`,`上次生成失败：${sched.error}`):t?L(`Today: ${t.items.length} activities · generated ${new Date(t.at).toLocaleTimeString(uiLocale(),{hour:'numeric',minute:'2-digit'})}`,`今天：${t.items.length} 项活动 · ${new Date(t.at).toLocaleTimeString(uiLocale(),{hour:'numeric',minute:'2-digit'})} 生成`):(hasAI()?L('Not generated yet — it happens automatically when Garden opens each day.','今天还没生成——每天打开 Garden 时会自动生成。'):L('Add an API key and model to start.','填好 API Key 和模型后开始。'))};
   const bind=()=>{
     document.querySelectorAll('[data-cs-mode]').forEach(b=>b.onclick=()=>{read();mode=b.dataset.csMode;draw()});
@@ -308,8 +343,9 @@ function openSettings(){
       if(cfg.mode==='api')generateDay().catch(()=>{});
       try{window.DeadlineGarden?.refresh()}catch{}
     };
+    const cl=document.getElementById('csCharList');if(cl)cl.onclick=()=>{read();saveCfg();listeners.delete(onUpd);openCharacters()};
     const test=document.getElementById('csTest');if(test)test.onclick=async()=>{read();const out=document.getElementById('csTestOut');out.textContent=L('Testing…','测试中…');try{const t=await ask('Reply with the single word OK.','Say OK.',{maxTokens:10,temperature:0});out.textContent=L(`Works ✓ (${t.slice(0,30)||'empty reply'})`,`可以用 ✓（${t.slice(0,30)||'空回复'}）`)}catch(e){out.textContent=L(`Failed: ${e.message}`,`失败：${e.message}`)}};
-    const gen=document.getElementById('csGen');if(gen)gen.onclick=async()=>{read();cfg.mode='api';saveCfg();gen.disabled=true;await generateDay(true);gen.disabled=false;draw()};
+    const gen=document.getElementById('csGen');if(gen)gen.onclick=async()=>{read();cfg.mode='api';saveCfg();gen.disabled=true;await generateDay(true,'main');gen.disabled=false;draw()};
     const ls=document.getElementById('csLinkSave');if(ls)ls.onclick=async()=>{
       const raw=document.getElementById('csLink').value.trim(),st=document.getElementById('lokiConnStatus');
       if(!raw){lokiCfg.url='';lokiCfg.token='';lokiData={name:'',items:[],fetchedAt:0,error:''};saveLokiCfg();try{localStorage.removeItem(LOKI_CACHE_KEY)}catch{}queueCloudSync();renderLoki();updateLokiStatus();return}
@@ -326,6 +362,57 @@ function openSettings(){
   showModal(html());document.getElementById('modalCard')?.classList.add('cs-card');bind();
 }
 
+/* ---------- character list ---------- */
+function openCharacters(editId=''){
+  try{closeSidebar()}catch{}
+  const pal=['#e0873a','#4a90d9','#d9463e','#3f9d6a','#b05fc7','#c9a24a','#5f8fb5','#e06b9a'];
+  let editing=editId;
+  const row=p=>`<div class="cs-char"><span class="cs-char-ava" style="--c:${esc(p.color)}">${esc(p.emoji)}</span><div class="cs-char-main"><strong>${esc(p.name)}${p.main?` <small>${L('main · garden partner','主角色 · 花园伙伴')}</small>`:''}</strong><small>${p.main?(cfg.mode==='uranus'?L('Schedule from Uranus','日程来自 Uranus'):cfg.mode==='api'?L('Schedule from your API','日程由 API 生成'):L('No schedule','没有日程')):(p.schedule?L('Daily schedule from your API','每天用 API 生成日程'):L('No schedule — just for feeding & chatting','不生成日程——只用来喂食'))}</small></div><label class="cs-check" title="${L('Show on calendar','在日历上显示')}"><input type="checkbox" data-cs-show="${esc(p.id)}" ${p.show?'checked':''}> 📅</label><button class="soft-btn" type="button" data-cs-edit="${esc(p.id)}">${L('Edit','编辑')}</button>${p.main?'':`<button class="soft-btn cs-del" type="button" data-cs-del="${esc(p.id)}" aria-label="${L('Delete','删除')}">🗑</button>`}</div>`;
+  const editor=e=>`<div class="section-label">${L('CHARACTER','角色')}</div><h3>${e.id?L('Edit character','编辑角色'):L('New character','新角色')}</h3>
+    <div class="form-grid">
+      ${field('ceName',L('Name','名字'),e.name,L('e.g. Thor','例如：Thor'))}
+      <div class="field"><label for="ceEmoji">Emoji</label><input id="ceEmoji" type="text" maxlength="8" value="${esc(e.emoji)}"></div>
+      <div class="field"><label for="ceColor">${L('Color','颜色')}</label><input id="ceColor" type="color" value="${esc(e.color)}"></div>
+      ${area('cePersona',L('Personality','人设 / 性格'),e.persona,L('How they talk, what they care about…','说话方式、性格、在意什么……'))}
+      ${area('ceBackground',L('Background','背景'),e.background,L('Job, routine, where they live…','职业、日常、住在哪里……'))}
+      ${area('ceExtra',L('Anything else','其他'),e.extra,L('Relationship with you, habits, favourite food…','和你的关系、习惯、喜欢吃什么……'))}
+      <div class="field full"><label for="ceLang">${L('Language','说话的语言')}</label><select id="ceLang"><option value="auto" ${e.replyLang==='auto'?'selected':''}>${L('Follow the persona / how I write','跟随人设 / 我说话的语言')}</option><option value="zh" ${e.replyLang==='zh'?'selected':''}>中文</option><option value="en" ${e.replyLang==='en'?'selected':''}>English</option></select></div>
+    </div>
+    <label class="cs-check cs-check-block"><input id="ceSchedule" type="checkbox" ${e.schedule?'checked':''}> ${L('Write a daily schedule for them with my API','每天用我的 API 给它生成日程')}</label>
+    <label class="cs-check cs-check-block"><input id="ceShow" type="checkbox" ${e.show?'checked':''}> ${L('Show their schedule on the calendar','在日历上显示它的日程')}</label>
+    ${hasAI()?'':`<div class="next-meta">${L('Schedules need an API — add one in Character & API.','生成日程需要 API，请先在「角色与 API」里填好。')}</div>`}
+    <div class="next-meta">${L('Feeding pictures (normal / likes it / dislikes it) are set in the feeding screen.','喂食用的图片（平时 / 喜欢 / 不喜欢）在喂食界面里上传。')}</div>
+    <div class="modal-actions"><button id="ceBack" class="soft-btn" type="button">${L('Back','返回')}</button><button id="ceSave" class="primary-btn" type="button">${L('Save','保存')}</button></div>`;
+  const list=()=>`<div class="section-label">${L('CHARACTERS','角色')}</div><h3>${L('Characters','角色们')}</h3><div class="cs-chars">${profiles().map(row).join('')}</div>
+    <div class="cs-row"><button id="ceAdd" class="soft-btn" type="button" ${cfg.extras.length>=12?'disabled':''}>＋ ${L('Add a character','添加角色')}</button></div>
+    <div class="modal-actions"><button id="ceClose" class="primary-btn" type="button">${L('Done','完成')}</button></div>`;
+  const draw=()=>{
+    const card=document.getElementById('modalCard');if(!card)return;card.classList.add('cs-card');
+    if(editing){
+      const e=editing==='new'?{id:'',name:'',emoji:'🌟',color:pal[cfg.extras.length%pal.length],persona:'',background:'',extra:'',replyLang:'auto',schedule:true,show:true}:cfg.extras.find(x=>x.id===editing);
+      if(!e){editing='';return draw()}
+      card.innerHTML=editor(e);
+      document.getElementById('ceBack').onclick=()=>{editing='';draw()};
+      document.getElementById('ceSave').onclick=()=>{
+        const g=id=>document.getElementById(id);
+        const v=normExtra({id:e.id||('c'+Date.now().toString(36)),name:g('ceName').value.trim()||L('Character','角色'),emoji:g('ceEmoji').value.trim()||'🌟',color:g('ceColor').value,persona:g('cePersona').value,background:g('ceBackground').value,extra:g('ceExtra').value,replyLang:g('ceLang').value,schedule:g('ceSchedule').checked,show:g('ceShow').checked});
+        const i=cfg.extras.findIndex(x=>x.id===v.id);if(i>=0)cfg.extras[i]=v;else cfg.extras.push(v);
+        saveCfg();refreshLoki();editing='';draw();toast(L('Character saved.','角色已保存。'));
+        if(v.schedule)generateDay(false,v.id).catch(()=>{});
+        try{window.Feed?.refresh()}catch{}
+      };
+    }else{
+      card.innerHTML=list();
+      card.querySelectorAll('[data-cs-edit]').forEach(b=>b.onclick=()=>{if(b.dataset.csEdit==='main'){openSettings();return}editing=b.dataset.csEdit;draw()});
+      card.querySelectorAll('[data-cs-del]').forEach(b=>b.onclick=()=>{const e=cfg.extras.find(x=>x.id===b.dataset.csDel);if(!e||!confirm(L(`Delete ${e.name}? Their schedule goes too.`,`删除${e.name}？它的日程也会一起删除。`)))return;cfg.extras=cfg.extras.filter(x=>x.id!==e.id);delete sched.extra[e.id];saveCfg();saveSched();refreshLoki();draw();try{window.Feed?.refresh()}catch{}});
+      card.querySelectorAll('[data-cs-show]').forEach(c=>c.onchange=()=>{const id=c.dataset.csShow;if(id==='main')cfg.mainShow=c.checked;else{const e=cfg.extras.find(x=>x.id===id);if(e)e.show=c.checked}saveCfg();refreshLoki();try{fetchLoki().catch(()=>{})}catch{}});
+      document.getElementById('ceAdd').onclick=()=>{editing='new';draw()};
+      document.getElementById('ceClose').onclick=closeModal;
+    }
+  };
+  showModal('');draw();
+}
+
 /* ---------- hooks ---------- */
 try{const _c=collectGardenState;collectGardenState=async function(){const s=await _c.apply(this,arguments);s.charCfg={...cfg};s.charSched=sched;return s}}catch{}
 try{const _a=applyCloudState;applyCloudState=async function(state){
@@ -335,16 +422,16 @@ try{const _a=applyCloudState;applyCloudState=async function(state){
     if(state.charSched){const m=mergeSched(sched,state.charSched);push=push||JSON.stringify(m.days)!==JSON.stringify(normSched(state.charSched).days);sched=m;try{localStorage.setItem(SCHED_KEY,JSON.stringify(sched))}catch{}}else if(Object.keys(sched.days).length)push=true;
   }
   await _a.apply(this,arguments);
-  if(cfg.mode==='api'){refreshLoki();setTimeout(()=>generateDay().catch(()=>{}),1500)}
+  refreshLoki();setTimeout(()=>generateDay().catch(()=>{}),1500);
   if(push)setTimeout(()=>{try{queueCloudSync()}catch{}},600);
 }}catch{}
-document.addEventListener('visibilitychange',()=>{if(!document.hidden&&cfg.mode==='api')generateDay().catch(()=>{})});
-setInterval(()=>{if(!document.hidden&&cfg.mode==='api')generateDay().catch(()=>{})},10*60000);
-setTimeout(()=>{if(cfg.mode==='api'){refreshLoki();generateDay().catch(()=>{})}},2500);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)generateDay().catch(()=>{})});
+setInterval(()=>{if(!document.hidden)generateDay().catch(()=>{})},10*60000);
+setTimeout(()=>{refreshLoki();generateDay().catch(()=>{})},2500);
 
 window.Char={
   get cfg(){return cfg},get sched(){return sched},saveCfg,name:charName,emoji:charEmoji,userName,hasAI,mode:()=>cfg.mode,
-  ask,askJSON,decideLoan,decorate,review,chat,visit,react,openSettings,generateDay,loadIntoLoki,isGenerating:()=>generating,
+  ask,askJSON,decideLoan,decorate,review,chat,visit,react,profiles,profileById,personaSystem,extraItems,openCharacters,LR,openSettings,generateDay,loadIntoLoki,isGenerating:()=>generating,
   onChange(f){listeners.add(f);return()=>listeners.delete(f)},fmt
 };
 })();

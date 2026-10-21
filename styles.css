@@ -4228,3 +4228,12 @@ html[data-theme="liquid"] .loki-todo-item .todo-title-btn,html[data-theme="glass
 .loki-say span{font-size:12px;font-weight:850}.loki-say p{margin:4px 0 0;font-size:14px;line-height:1.5;white-space:pre-wrap}
 .task-notes.loki-was{opacity:.7}
 html[data-theme="liquid"] .loki-outcome,html[data-theme="glass"] .loki-outcome,html[data-theme="liquid"] .loki-say,html[data-theme="glass"] .loki-say{background:var(--loki-glass);color:#fff}
+
+/* character list */
+.cs-chars{display:grid;gap:8px;margin:6px 0 4px}
+.cs-char{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:16px}
+.cs-char-ava{flex:none;display:grid;place-items:center;width:40px;height:40px;border-radius:50%;font-size:20px;box-shadow:0 0 0 2px var(--c) inset;background:color-mix(in srgb,var(--c) 16%,transparent)}
+.cs-char-main{flex:1;min-width:0;display:grid;gap:2px}.cs-char-main small{font-size:12px;opacity:.75}.cs-char-main strong small{font-weight:700;opacity:.65}
+.cs-check{display:inline-flex;align-items:center;gap:6px;font-size:13px;cursor:pointer}.cs-check input{width:18px;height:18px;accent-color:var(--accent)}
+.cs-check-block{display:flex;margin-top:10px}
+.cs-del{padding:8px 10px}

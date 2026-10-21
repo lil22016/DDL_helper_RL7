@@ -252,6 +252,7 @@ function reconcileChar(){
   if(typeof lokiData==='undefined'||!Array.isArray(lokiData.items))return;
   let changed=false;const before=earnedOf(CHARB);
   for(const it of lokiData.items){
+    if(it.cid)continue; // other characters' schedules don't pay into the garden partner's ✓
     let st=it.status||'planned';try{st=lokiEffective(it).status}catch{}
     const v=STATUS_VALUE[st]||0,id=String(it.id),cur=CHARB.earnedMap[id]||0;
     if(st==='planned'&&!cur)continue;
