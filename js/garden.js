@@ -364,7 +364,7 @@ function ensureRoot(){
       <button class="gd-btn gd-back" type="button" data-gd="close" aria-label="${L('Back','返回')}"><span aria-hidden="true">‹</span> ${L('Back','返回')}</button>
       <div class="gd-title" id="gdTitle"></div>
       <div class="gd-wallet" id="gdWallet"></div>
-      <button class="gd-btn gd-quick" type="button" data-gd="toFeed" title="${L('Feeding','喂食')}">🍽 <span>${L('Feeding','喂食')}</span></button>
+      <button class="gd-btn gd-quick" type="button" data-gd="toFeed" title="${L('Treats & Gifts','投喂与送礼')}">🧺 <span>${L('Treats & Gifts','投喂与送礼')}</span></button>
       <button class="gd-btn gd-btn-primary gd-shop-btn" type="button" data-gd="shop">${L('Shop','商城')}</button>
     </header>
     <nav class="gd-switch" id="gdSwitch" role="tablist"></nav>

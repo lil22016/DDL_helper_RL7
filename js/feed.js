@@ -1,4 +1,4 @@
-/* ==== Deadline Garden · Feeding (v2) ====
+/* ==== Deadline Garden · Treats & Gifts (feeding, v3) ====
    Feed the food from your pantry to any of your characters (the ☰ menu lists them).
    Each character has a picture (plus optional "likes it" / "dislikes it" pictures) and a taste memory:
    tastes stay stable from day to day, disliked food can grow on them if you keep feeding it,
@@ -162,7 +162,7 @@ function render(){
   if(!canGift())mode='feed';
   let ai=false;try{ai=Char.hasAI()}catch{}
   root.innerHTML=`<div class="fd-shell">
-    <header class="fd-head"><button type="button" class="gd-btn gd-back" data-fd="back"><span aria-hidden="true">‹</span> ${L('Back','返回')}</button><div class="fd-title"><div class="gd-label">${showSettings?L('FEEDING · SETTINGS','喂食 · 设置'):L('FEEDING','喂食')}</div><strong>${esc(p.name)}</strong></div><div class="fd-quick"><span class="gd-coin gd-coin-gold">🪙 ${Math.round((G()?.gold?.()||0)*10)/10}</span><button type="button" class="gd-btn" data-fd="shop">🛒 <span>${L('Food shop','食物商店')}</span></button><button type="button" class="gd-btn" data-fd="garden">🌳 <span>${L('Garden','花园')}</span></button><button type="button" class="gd-icon gd-gear${showSettings?' on':''}" data-fd="settings" aria-label="${L('Feeding settings','喂食设置')}"><span>⚙︎</span></button></div></header>
+    <header class="fd-head"><button type="button" class="gd-btn gd-back" data-fd="back"><span aria-hidden="true">‹</span> ${L('Back','返回')}</button><div class="fd-title"><div class="gd-label">${showSettings?L('TREATS & GIFTS · SETTINGS','投喂与送礼 · 设置'):L('TREATS & GIFTS','投喂与送礼')}</div><strong>${esc(p.name)}</strong></div><div class="fd-quick"><span class="gd-coin gd-coin-gold">🪙 ${Math.round((G()?.gold?.()||0)*10)/10}</span><button type="button" class="gd-btn" data-fd="shop">🛒 <span>${L('Food shop','食物商店')}</span></button><button type="button" class="gd-btn" data-fd="garden">🌳 <span>${L('Garden','花园')}</span></button><button type="button" class="gd-icon gd-gear${showSettings?' on':''}" data-fd="settings" aria-label="${L('Treats & Gifts settings','投喂与送礼设置')}"><span>⚙︎</span></button></div></header>
     <nav class="fd-who">${profiles().map(x=>`<button type="button" class="${x.id===cur?'on':''}" data-fd="who" data-id="${esc(x.id)}" title="${x.id===cur&&showSettings?L('Back to feeding','回到喂食'):''}">${avatar(x,'fd-mini')}<span>${esc(x.name)}</span>${x.id===cur&&showSettings?'<i class="fd-backhint">‹</i>':''}</button>`).join('')}</nav>
     <section class="fd-stage${mode==='gift'?' gift':''}" id="fdStage">
       <div class="fd-frame"><div class="fd-pet" id="fdPet" style="${fitStyle(pt.fit)}"><div class="fd-body">${pt.img?`<img src="${esc(pt.img)}" alt="${esc(p.name)}" id="fdImg" draggable="false">`:`<span class="fd-placeholder" style="--c:${esc(p.color)}"><b>${esc(p.emoji)}</b><small>${L('Add a picture in ⚙︎','在 ⚙︎ 里上传图片')}</small></span>`}</div></div></div>
@@ -345,7 +345,7 @@ function injectMenu(){
   const body=document.querySelector('#sidebarBody');if(!body||body.querySelector('#sbFeed'))return;
   const act=profile(F.active);
   const bar=document.createElement('button');bar.id='sbFeed';bar.type='button';bar.className='soft-btn sidebar-item sidebar-feedbar';
-  bar.innerHTML=`<span>🍽 ${L('Feeding','喂食')}</span>${avatar(act,'sb-feed-ava')}`;
+  bar.innerHTML=`<span>🧺 ${L('Treats & Gifts','投喂与送礼')}</span>`;
   bar.onclick=()=>{try{closeSidebar()}catch{}open(F.active,{fromMenu:true})};
   /* characters are not only for feeding — each can have a schedule on the calendar — so they get their own section */
   const sec=document.createElement('div');sec.id='sbChars';sec.className='sidebar-section sidebar-chars';

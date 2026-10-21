@@ -141,3 +141,5 @@ html[data-theme] .fd-root .fd-shop,html[data-theme] .fd-root .fd-shopitem{color:
 html[data-theme] .fd-root .fd-shopitem{background:#fff!important}
 html[data-theme] .fd-root .fd-quick .gd-coin-gold{background:#fff6dc!important;color:#7a5410!important}
 @media(max-width:560px){.fd-quick .gd-btn span{display:none}.fd-quick .gd-btn{padding:9px 11px}}
+.sb-feed-list{display:flex!important;flex-wrap:wrap;gap:8px;margin-top:10px}
+.sb-feed-who{width:auto!important;flex:none}

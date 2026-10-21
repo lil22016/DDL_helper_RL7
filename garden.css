@@ -324,3 +324,13 @@ html[data-theme] .gd-root .gd-pantry small,html[data-theme] .gd-root .gd-goodrow
 .gd-bq-pick{display:inline-flex;align-items:center;gap:6px;padding:4px 6px;border-radius:99px;background:#f7f0f4}
 .gd-bq-pick>span{font-size:20px}.gd-bq-pick b{font-size:12px;min-width:30px;text-align:center}.gd-bq-pick .gd-icon{width:28px;height:28px;font-size:15px}
 html[data-theme] .gd-root .gd-bouquet{background:#fff!important}html[data-theme] .gd-root .gd-bq-pick{background:#f7f0f4!important}
+
+/* ---- v11: centred tabs, compact centred layout ---- */
+/* pills: fixed height, text centred, and the row never clips them (the liquid-glass script can resize buttons) */
+.gd-root .gd-tabs{align-items:center;overflow-y:visible;padding:4px 18px 12px}
+.gd-root .gd-tabs button,.gd-root .gd-switch button,.fd-root .fd-modes button{display:inline-flex!important;align-items:center!important;justify-content:center;height:34px!important;min-height:0!important;padding:0 14px!important;line-height:1!important;box-sizing:border-box;vertical-align:middle}
+.gd-root .gd-switch button{height:36px!important}
+.fd-root .fd-modes button{height:30px!important;padding:0 11px!important}
+/* garden: compact and centred like the feeding page instead of pinned to the screen edges */
+.gd-shell{width:min(1080px,100%);margin:0 auto}
+@media(min-width:1000px){.gd-root.chat-open .gd-shell{width:min(1080px,calc(100% - 414px));margin-right:414px;margin-left:auto;padding-right:max(16px,2.4vw)}}
