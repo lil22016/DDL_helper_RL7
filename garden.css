@@ -317,3 +317,10 @@ html[data-theme] .gd-root .gd-good{background:#f2f6ee!important}
 html[data-theme] .gd-root .gd-goodrow,html[data-theme] .gd-root .gd-goodbuy{background:#fff!important;color:#24342b!important}
 html[data-theme] .gd-root .gd-need .ok{background:#e6f3df!important}html[data-theme] .gd-root .gd-need .no{background:#fbe9e7!important}
 html[data-theme] .gd-root .gd-pantry small,html[data-theme] .gd-root .gd-goodrow small,html[data-theme] .gd-root .gd-crop-status{color:#5f6e64!important}
+.gd-quick{padding:10px 14px;border-radius:14px}
+@media(max-width:560px){.gd-quick span{display:none}}
+.gd-bouquet{display:grid;gap:8px;padding:14px;margin-bottom:14px;border-radius:18px;background:#fff}
+.gd-bq-picks{display:flex;flex-wrap:wrap;gap:8px}
+.gd-bq-pick{display:inline-flex;align-items:center;gap:6px;padding:4px 6px;border-radius:99px;background:#f7f0f4}
+.gd-bq-pick>span{font-size:20px}.gd-bq-pick b{font-size:12px;min-width:30px;text-align:center}.gd-bq-pick .gd-icon{width:28px;height:28px;font-size:15px}
+html[data-theme] .gd-root .gd-bouquet{background:#fff!important}html[data-theme] .gd-root .gd-bq-pick{background:#f7f0f4!important}
