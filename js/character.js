@@ -61,12 +61,31 @@ async function ask(system,user,{maxTokens=900,temperature=0.9}={}){
   let j;
   try{j=await post(url,headers,{model:cfg.model,messages,temperature,max_tokens:maxTokens})}
   catch(e){if(e.status===400)j=await post(url,headers,{model:cfg.model,messages});else throw e} // some models reject temperature / max_tokens
-  return String(j?.choices?.[0]?.message?.content||'').trim();
+  let out=msgText(j);
+  /* reasoning models (DeepSeek-R1, Gemini 2.5, o-series, Qwen3…) can spend the whole max_tokens on thinking and return empty content */
+  if(!out){try{out=msgText(await post(url,headers,{model:cfg.model,messages,max_tokens:Math.max(4000,maxTokens*4)}))}catch{}}
+  if(!out)out=String(j?.choices?.[0]?.message?.reasoning_content||'').trim();
+  return out;
 }
+function msgText(j){
+  const c=j?.choices?.[0]?.message?.content;
+  const t=Array.isArray(c)?c.map(p=>typeof p==='string'?p:p?.text||'').join(''):String(c||'');
+  return stripThink(t);
+}
+const stripThink=t=>String(t||'').replace(/<think(?:ing)?>[\s\S]*?<\/think(?:ing)?>/gi,'').replace(/^[\s\S]*?<\/think(?:ing)?>/i,'').trim();
+/* Lenient: many models wrap the JSON in prose, cut it off at max_tokens, or just answer in character.
+   If no JSON object can be read, the plain text is used as the reply so chats never fail. */
 function parseJSON(text){
-  let s=String(text||'').replace(/```(?:json)?/gi,'').trim();
-  const a=s.indexOf('{'),b=s.lastIndexOf('}');if(a<0||b<=a)throw new Error(L('The AI reply was not JSON.','AI 回复的不是 JSON。'));
-  return JSON.parse(s.slice(a,b+1));
+  const raw=stripThink(text),s=raw.replace(/```(?:json)?/gi,'').trim();
+  if(!s)throw new Error(L('The AI returned an empty reply.','AI 返回了空回复。'));
+  for(let a=s.indexOf('{');a>=0;a=s.indexOf('{',a+1)){
+    for(let b=s.lastIndexOf('}');b>a;b=s.lastIndexOf('}',b-1)){try{const o=JSON.parse(s.slice(a,b+1));if(o&&typeof o==='object'&&!Array.isArray(o))return o}catch{}}
+  }
+  const pick=k=>{const m=s.match(new RegExp(`"${k}"\\s*:\\s*"((?:[^"\\\\]|\\\\.)*)`));if(!m)return '';try{return JSON.parse(`"${m[1]}"`)}catch{return m[1]}};
+  let reply=pick('reply')||pick('say');
+  if(!reply&&s.indexOf('{')<0)reply=s.replace(/^["'“]|["'”]$/g,'').trim();
+  if(!reply)throw new Error(L('The AI reply was not JSON.','AI 回复的不是 JSON。'));
+  return {reply,say:reply,_loose:true};
 }
 async function askJSON(system,user,opts){return parseJSON(await ask(system,user+`\n\nRespond with ONLY the JSON object, no other text.`,opts))}
 
@@ -131,12 +150,13 @@ function writeDayPrompt(p,d,days){
   const recent=Object.keys(days).filter(x=>x<d).sort().slice(-2).map(x=>`${x}: `+days[x].items.map(i=>`${i.time||'?'} ${i.title} (${i.outcome||'done'})`).join('; ')).join('\n');
   return `Today is ${d} (${weekday}). Plan ${p.name}'s day: 4 to 8 activities with specific start and end times, realistic for the persona and background, in character.
 For each activity also decide in advance how it will actually turn out (revealed only after it ends): "done" for most, "changed" when the plan changes (about 15%), "failed" when it doesn't get done (about 10%), "cancelled" rarely.
-${recent?`Recent days, for continuity:\n${recent}\n`:''}
+${recent?`Recent days (context only — do NOT copy them; today must be clearly different, with mostly new activities and different times. Only everyday routines such as meals or sleep may repeat, and even those with different titles/times):\n${recent}\n`:''}Vary the day with the weekday, weather, mood and whatever is going on in ${p.name}'s life — no two days should look alike.
+
 For "changed", also say what was done instead in "changedTo" (a short title). For anything other than "done", you may add "note": one sentence in your own voice about why or how it went (skip it sometimes — not every change needs an explanation).
 JSON shape: {"items":[{"time":"HH:MM","end":"HH:MM","title":"short title (max 16 chars)","desc":"one sentence","outcome":"done","changedTo":"","note":""}]}`;
 }
 async function planDay(p,d,days,idPrefix){
-  const j=await askJSON(personaSystem(p),writeDayPrompt(p,d,days),{maxTokens:1400});
+  const j=await askJSON(personaSystem(p),writeDayPrompt(p,d,days),{maxTokens:1600,temperature:1});
   const items=(Array.isArray(j.items)?j.items:[]).slice(0,10).map((x,i)=>({id:`${idPrefix}${d}-${i}`,time:hhmm(x.time),end:hhmm(x.end),title:String(x.title||'').trim().slice(0,60),desc:String(x.desc||'').trim().slice(0,240),outcome:OUTCOMES.includes(x.outcome)?x.outcome:'done',changedTo:String(x.changedTo||'').trim().slice(0,60),note:String(x.note||'').trim().slice(0,240)})).filter(x=>x.title);
   if(!items.length)throw new Error(L('The AI returned an empty schedule.','AI 返回的日程是空的。'));
   items.sort((a,b)=>(a.time||'99').localeCompare(b.time||'99'));
