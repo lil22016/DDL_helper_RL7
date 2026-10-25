@@ -18,7 +18,7 @@ const DEFAULT_REPLIES={
   dislike:{en:['Ugh, {food}…','I’d rather not eat {food}.','Why would you give me this?','No. Just no.'],cn:['呃，{food}……','{food}我不太想吃。','你为什么要给我这个？','不要，真的不要。']},
   bored:{en:['{food} again? I’m getting tired of it.','Can we have something other than {food}?'],cn:['又是{food}？有点吃腻了。','能不能换个别的，不要{food}了？']},
   acquired:{en:['Huh… {food} isn’t that bad actually.','Fine, I admit it. {food} grew on me.'],cn:['咦……{food}好像也没那么难吃。','好吧我承认，{food}吃着吃着就喜欢了。']},
-  gift:{en:['For me? I’ll keep the {food}.','Thanks — {food} goes in my pantry.'],cn:['给我的？{food}我收下了。','谢啦，{food}放进我的仓库了。']},
+  gift:{en:['For me? I’ll keep the {food}.','Thanks — I’m keeping this {food}.'],cn:['给我的？{food}我收下了。','谢啦，这个{food}我会好好收着。']},
   chat:{en:['Mm.','Is that so?','Feed me first, then we talk.'],cn:['嗯。','是吗？','先喂我，再聊。']},
 };
 const REPLY_GROUPS=['like','dislike','bored','acquired','gift','chat'];
@@ -105,6 +105,10 @@ function log(cid,role,text,note=''){
 }
 const who=()=>{try{return Char.userName()}catch{return L('You','你')}};
 const charLine=(k,food,p)=>{const lines=repl(k);return lines[Math.floor(Math.random()*lines.length)].replace(/\{food\}/g,gname(food||'')).replace(/\{name\}/g,p.name)};
+function giftSummary(cid){
+  const gl=(G()?.gifts?.()||[]).filter(x=>x.cid===cid),f=d=>{const m={};for(const x of gl)if(x.dir===d)m[goods()[x.item]?.en||x.item]=(m[goods()[x.item]?.en||x.item]||0)+1;return Object.entries(m).map(([k,n])=>`${k}×${n}`).join(', ')||'nothing yet'};
+  return `Gifts they have given you: ${f('out')}. Gifts you have given them: ${f('in')}.`;
+}
 function tasteSummary(cid){
   const pr=pet(cid).prefs,likes=[],dislikes=[];
   for(const [k,v] of Object.entries(pr)){if(!v.n)continue;if(v.s>=1)likes.push(goods()[k]?.en||k);else if(v.s<=-1)dislikes.push(goods()[k]?.en||k)}
@@ -116,7 +120,7 @@ async function chatReply(cid,text){
   const hist=pet(cid).chat.slice(-14,-1).map(m=>`${m.role==='user'?who():p.name}: ${m.text}`).join('\n');
   const pantry=G()?.pantry?.()||{};
   const user=`You are in Deadline Garden's feeding corner; ${who()} feeds you food from their pantry. ${tasteSummary(cid)}
-Their pantry right now: ${Object.entries(pantry).map(([k,n])=>`${goods()[k]?.en||k}×${n}`).join(', ')||'empty'}.
+Their pantry right now: ${Object.entries(pantry).map(([k,n])=>`${goods()[k]?.en||k}×${n}`).join(', ')||'empty'}.${cid==='main'?' '+giftSummary(cid):''}
 ${hist?`Conversation so far:\n${hist}\n`:''}${who()} now says: "${text}"
 Answer in character in 1-3 sentences.
 JSON shape: {"reply":"..."}`;
@@ -125,7 +129,7 @@ JSON shape: {"reply":"..."}`;
 }
 
 /* ---------- DOM ---------- */
-let root,cur='main',busy=false,fromMenu=false,closeTimer=null,bubbleTimer=null,showSettings=false,mode='feed',drag=null,shopOpen=false;
+let root,cur='main',busy=false,fromMenu=false,closeTimer=null,bubbleTimer=null,showSettings=false,mode='feed',drag=null,shopOpen=false,shopTab='market',boxOpen=false;
 function ensureRoot(){
   if(root)return root;
   root=document.createElement('div');root.id='feedRoot';root.className='fd-root hidden';root.setAttribute('aria-hidden','true');
@@ -138,7 +142,7 @@ function open(id,opts={}){
   ensureRoot();clearTimeout(closeTimer);fromMenu=!!opts.fromMenu;
   cur=profiles().some(p=>p.id===id)?id:(profiles().some(p=>p.id===F.active)?F.active:'main');
   if(F.active!==cur){F.active=cur;persist(false)}
-  showSettings=false;shopOpen=false;mode=opts.mode==='gift'?'gift':'feed';
+  showSettings=false;shopOpen=false;mode=opts.mode==='gift'?'gift':'feed';boxOpen=opts.box&&cur==='main'?(opts.box==='out'?'out':'in'):false;
   root.classList.remove('hidden','closing');root.setAttribute('aria-hidden','false');document.body.classList.add('gd-open');
   render();void root.offsetWidth;root.classList.add('show');
 }
@@ -161,8 +165,10 @@ function render(){
   const mem=Object.entries(pt.prefs).filter(([,v])=>v.n>0).sort((a,b)=>b[1].last-a[1].last);
   if(!canGift())mode='feed';
   let ai=false;try{ai=Char.hasAI()}catch{}
+  /* keep the open panel still (no re-animation, same scroll) when it re-renders after a buy / sell / cook */
+  const oldWrap=root.querySelector('.fd-shopwrap'),oldKey=oldWrap?.dataset.key,oldScroll=oldWrap?.querySelector('.fd-shop-body')?.scrollTop||0;
   root.innerHTML=`<div class="fd-shell">
-    <header class="fd-head"><button type="button" class="gd-btn gd-back" data-fd="back"><span aria-hidden="true">‹</span> ${L('Back','返回')}</button><div class="fd-title"><div class="gd-label">${showSettings?L('TREATS & GIFTS · SETTINGS','投喂与送礼 · 设置'):L('TREATS & GIFTS','投喂与送礼')}</div><strong>${esc(p.name)}</strong></div><div class="fd-quick"><span class="gd-coin gd-coin-gold">🪙 ${Math.round((G()?.gold?.()||0)*10)/10}</span><button type="button" class="gd-btn" data-fd="shop">🛒 <span>${L('Food shop','食物商店')}</span></button><button type="button" class="gd-btn" data-fd="garden">🌳 <span>${L('Garden','花园')}</span></button><button type="button" class="gd-icon gd-gear${showSettings?' on':''}" data-fd="settings" aria-label="${L('Treats & Gifts settings','投喂与送礼设置')}"><span>⚙︎</span></button></div></header>
+    <header class="fd-head"><button type="button" class="gd-btn gd-back" data-fd="back"><span aria-hidden="true">‹</span> ${L('Back','返回')}</button><div class="fd-title"><div class="gd-label">${showSettings?L('TREATS & GIFTS · SETTINGS','投喂与送礼 · 设置'):L('TREATS & GIFTS','投喂与送礼')}</div><strong>${esc(p.name)}</strong></div><div class="fd-quick"><span class="gd-coin gd-coin-gold">🪙 ${Math.round((G()?.gold?.()||0)*10)/10}</span><button type="button" class="gd-btn" data-fd="shop">🛒 <span>${L('Market','市场')}</span></button>${canGift()?`<button type="button" class="gd-btn" data-fd="box">🎁 <span>${L('Gift box','礼物箱')}</span></button>`:''}<button type="button" class="gd-btn" data-fd="garden">🌳 <span>${L('Garden','花园')}</span></button><button type="button" class="gd-icon gd-gear${showSettings?' on':''}" data-fd="settings" aria-label="${L('Treats & Gifts settings','投喂与送礼设置')}"><span>⚙︎</span></button></div></header>
     <nav class="fd-who">${profiles().map(x=>`<button type="button" class="${x.id===cur?'on':''}" data-fd="who" data-id="${esc(x.id)}" title="${x.id===cur&&showSettings?L('Back to feeding','回到喂食'):''}">${avatar(x,'fd-mini')}<span>${esc(x.name)}</span>${x.id===cur&&showSettings?'<i class="fd-backhint">‹</i>':''}</button>`).join('')}</nav>
     <section class="fd-stage${mode==='gift'?' gift':''}" id="fdStage">
       <div class="fd-frame"><div class="fd-pet" id="fdPet" style="${fitStyle(pt.fit)}"><div class="fd-body">${pt.img?`<img src="${esc(pt.img)}" alt="${esc(p.name)}" id="fdImg" draggable="false">`:`<span class="fd-placeholder" style="--c:${esc(p.color)}"><b>${esc(p.emoji)}</b><small>${L('Add a picture in ⚙︎','在 ⚙︎ 里上传图片')}</small></span>`}</div></div></div>
@@ -171,24 +177,46 @@ function render(){
       <div class="fd-drophint">${mode==='gift'?L('Drop here to give','拖到这里送给它'):L('Drop here to feed','拖到这里喂它')}</div>
     </section>
     ${showSettings?settingsHtml(p,ai):''}
-    ${showSettings?'':`<section class="fd-tray"><div class="gd-tray-head"><span class="gd-label">🧺 ${L('YOUR PANTRY','你的仓库')}</span>${canGift()?`<span class="fd-modes" role="radiogroup"><button type="button" class="${mode==='feed'?'on':''}" data-fd="mode" data-m="feed">🍽 ${L('Feed','喂')}</button><button type="button" class="${mode==='gift'?'on':''}" data-fd="mode" data-m="gift">🎁 ${esc(L(`Give to ${p.name}'s pantry`,`送进${p.name}的仓库`))}</button></span>`:''}<small>${foods.length?(mode==='gift'?L('Tap or drag to give it — food, flowers or a bouquet.','点一下或拖过去就送给它——吃的、花、花束都可以。'):L('Tap, or drag it onto them.','点一下，或者拖到它身上。')):L('Nothing to eat yet — tap 🛒 Food shop at the top, or harvest and cook in the Garden.','还没有吃的——点右上角的 🛒 食物商店，或者去花园收成、做饭。')}</small></div>
+    ${showSettings?'':`<section class="fd-tray"><div class="gd-tray-head"><span class="gd-label">🧺 ${L('YOUR PANTRY','你的仓库')}</span>${canGift()?`<span class="fd-modes" role="radiogroup"><button type="button" class="${mode==='feed'?'on':''}" data-fd="mode" data-m="feed">🍽 ${L('Feed','喂')}</button><button type="button" class="${mode==='gift'?'on':''}" data-fd="mode" data-m="gift">🎁 ${L('Give a gift','送礼物')}</button></span>`:''}<small>${foods.length?(mode==='gift'?L('Tap or drag to give it as a gift — it goes into the 🎁 gift box and can’t be given back.','点一下或拖过去就当礼物送给它——会记进🎁礼物箱，不能再送回来。'):L('Tap, or drag it onto them.','点一下，或者拖到它身上。')):L('Nothing to eat yet — tap 🛒 Market at the top to buy or cook, or harvest in the Garden.','还没有吃的——点右上角的 🛒 市场去买或做饭，或者去花园收成。')}</small></div>
       <div class="fd-foods">${foods.map(k=>`<button type="button" class="fd-food" data-fd="feed" data-id="${k}" ${busy?'disabled':''} title="${esc(gname(k))}"><span>${gs[k].e}</span><b>×${pantry[k]}</b><small>${esc(gname(k))}</small></button>`).join('')}</div>
     </section>
     <section class="fd-chat"><div class="gd-label">💬 ${esc(L(`CHAT WITH ${p.name.toUpperCase()}`,`和${p.name}聊天`))}</div><div class="fd-log" id="fdLog"></div><div class="fd-input"><textarea id="fdMsg" rows="1" maxlength="400" placeholder="${esc(L(`Say something to ${p.name}…`,`和${p.name}说点什么……`))}"></textarea><button type="button" class="gd-btn gd-btn-primary" data-fd="send"${busy?' disabled':''}>${L('Send','发送')}</button></div>${ai?'':`<small class="fd-noai">${L('No API set up — replies use the default lines.','还没配置 API，回复会用默认台词。')}</small>`}</section>
     ${mem.length?`<section class="fd-mem"><div class="gd-label">${L('TASTE MEMORY','口味记忆')}</div><div class="fd-memlist">${mem.map(([k,v])=>`<span class="fd-memitem ${v.s>=1?'love':v.s<=-1?'hate':''}" title="${esc(gname(k))} · ${v.n}×">${gs[k]?.e||'?'} ${v.s>=2?'💖':v.s>=1?'♥':v.s<=-1?'✖':'·'}</span>`).join('')}</div></section>`:''}`}
-  </div><div class="fd-ghost hidden" id="fdGhost"></div>${shopOpen?shopHtml():''}`;
+  </div><div class="fd-ghost hidden" id="fdGhost"></div>${shopOpen?shopHtml():boxOpen?boxHtml():''}`;
+  const nw=root.querySelector('.fd-shopwrap');if(nw&&oldKey&&nw.dataset.key===oldKey){nw.classList.add('still');const b=nw.querySelector('.fd-shop-body');if(b)b.scrollTop=oldScroll}
   if(!showSettings)renderChat();
   const ta=root.querySelector('#fdMsg');if(ta)ta.onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing){e.preventDefault();send()}};
 }
-/* a food-only shop, right here — buys with the same 🪙 as the garden market */
-function shopHtml(){
+/* 🛒 market panel, right here: Market (sell / buy / exchange) · Kitchen (cook / bouquet) · Food shop — same 🪙 as the garden */
+const SHOP_TABS=[['market','🏪','Market','市场'],['kitchen','🍳','Kitchen','厨房'],['food','🍎','Food shop','食物商店']];
+function foodShopBody(){
   const gs=goods(),gold=G()?.gold?.()||0,pantry=G()?.pantry?.()||{};
   const list=Object.entries(gs).filter(([k,g])=>g.buy&&!g.flower&&!g.gift);
   const sec=(title,arr)=>arr.length?`<div class="gd-label">${title}</div><div class="fd-shopgrid">${arr.map(([k,g])=>`<button type="button" class="fd-shopitem${gold<g.buy?' poor':''}" data-fd="buy" data-id="${k}"><span>${g.e}</span><strong>${esc(gname(k))}</strong><small>🪙${g.buy}${pantry[k]?` · ${L('have','有')} ${pantry[k]}`:''}</small></button>`).join('')}</div>`:'';
-  return `<div class="fd-shopwrap" data-fd="shopClose"><div class="fd-shop" role="dialog" aria-label="${L('Food shop','食物商店')}">
-    <div class="fd-shop-head"><div><div class="gd-label">${L('FOOD SHOP','食物商店')}</div><strong>${L('Buy something to eat','买点吃的')}</strong></div><span class="gd-coin gd-coin-gold">🪙 ${Math.round(gold*10)/10}</span><button type="button" class="gd-icon" data-fd="shopClose" aria-label="${L('Close','关闭')}">×</button></div>
-    <div class="fd-shop-body">${sec(L('READY TO EAT','现成的'),list.filter(([,g])=>g.food))}${sec(L('FRUIT, VEG & INGREDIENTS','水果蔬菜和食材'),list.filter(([,g])=>!g.food))}
-    <p class="gd-note">${L('Earn 🪙 by selling crops in the Garden market.','🪙 可以在花园的市场里卖作物赚。')}</p></div></div></div>`;
+  return `${sec(L('READY TO EAT','现成的'),list.filter(([,g])=>g.food))}${sec(L('FRUIT, VEG & INGREDIENTS','水果蔬菜和食材'),list.filter(([,g])=>!g.food))}<p class="gd-note">${L('Earn 🪙 by selling crops in the Market tab.','🪙 可以在「市场」标签里卖作物赚。')}</p>`;
+}
+function shopHtml(){
+  const gold=G()?.gold?.()||0;if(!SHOP_TABS.some(t=>t[0]===shopTab))shopTab='market';
+  const body=shopTab==='food'?foodShopBody():(G()?.panelHtml?.(shopTab)||'');
+  const sub={market:L('Sell, buy and exchange','卖出、买入和兑换'),kitchen:L('Cook food and make bouquets','做吃的、扎花束'),food:L('Buy something to eat','买点吃的')}[shopTab];
+  return `<div class="fd-shopwrap" data-fd="shopClose" data-key="shop-${shopTab}"><div class="fd-shop" role="dialog" aria-label="${L('Market','市场')}">
+    <div class="fd-shop-head"><div><div class="gd-label">${L('MARKET & KITCHEN','市场与厨房')}</div><strong>${sub}</strong></div><span class="gd-coin gd-coin-gold">🪙 ${Math.round(gold*10)/10}</span><button type="button" class="gd-icon" data-fd="shopClose" aria-label="${L('Close','关闭')}">×</button></div>
+    <div class="fd-shoptabs"><span class="fd-modes" role="tablist">${SHOP_TABS.map(([id,e,en,cn])=>`<button type="button" role="tab" class="${shopTab===id?'on':''}" data-fd="shopTab" data-t="${id}">${e} ${L(en,cn)}</button>`).join('')}</span></div>
+    <div class="fd-shop-body fd-shop-${shopTab}">${body}</div></div></div>`;
+}
+/* 🎁 gift box: keepsakes received from / given to the character — never back in a pantry, so nothing can be re-gifted */
+function boxHtml(){
+  const all=(G()?.gifts?.()||[]).filter(x=>x.cid===cur),dir=boxOpen==='out'?'out':'in',list=all.filter(x=>x.dir===dir),p=profile(cur),gs=goods();
+  const groups={};for(const x of list){const g=groups[x.item]||(groups[x.item]={n:0,last:0});g.n++;g.last=Math.max(g.last,x.at)}
+  const day=t=>{try{return new Date(t).toLocaleDateString(zh()?'zh-CN':'en-US',{month:'short',day:'numeric'})}catch{return ''}};
+  const nIn=all.filter(x=>x.dir==='in').length,nOut=all.length-nIn;
+  const tiles=Object.entries(groups).sort((a,b)=>b[1].last-a[1].last).map(([k,g])=>`<div class="fd-giftitem"><span>${gs[k]?.e||'🎁'}</span><strong>${esc(gname(k))}</strong><small>×${g.n} · ${day(g.last)}</small></div>`).join('');
+  const hist=list.slice().reverse().slice(0,30).map(x=>`<li><span>${gs[x.item]?.e||'🎁'}</span><b>${esc(gname(x.item))}</b><small>${day(x.at)}</small></li>`).join('');
+  return `<div class="fd-shopwrap" data-fd="boxClose" data-key="box-${dir}"><div class="fd-shop fd-box" role="dialog" aria-label="${L('Gift box','礼物箱')}">
+    <div class="fd-shop-head"><div><div class="gd-label">🎁 ${L('GIFT BOX','礼物箱')}</div><strong>${esc(dir==='in'?L(`What ${p.name} gave you`,`${p.name}送你的`):L(`What you gave ${p.name}`,`你送给${p.name}的`))}</strong></div><button type="button" class="gd-icon" data-fd="boxClose" aria-label="${L('Close','关闭')}">×</button></div>
+    <div class="fd-shoptabs"><span class="fd-modes" role="tablist"><button type="button" class="${dir==='in'?'on':''}" data-fd="boxTab" data-t="in">📥 ${L('Received','收到的')} · ${nIn}</button><button type="button" class="${dir==='out'?'on':''}" data-fd="boxTab" data-t="out">📤 ${L('Given','送出的')} · ${nOut}</button></span></div>
+    <div class="fd-shop-body">${list.length?`<div class="fd-giftgrid">${tiles}</div><div class="gd-label">${L('HISTORY','记录')}</div><ul class="fd-gifthist">${hist}</ul>`:`<p class="gd-note">${esc(dir==='in'?L(`Nothing yet — ${p.name} sometimes leaves you a bouquet or something they cooked.`,`还没有——${p.name}偶尔会送你花束或亲手做的吃的。`):L(`Nothing yet — switch the pantry to “🎁 Give a gift” to give ${p.name} something.`,`还没有——把仓库切到「🎁 送礼物」就能送${p.name}东西。`))}</p>`}
+    <p class="gd-note">${L('Gifts are keepsakes: they stay here and can’t be eaten, sold or given back.','礼物是纪念品：会一直留在这里，不能吃、不能卖，也不能再送回去。')}</p></div></div></div>`;
 }
 function renderChat(){
   const box=root&&root.querySelector('#fdLog');if(!box)return;const p=profile(cur),msgs=pet(cur).chat.slice(-40);
@@ -255,10 +283,10 @@ async function give(food){
   if(busy||!canGift())return;
   const p=profile(cur),g=goods()[food];
   if(!G().giftToChar(food)){say('You don’t have that any more.','已经没有了。');render();return}
-  log(cur,'user',food==='bouquet'?L(`💐 You gave ${p.name} a bouquet.`,`💐 你送了${p.name}一束花。`):L(`🎁 You gave ${p.name} ${gname(food)} for their pantry.`,`🎁 你送了${p.name}${gname(food)}，放进它的仓库。`));
+  log(cur,'user',food==='bouquet'?L(`💐 You gave ${p.name} a bouquet.`,`💐 你送了${p.name}一束花。`):L(`🎁 You gave ${p.name} ${gname(food)} as a gift.`,`🎁 你把${gname(food)}当礼物送给了${p.name}。`));
   busy=true;render();
   let text='';
-  if(F.useAI){try{const j=await Char.askJSON(Char.personaSystem(p),`${who()} gives you ${food==='bouquet'?'a bouquet of flowers they grew and picked themselves':`${g?.en||food} (${g?.e||''}) to keep in your pantry`} in Deadline Garden. ${tasteSummary(cur)}\nReact in character in one short sentence.\nJSON shape: {"reply":"..."}`,{maxTokens:150});text=String(j.reply||'').trim().slice(0,300)}catch{}}
+  if(F.useAI){try{const j=await Char.askJSON(Char.personaSystem(p),`${who()} gives you ${food==='bouquet'?'a bouquet of flowers they grew and picked themselves':`${g?.en||food} (${g?.e||''}) as a gift — a keepsake for you`} in Deadline Garden. ${tasteSummary(cur)} ${giftSummary(cur)}\nReact in character in one short sentence.\nJSON shape: {"reply":"..."}`,{maxTokens:150});text=String(j.reply||'').trim().slice(0,300)}catch{}}
   text=text||charLine('gift',food,p);
   busy=false;log(cur,'char',text);render();react(text,food==='bouquet'?'bouquet':'gift');
 }
@@ -308,6 +336,9 @@ function readImage(file,cb){
 }
 function onClick(e){
   if(e.target.closest('.fd-food'))return; // handled by pointer events (tap or drag)
+  /* market / kitchen buttons rendered by the garden (data-gd) */
+  const gd=e.target.closest('.fd-shop [data-gd]');
+  if(gd){if(gd.disabled)return;const ga=gd.dataset.gd;if(ga==='giveBouquet'){shopOpen=false;mode='gift';return render()}if(G()?.panelAct?.(ga,gd.dataset))render();return}
   const a=e.target.closest('[data-fd]');if(!a||a.disabled)return;
   const act=a.dataset.fd;
   if(act==='back')return close();
@@ -317,7 +348,11 @@ function onClick(e){
   if(act==='send')return send();
   if(act==='garden'){const fm=fromMenu;close(false);setTimeout(()=>G()?.open('mine',{fromMenu:fm}),180);return}
   if(act==='market'){close(false);setTimeout(()=>G()?.openMarket?.(),200);return}
-  if(act==='shop'){shopOpen=true;return render()}
+  if(act==='shop'){shopOpen=true;boxOpen=false;return render()}
+  if(act==='shopTab'){shopTab=a.dataset.t;return render()}
+  if(act==='box'){boxOpen='in';shopOpen=false;return render()}
+  if(act==='boxTab'){boxOpen=a.dataset.t==='out'?'out':'in';return render()}
+  if(act==='boxClose'){if(e.target.closest('.fd-shop')&&!a.matches('.gd-icon'))return;boxOpen=false;return render()}
   if(act==='shopClose'){if(e.target.closest('.fd-shop')&&!a.matches('.gd-icon'))return;shopOpen=false;return render()}
   if(act==='buy'){if(G()?.buyFood?.(a.dataset.id))say(`Bought ${gname(a.dataset.id)}.`,`买了${goods()[a.dataset.id]?.e||''}${gname(a.dataset.id)}。`);return render()}
   if(act==='chars'){close(false);try{Char.openCharacters()}catch{}return}
@@ -362,6 +397,6 @@ try{const _a=applyCloudState;applyCloudState=async function(state){
   if(state&&typeof state==='object'){if(state.feed){const m=merge(F,state.feed);push=JSON.stringify(m)!==JSON.stringify(norm(state.feed));F=m;try{localStorage.setItem(FEED_KEY,JSON.stringify(F))}catch{}}else if(Object.keys(F.pets).length)push=true}
   await _a.apply(this,arguments);if(isOpen())render();if(push)setTimeout(()=>{try{queueCloudSync()}catch{}},800);
 }}catch{}
-document.addEventListener('keydown',e=>{if(e.key==='Escape'&&isOpen()){if(showSettings){showSettings=false;render()}else close()}});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&isOpen()){if(shopOpen||boxOpen){shopOpen=false;boxOpen=false;render()}else if(showSettings){showSettings=false;render()}else close()}});
 window.Feed={open,close,refresh:()=>{if(isOpen())render()},log,_state:()=>F};
 })();

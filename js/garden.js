@@ -148,7 +148,7 @@ const r1=n=>Math.round((Number(n)||0)*10)/10;
 const fmt=n=>{n=r1(n);return Number.isInteger(n)?String(n):n.toFixed(1)};
 const clone=o=>JSON.parse(JSON.stringify(o));
 const uid=()=>crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+Math.random().toString(36).slice(2);
-function blank(kind){return {version:1,kind,earned:[],earnedMap:{},spent:0,inv:{},cells:{},rows:BASE_ROWS,cols:BASE_COLS,fence:'wood',fences:['wood'],custom:[],loans:[],repayOn:true,pantry:{},gold:0,boughtChecks:0,period:'none',periodKey:'',archives:[],autoPlant:true,lastAuto:'',news:null,updatedAt:0,editedAt:0}}
+function blank(kind){return {version:1,kind,earned:[],earnedMap:{},spent:0,inv:{},cells:{},rows:BASE_ROWS,cols:BASE_COLS,fence:'wood',fences:['wood'],custom:[],loans:[],repayOn:true,pantry:{},gifts:[],gold:0,boughtChecks:0,period:'none',periodKey:'',archives:[],autoPlant:true,lastAuto:'',news:null,updatedAt:0,editedAt:0}}
 function normalize(g,kind='mine'){
   const b=blank(kind);if(!g||typeof g!=='object')return b;
   const out={...b,...g,kind};
@@ -157,6 +157,8 @@ function normalize(g,kind='mine'){
   out.spent=Math.max(0,r1(g.spent));
   out.gold=Math.max(0,r1(g.gold));out.boughtChecks=Math.max(0,Math.floor(Number(g.boughtChecks)||0));
   out.pantry=g.pantry&&typeof g.pantry==='object'?Object.fromEntries(Object.entries(g.pantry).filter(([k,n])=>GOODS[k]&&Number(n)>0).map(([k,n])=>[k,Math.floor(n)])):{};
+  /* gift box: keepsakes given / received — never back in a pantry, so they can't be re-gifted */
+  out.gifts=Array.isArray(g.gifts)?g.gifts.filter(x=>x&&x.id&&GOODS[x.item]).map(x=>({id:String(x.id),dir:x.dir==='out'?'out':'in',item:String(x.item),cid:String(x.cid||'main'),at:Number(x.at)||0})).slice(-300):[];
   out.inv=g.inv&&typeof g.inv==='object'?Object.fromEntries(Object.entries(g.inv).filter(([,n])=>Number(n)>0).map(([k,n])=>[k,Math.floor(n)])):{};
   out.cells=g.cells&&typeof g.cells==='object'?g.cells:{};
   out.rows=Math.min(MAX_SIDE,Math.max(MIN_SIDE,Number(g.rows)||BASE_ROWS));
@@ -178,7 +180,7 @@ function normalize(g,kind='mine'){
   out.editedAt=Number(g.editedAt)||(hasContent(out)?(out.updatedAt||1):0);
   return out;
 }
-function hasContent(g){return !!(g&&(g.spent>0||g.gold>0||Object.keys(g.pantry||{}).length||Object.keys(g.cells||{}).length||Object.keys(g.inv||{}).length||(g.custom||[]).length||(g.loans||[]).length||(g.fences||[]).length>1||(g.archives||[]).length||g.rows*g.cols>BASE_ROWS*BASE_COLS))}
+function hasContent(g){return !!(g&&(g.spent>0||g.gold>0||Object.keys(g.pantry||{}).length||Object.keys(g.cells||{}).length||Object.keys(g.inv||{}).length||(g.custom||[]).length||(g.loans||[]).length||(g.gifts||[]).length||(g.fences||[]).length>1||(g.archives||[]).length||g.rows*g.cols>BASE_ROWS*BASE_COLS))}
 /* Merge this device's copy with the cloud's. The most recently *edited* copy decides layout, bag, spending and land;
    ledgers, fences, uploads and loans are unioned so nothing earned, bought or borrowed is lost. */
 function mergeGardens(a,b,kind){
@@ -191,6 +193,7 @@ function mergeGardens(a,b,kind){
   const ids=new Set(base.custom.map(c=>c.id));out.custom=[...base.custom,...other.custom.filter(c=>!ids.has(c.id))];
   const lm=new Map();for(const l of [...A.loans,...B.loans]){const p=lm.get(l.id);lm.set(l.id,p?{...p,repaid:Math.max(p.repaid,l.repaid)}:l)}
   out.loans=[...lm.values()].sort((x,y)=>x.at-y.at);
+  const gm=new Map();for(const x of [...A.gifts,...B.gifts])if(!gm.has(x.id))gm.set(x.id,x);out.gifts=[...gm.values()].sort((x,y)=>x.at-y.at).slice(-300);
   const am=new Map();for(const x of [...A.archives,...B.archives])if(!am.has(x.id))am.set(x.id,x);
   out.archives=[...am.values()].sort((x,y)=>(x.start||'').localeCompare(y.start||'')).slice(-60);
   out.lastAuto=[A.lastAuto,B.lastAuto].sort().pop()||'';
@@ -199,7 +202,7 @@ function mergeGardens(a,b,kind){
   out.editedAt=Math.max(A.editedAt,B.editedAt);out.updatedAt=Math.max(A.updatedAt,B.updatedAt);
   return out;
 }
-const sig=g=>{g=normalize(g,g&&g.kind);return JSON.stringify([g.editedAt,g.spent,g.rows,g.cols,g.fence,g.cells,g.inv,[...g.earned].sort(),Object.entries(g.earnedMap).sort(),[...g.fences].sort(),g.custom.map(c=>c.id).sort(),g.loans.map(l=>[l.id,l.repaid]),g.repayOn,g.period,g.periodKey,g.archives.map(a=>a.id),g.autoPlant,g.lastAuto,g.gold,g.pantry,g.boughtChecks,g.allowVisits,g.visit&&g.visit.id,g.lastVisitCheck,g.news&&g.news.at])};
+const sig=g=>{g=normalize(g,g&&g.kind);return JSON.stringify([g.editedAt,g.spent,g.rows,g.cols,g.fence,g.cells,g.inv,[...g.earned].sort(),Object.entries(g.earnedMap).sort(),[...g.fences].sort(),g.custom.map(c=>c.id).sort(),g.loans.map(l=>[l.id,l.repaid]),g.repayOn,g.period,g.periodKey,g.archives.map(a=>a.id),g.autoPlant,g.lastAuto,g.gold,g.pantry,g.gifts.map(x=>x.id),g.boughtChecks,g.allowVisits,g.visit&&g.visit.id,g.lastVisitCheck,g.news&&g.news.at])};
 const sameGarden=(a,b)=>sig(a)===sig(b);
 
 let MINE=blank('mine'),CHARB=blank('char'),OPS=[],CHAT={msgs:[]};
@@ -491,7 +494,7 @@ function renderTray(){
 }
 function pantryRow(S){
   const ks=Object.keys(S.pantry||{}).filter(k=>S.pantry[k]>0);
-  return `<div class="gd-pantry"><span class="gd-label">🧺 ${view==='char'?esc(L(`${cname().toUpperCase()}'S PANTRY`,`${cname()}的仓库`)):L('PANTRY','仓库')}</span><span class="gd-gold">🪙 ${fmt(S.gold||0)}</span>${ks.length?ks.map(k=>`<span class="gd-good" title="${esc(goodName(k))}">${GOODS[k].e}<b>${S.pantry[k]}</b></span>`).join(''):`<small>${L('Harvest crops to fill it.','收成后的作物会放在这里。')}</small>`}${view==='mine'?`<button type="button" class="gd-btn gd-btn-quiet" data-gd="openTab" data-tab="market">${L('Market','市场')} ›</button><button type="button" class="gd-btn gd-btn-quiet" data-gd="openTab" data-tab="kitchen">${L('Kitchen','厨房')} ›</button>`:''}</div>`;
+  return `<div class="gd-pantry"><span class="gd-label">🧺 ${view==='char'?esc(L(`${cname().toUpperCase()}'S PANTRY`,`${cname()}的仓库`)):L('PANTRY','仓库')}</span><span class="gd-gold">🪙 ${fmt(S.gold||0)}</span>${ks.length?ks.map(k=>`<span class="gd-good" title="${esc(goodName(k))}">${GOODS[k].e}<b>${S.pantry[k]}</b></span>`).join(''):`<small>${L('Harvest crops to fill it.','收成后的作物会放在这里。')}</small>`}${view==='mine'?`<button type="button" class="gd-btn gd-btn-quiet" data-gd="openTab" data-tab="market">${L('Market','市场')} ›</button><button type="button" class="gd-btn gd-btn-quiet" data-gd="openTab" data-tab="kitchen">${L('Kitchen','厨房')} ›</button><button type="button" class="gd-btn gd-btn-quiet" data-gd="giftBox">🎁 ${L('Gift box','礼物箱')}${(S.gifts||[]).length?` · ${S.gifts.length}`:''}</button>`:''}</div>`;
 }
 function renderActions(){
   const bar=root.querySelector('#gdActions');
@@ -535,17 +538,18 @@ function market(act,id,n){
   else if(act==='buyfood')say(`Bought ${goodName(id)}.`,`买了${GOODS[id].e}${goodName(id)}。`);
   render();renderShop();
 }
-/* now and then (at most once a day) the character leaves you something from their pantry — cooked food first */
+/* now and then (at most once a day) the character gives you something from their pantry — a bouquet or cooked food.
+   It goes into your gift box (a keepsake), not your pantry, so it can't be eaten, sold or given back. */
 function charGift(){
   let mode='';try{mode=Char.mode()}catch{}
   const S=CHARB,today=ymd(new Date());if(!mode||S.lastGift===today)return;
   const rank=k=>k==='bouquet'?2:GOODS[k].food?1:GOODS[k].flower?-1:0;
   const ks=Object.keys(S.pantry).filter(k=>S.pantry[k]>0&&rank(k)>=0).sort((a,b)=>rank(b)-rank(a));if(!ks.length)return;
   S.lastGift=today;if(Math.random()>.4){persistChar(false);return}
-  const id=ks[0];S.pantry[id]--;if(!S.pantry[id])delete S.pantry[id];MINE.pantry[id]=(MINE.pantry[id]||0)+1;
+  const id=ks[0];S.pantry[id]--;if(!S.pantry[id])delete S.pantry[id];MINE.gifts.push({id:uid(),dir:'in',item:id,cid:'main',at:Date.now()});MINE.gifts=MINE.gifts.slice(-300);
   let lr=(en,cn)=>L(en,cn);try{lr=Char.LR}catch{}
   const text=id==='bouquet'?lr('I picked these for you. Don’t make it weird.','这束花是给你的。别多想。'):lr(`I made too much. Here — ${GOODS[id].en} for you.`,`做多了，${GOODS[id].cn}给你。`);
-  S.news={text,note:L(`${cname()} left you ${GOODS[id].e} ${goodName(id)} · in your pantry`,`${cname()}送了你 ${GOODS[id].e}${goodName(id)} · 已放进你的仓库`),at:Date.now(),seen:false};
+  S.news={text,note:L(`${cname()} gave you ${GOODS[id].e} ${goodName(id)} · in your 🎁 gift box`,`${cname()}送了你 ${GOODS[id].e}${goodName(id)} · 已放进🎁礼物箱`),at:Date.now(),seen:false};
   persistChar(true);persistMine(true);recompute();
   logChat('char',text,S.news.note);try{window.Feed?.log('main','char',text,S.news.note)}catch{}
 }
@@ -686,6 +690,7 @@ function onClick(e){
     if(act==='openTab'){tab=a.dataset.tab;return openShop()}
     if(act==='bq'){const k=a.dataset.id;bq[k]=Math.max(0,Math.min(MINE.pantry[k]||0,(bq[k]||0)+Number(a.dataset.d)));if(!bq[k])delete bq[k];return renderShop()}
     if(act==='makeBouquet'){if(!applyOp(MINE,{t:'bouquet',picks:{...bq}})){if(lastErr)say(lastErr,lastErr);return}bq={};persistMine();celebrate();say('A bouquet! 💐','扎好了一束花 💐');render();return renderShop()}
+    if(act==='giftBox'){const fm=fromMenu;closeGarden(false);setTimeout(()=>{try{window.Feed?.open('main',{fromMenu:fm,box:'in'})}catch{}},180);return}
     if(act==='giveBouquet'||act==='toFeed'){const fm=fromMenu;closeGarden(false);setTimeout(()=>{try{window.Feed?.open('main',{fromMenu:fm,mode:act==='giveBouquet'?'gift':'feed'})}catch{}},180);return}
     if(act==='sell'||act==='buyfood'||act==='cook'||act==='exchange')return market(act,a.dataset.id,+a.dataset.n||1);
     if(act==='visitAccept')return resolveVisit(true);
@@ -710,6 +715,22 @@ function card(it,btn){
   return `<div class="gd-card"><div class="gd-card-art${it.tall?' tall':''}">${artHtml(it)}</div><div class="gd-card-name">${esc(itemName(it))}</div><div class="gd-card-meta">${owned?L(`Owned ${owned}`,`已拥有 ${owned}`):(it.tall?L('Tree','树木'):'&nbsp;')}</div>${btn}</div>`;
 }
 const priceBtn=(price,attrs,label)=>`<button type="button" class="gd-buy${available()<price?' poor':''}" ${attrs}>${label||`✓ ${price}`}</button>`;
+/* market and kitchen bodies — also shown inside Treats & Gifts (inFeed) */
+function marketBody(){
+    const S=MINE,ks=Object.keys(S.pantry).filter(k=>S.pantry[k]>0),maxEx=Math.floor((S.gold||0)/GOLD_PER_CHECK);
+    return `<div class="gd-market">
+      <section><div class="gd-label">${L('SELL','卖出')}</div>${ks.length?`<div class="gd-goods">${ks.map(k=>`<div class="gd-goodrow"><span class="gd-goodico">${GOODS[k].e}</span><span><strong>${esc(goodName(k))}</strong><small>×${S.pantry[k]} · 🪙${GOODS[k].sell}</small></span><button type="button" class="gd-buy" data-gd="sell" data-id="${k}" data-n="1">${L('Sell 1','卖 1 个')}</button>${S.pantry[k]>1?`<button type="button" class="gd-btn" data-gd="sell" data-id="${k}" data-n="${S.pantry[k]}">${L('All','全部')} 🪙${GOODS[k].sell*S.pantry[k]}</button>`:''}</div>`).join('')}</div>`:`<p class="gd-note">${L('Nothing to sell yet — plant crops and harvest them.','还没有可卖的东西——种点作物收成吧。')}</p>`}</section>
+      <section><div class="gd-label">${L('BUY WITH GOLD','用金币买')}</div><div class="gd-goods gd-goods-grid">${Object.entries(GOODS).filter(([,g])=>g.buy).map(([k,g])=>`<button type="button" class="gd-goodbuy${(S.gold||0)<g.buy?' poor':''}" data-gd="buyfood" data-id="${k}"><span>${g.e}</span><strong>${esc(goodName(k))}</strong><small>🪙${g.buy}</small></button>`).join('')}</div></section>
+      <section><div class="gd-label">${L('EXCHANGE','兑换')}</div><div class="gd-goodrow"><span class="gd-goodico">🪙</span><span><strong>${GOLD_PER_CHECK} 🪙 → 1 ✓</strong><small>${L(`You have 🪙${fmt(S.gold||0)}`,`你有 🪙${fmt(S.gold||0)}`)}</small></span><button type="button" class="gd-buy" data-gd="exchange" data-n="1"${maxEx<1?' disabled':''}>${L('Exchange 1','换 1 个')}</button>${maxEx>1?`<button type="button" class="gd-btn" data-gd="exchange" data-n="${maxEx}">${L(`All (${maxEx} ✓)`,`全部（${maxEx} ✓）`)}</button>`:''}</div></section>
+    </div>`;
+}
+function kitchenBody(inFeed){
+    const S=MINE,fl=Object.keys(S.pantry).filter(k=>GOODS[k]?.flower&&S.pantry[k]>0);
+    for(const k of Object.keys(bq))if(!fl.includes(k)||bq[k]>S.pantry[k])delete bq[k];
+    const tot=Object.values(bq).reduce((a,b)=>a+b,0);
+    const bouquet=`<section class="gd-bouquet"><div class="gd-label">💐 ${L('BOUQUET','花束')}</div><p class="gd-note">${L(`Pick at least ${BOUQUET_MIN} flowers.`,`至少选 ${BOUQUET_MIN} 朵花。`)} ${S.pantry.bouquet?L(`You have ${S.pantry.bouquet} bouquet(s).`,`你有 ${S.pantry.bouquet} 束花。`):''}</p>${fl.length?`<div class="gd-bq-picks">${fl.map(k=>`<span class="gd-bq-pick"><span>${GOODS[k].e}</span><button type="button" class="gd-icon" data-gd="bq" data-id="${k}" data-d="-1"${!bq[k]?' disabled':''}>−</button><b>${bq[k]||0}/${S.pantry[k]}</b><button type="button" class="gd-icon" data-gd="bq" data-id="${k}" data-d="1"${(bq[k]||0)>=S.pantry[k]?' disabled':''}>＋</button></span>`).join('')}</div>`:`<p class="gd-note">${L('No flowers yet — plant flowers and harvest them every 2 days.','还没有花——种花，每 2 天能收一次。')}</p>`}<div class="gd-row2"><button type="button" class="gd-buy" data-gd="makeBouquet"${tot<BOUQUET_MIN?' disabled':''}>💐 ${L(`Make a bouquet (${tot})`,`扎一束（${tot} 朵）`)}</button>${S.pantry.bouquet?`<button type="button" class="gd-btn" data-gd="giveBouquet">🎁 ${esc(L(`Give to ${cname()}`,`送给${cname()}`))}</button>`:''}</div></section>`;
+    return bouquet+`<p class="gd-note gd-note-top">${L('Cook what you harvested. Missing an egg or milk? Buy it in the Market.','用收成的作物做吃的。缺鸡蛋或牛奶，可以去市场买。')}</p><div class="gd-cards gd-recipes">${RECIPES.map(r=>{const ok=Object.entries(r.need).every(([k,n])=>(S.pantry[k]||0)>=n);return `<div class="gd-card"><div class="gd-card-art gd-food-art">${GOODS[r.id].e}</div><div class="gd-card-name">${esc(goodName(r.id))}</div><div class="gd-card-meta gd-need">${Object.entries(r.need).map(([k,n])=>`<span class="${(S.pantry[k]||0)>=n?'ok':'no'}">${GOODS[k].e}${S.pantry[k]||0}/${n}</span>`).join(' ')}</div><button type="button" class="gd-buy${ok?'':' poor'}" data-gd="cook" data-id="${r.id}">${L('Cook','制作')}${S.pantry[r.id]?` · ${L('have','已有')} ${S.pantry[r.id]}`:''}</button></div>`}).join('')}</div>`;
+}
 function renderShop(){
   const s=root.querySelector('#gdShop'),isChar=view==='char';
   let body='';
@@ -719,18 +740,9 @@ function renderShop(){
   }else if(tab==='crops'){
     body=`<p class="gd-note gd-note-top">${L(`Crops ripen every 24 hours. Water (✓${WATER_COST}) = 6 h sooner, fertiliser (✓${FERT_COST}) = 12 h sooner, once each per harvest.`,`作物每 24 小时成熟一次。浇水（✓${WATER_COST}）提前 6 小时，施肥（✓${FERT_COST}）提前 12 小时，每轮各一次。`)}</p><div class="gd-cards">${CATALOG.filter(x=>x.crop&&!GOODS[x.crop.y].flower).map(it=>card(it,priceBtn(it.price,`data-gd="buy" data-id="${it.id}"`)).replace('<div class="gd-card-meta">',`<div class="gd-card-meta">${GOODS[it.crop.y].e}×${it.crop.n}/24h · `)).join('')}</div>`;
   }else if(tab==='market'){
-    const S=MINE,ks=Object.keys(S.pantry).filter(k=>S.pantry[k]>0),maxEx=Math.floor((S.gold||0)/GOLD_PER_CHECK);
-    body=`<div class="gd-market">
-      <section><div class="gd-label">${L('SELL','卖出')}</div>${ks.length?`<div class="gd-goods">${ks.map(k=>`<div class="gd-goodrow"><span class="gd-goodico">${GOODS[k].e}</span><span><strong>${esc(goodName(k))}</strong><small>×${S.pantry[k]} · 🪙${GOODS[k].sell}</small></span><button type="button" class="gd-buy" data-gd="sell" data-id="${k}" data-n="1">${L('Sell 1','卖 1 个')}</button>${S.pantry[k]>1?`<button type="button" class="gd-btn" data-gd="sell" data-id="${k}" data-n="${S.pantry[k]}">${L('All','全部')} 🪙${GOODS[k].sell*S.pantry[k]}</button>`:''}</div>`).join('')}</div>`:`<p class="gd-note">${L('Nothing to sell yet — plant crops and harvest them.','还没有可卖的东西——种点作物收成吧。')}</p>`}</section>
-      <section><div class="gd-label">${L('BUY WITH GOLD','用金币买')}</div><div class="gd-goods gd-goods-grid">${Object.entries(GOODS).filter(([,g])=>g.buy).map(([k,g])=>`<button type="button" class="gd-goodbuy${(S.gold||0)<g.buy?' poor':''}" data-gd="buyfood" data-id="${k}"><span>${g.e}</span><strong>${esc(goodName(k))}</strong><small>🪙${g.buy}</small></button>`).join('')}</div></section>
-      <section><div class="gd-label">${L('EXCHANGE','兑换')}</div><div class="gd-goodrow"><span class="gd-goodico">🪙</span><span><strong>${GOLD_PER_CHECK} 🪙 → 1 ✓</strong><small>${L(`You have 🪙${fmt(S.gold||0)}`,`你有 🪙${fmt(S.gold||0)}`)}</small></span><button type="button" class="gd-buy" data-gd="exchange" data-n="1"${maxEx<1?' disabled':''}>${L('Exchange 1','换 1 个')}</button>${maxEx>1?`<button type="button" class="gd-btn" data-gd="exchange" data-n="${maxEx}">${L(`All (${maxEx} ✓)`,`全部（${maxEx} ✓）`)}</button>`:''}</div></section>
-    </div>`;
+    body=marketBody();
   }else if(tab==='kitchen'){
-    const S=MINE,fl=Object.keys(S.pantry).filter(k=>GOODS[k]?.flower&&S.pantry[k]>0);
-    for(const k of Object.keys(bq))if(!fl.includes(k)||bq[k]>S.pantry[k])delete bq[k];
-    const tot=Object.values(bq).reduce((a,b)=>a+b,0);
-    const bouquet=`<section class="gd-bouquet"><div class="gd-label">💐 ${L('BOUQUET','花束')}</div><p class="gd-note">${L(`Pick at least ${BOUQUET_MIN} flowers.`,`至少选 ${BOUQUET_MIN} 朵花。`)} ${S.pantry.bouquet?L(`You have ${S.pantry.bouquet} bouquet(s).`,`你有 ${S.pantry.bouquet} 束花。`):''}</p>${fl.length?`<div class="gd-bq-picks">${fl.map(k=>`<span class="gd-bq-pick"><span>${GOODS[k].e}</span><button type="button" class="gd-icon" data-gd="bq" data-id="${k}" data-d="-1"${!bq[k]?' disabled':''}>−</button><b>${bq[k]||0}/${S.pantry[k]}</b><button type="button" class="gd-icon" data-gd="bq" data-id="${k}" data-d="1"${(bq[k]||0)>=S.pantry[k]?' disabled':''}>＋</button></span>`).join('')}</div>`:`<p class="gd-note">${L('No flowers yet — plant flowers and harvest them every 2 days.','还没有花——种花，每 2 天能收一次。')}</p>`}<div class="gd-row2"><button type="button" class="gd-buy" data-gd="makeBouquet"${tot<BOUQUET_MIN?' disabled':''}>💐 ${L(`Make a bouquet (${tot})`,`扎一束（${tot} 朵）`)}</button>${S.pantry.bouquet?`<button type="button" class="gd-btn" data-gd="giveBouquet">🎁 ${esc(L(`Give to ${cname()}`,`送给${cname()}`))}</button>`:''}</div></section>`;
-    body=bouquet+`<p class="gd-note gd-note-top">${L('Cook what you harvested. Missing an egg or milk? Buy it in the Market.','用收成的作物做吃的。缺鸡蛋或牛奶，可以去市场买。')}</p><div class="gd-cards gd-recipes">${RECIPES.map(r=>{const ok=Object.entries(r.need).every(([k,n])=>(S.pantry[k]||0)>=n);return `<div class="gd-card"><div class="gd-card-art gd-food-art">${GOODS[r.id].e}</div><div class="gd-card-name">${esc(goodName(r.id))}</div><div class="gd-card-meta gd-need">${Object.entries(r.need).map(([k,n])=>`<span class="${(S.pantry[k]||0)>=n?'ok':'no'}">${GOODS[k].e}${S.pantry[k]||0}/${n}</span>`).join(' ')}</div><button type="button" class="gd-buy${ok?'':' poor'}" data-gd="cook" data-id="${r.id}">${L('Cook','制作')}${S.pantry[r.id]?` · ${L('have','已有')} ${S.pantry[r.id]}`:''}</button></div>`}).join('')}</div>`;
+    body=kitchenBody(false);
   }else if(tab==='fences'){
     body=`<div class="gd-cards wide">${FENCES.map(f=>{const own=G.fences.includes(f.id),cur=G.fence===f.id;const art=FENCE_ART[f.id];
       return `<div class="gd-card"><div class="gd-card-art fence" style="--gd-fh:url(&quot;data:image/svg+xml,${encodeURIComponent(art.h)}&quot;)"></div><div class="gd-card-name">${L(f.en,f.cn)}</div><div class="gd-card-meta">${cur?L('In use','使用中'):own?L('Owned','已拥有'):'&nbsp;'}</div>${cur?`<button type="button" class="gd-buy done" disabled>${L('Using','使用中')}</button>`:own?`<button type="button" class="gd-buy" data-gd="fence" data-id="${f.id}">${L('Use','使用')}</button>`:priceBtn(f.price,`data-gd="fence" data-id="${f.id}"`)}</div>`}).join('')}</div>`;
@@ -761,6 +773,16 @@ function renderShop(){
   s.innerHTML=`<div class="gd-shop-head"><div><div class="gd-label">${isChar?esc(L(`${cname().toUpperCase()}'S SHOP`,`${cname()}的商城`)):L('GARDEN SHOP','花园商城')}</div><strong>${isChar?esc(L(`Spend ${cname()}'s ✓ — as a suggestion`,`用${cname()}的 ✓ 兑换（作为建议）`)):L('Trade completed tasks for plants','用已完成事项兑换植物')}</strong></div>${!isChar?`<span class="gd-coin gd-coin-gold">🪙 ${fmt(MINE.gold||0)}</span>`:''}<span class="gd-coin" id="gdShopWallet">✓ ${fmt(available())}</span><button type="button" class="gd-icon" data-gd="shopClose" aria-label="${L('Close shop','关闭商城')}">×</button></div>
   <nav class="gd-tabs">${TABS.filter(([id])=>!(isChar&&(id==='market'||id==='kitchen'))).map(([id,en,cn])=>`<button type="button" class="${tab===id?'on':''}" data-gd="tab" data-tab="${id}">${L(en,cn)}</button>`).join('')}</nav>
   <div class="gd-shop-body">${body}</div>`;
+}
+/* actions from the market / kitchen panel inside Treats & Gifts; returns true when handled */
+function panelAct(act,ds){
+  if(act==='bq'){const k=ds.id;bq[k]=Math.max(0,Math.min(MINE.pantry[k]||0,(bq[k]||0)+Number(ds.d)));if(!bq[k])delete bq[k];return true}
+  if(act==='makeBouquet'){if(!applyOp(MINE,{t:'bouquet',picks:{...bq}})){if(lastErr)say(lastErr,lastErr);return true}bq={};persistMine();celebrate();say('A bouquet! 💐','扎好了一束花 💐');if(isOpen())render();return true}
+  if(act==='sell'||act==='buyfood'||act==='cook'||act==='exchange'){const id=ds.id,n=+ds.n||1;const op=act==='sell'?{t:'sell',id,n}:act==='buyfood'?{t:'buyfood',id}:act==='cook'?{t:'cook',id}:{t:'exchange',n};
+    if(!applyOp(MINE,op)){if(lastErr)say(lastErr,lastErr);return true}persistMine();if(view==='mine')G=MINE;
+    if(act==='cook')say(`Made ${goodName(id)}!`,`做好了${GOODS[id].e}${goodName(id)}！`);else if(act==='exchange')say(`+${n} ✓`,`换到 ${n} ✓`);else if(act==='buyfood')say(`Bought ${goodName(id)}.`,`买了${GOODS[id].e}${goodName(id)}。`);else say(`Sold for 🪙${fmt(GOODS[id].sell*n)}.`,`卖了 🪙${fmt(GOODS[id].sell*n)}。`);
+    if(isOpen())render();return true}
+  return false;
 }
 function celebrate(){try{confetti()}catch{}}
 const suggested=()=>view==='char'?L(' (suggestion)','（建议）'):'';
@@ -1134,5 +1156,6 @@ window.DeadlineGarden={open:openGarden,close:closeGarden,refresh:()=>{recompute(
   charPantry:()=>({...CHARB.pantry}),isEdible,
   buyFood:id=>{if(!applyOp(MINE,{t:'buyfood',id})){if(lastErr)say(lastErr,lastErr);return false}persistMine();if(view==='mine')G=MINE;if(isOpen())render();return true},
   gold:()=>MINE.gold||0,
-  giftToChar:id=>{if(!(MINE.pantry[id]>0))return false;MINE.pantry[id]--;if(!MINE.pantry[id])delete MINE.pantry[id];CHARB.pantry[id]=(CHARB.pantry[id]||0)+1;persistMine();persistChar(true);recompute();if(isOpen())render();return true},_autoPlant:()=>{CHARB.lastAuto='';return maybeAutoPlant()},_visit:()=>maybeVisit(true)};
+  giftToChar:id=>{if(!(MINE.pantry[id]>0))return false;MINE.pantry[id]--;if(!MINE.pantry[id])delete MINE.pantry[id];MINE.gifts.push({id:uid(),dir:'out',item:id,cid:'main',at:Date.now()});MINE.gifts=MINE.gifts.slice(-300);persistMine();recompute();if(isOpen())render();return true},
+  gifts:()=>MINE.gifts.map(x=>({...x})),panelHtml:tab=>tab==='kitchen'?kitchenBody(true):marketBody(),panelAct,_autoPlant:()=>{CHARB.lastAuto='';return maybeAutoPlant()},_visit:()=>maybeVisit(true)};
 })();

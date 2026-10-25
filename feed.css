@@ -143,3 +143,29 @@ html[data-theme] .fd-root .fd-quick .gd-coin-gold{background:#fff6dc!important;c
 @media(max-width:560px){.fd-quick .gd-btn span{display:none}.fd-quick .gd-btn{padding:9px 11px}}
 .sb-feed-list{display:flex!important;flex-wrap:wrap;gap:8px;margin-top:10px}
 .sb-feed-who{width:auto!important;flex:none}
+/* ---- v4: market / kitchen / food shop tabs, gift box ---- */
+.fd-shopwrap.still,.fd-shopwrap.still .fd-shop{animation:none}
+.fd-shoptabs{padding:0 18px 10px;overflow-x:auto;scrollbar-width:none}
+.fd-shoptabs .fd-modes{flex-wrap:nowrap}
+.fd-shoptabs .fd-modes button{white-space:nowrap}
+.fd-shop .gd-market{display:grid;gap:14px}
+.fd-shop .gd-cards{margin-top:6px}
+.fd-giftgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:8px}
+.fd-giftitem{display:grid;justify-items:center;gap:2px;padding:12px 6px;border-radius:16px;background:#fff;box-shadow:0 3px 10px rgba(80,50,30,.06);text-align:center}
+.fd-giftitem span{font-size:30px}.fd-giftitem strong{font-size:12px}.fd-giftitem small{font-size:11px;font-weight:800}
+.fd-gifthist{list-style:none;margin:0;padding:0;display:grid;gap:4px}
+.fd-gifthist li{display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:12px;background:#fbf3ea;font-size:13px}
+.fd-gifthist li b{flex:1;font-weight:700}.fd-gifthist li small{font-size:11px}
+html[data-theme] .fd-root .fd-giftitem{background:#fff!important;color:#3a2c22!important}
+html[data-theme] .fd-root .fd-gifthist li{background:#fbf3ea!important;color:#3a2c22!important}
+/* garden market & kitchen pieces inside the panel: same light look in every theme */
+html[data-theme] .fd-root .fd-shop .gd-buy{color:#fff!important;background:#3f7650!important}
+html[data-theme] .fd-root .fd-shop .gd-buy.poor{color:#5f6e64!important;background:#e3e8e0!important}
+html[data-theme] .fd-root .fd-shop .gd-buy:disabled{color:#5f6e64!important;background:#eef2eb!important}
+html[data-theme] .fd-root .fd-shop :is(.gd-goodrow,.gd-goodbuy,.gd-card){background:#fff!important;color:#3a2c22!important;box-shadow:0 3px 10px rgba(80,50,30,.06)!important;backdrop-filter:none!important}
+html[data-theme] .fd-root .fd-shop .gd-need .ok{background:#e6f3df!important}
+html[data-theme] .fd-root .fd-shop .gd-need .no{background:#fbe9e7!important}
+html[data-theme] .fd-root .fd-shop .gd-bq-pick{background:#f7f0f4!important}
+html[data-theme] .fd-root .fd-shop .gd-card-meta{color:#7b6758!important}
+@media(max-width:560px){.fd-head{gap:6px}.fd-title{min-width:0}.fd-title strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.fd-head .gd-back{padding:9px 10px}.fd-quick{gap:5px;flex:none}.fd-quick .gd-btn{padding:8px 9px}.fd-quick .gd-coin{padding:5px 8px;font-size:12px}}
+@media(max-width:400px){.fd-head .gd-back{font-size:0;padding:9px 11px}.fd-head .gd-back span{font-size:16px}}
