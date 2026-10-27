@@ -109,10 +109,42 @@ async function idbReplaceAll(items){
   });
 }
 async function collectGardenState(){
-  return {version:1,tasks:await idbGetAll(),holidays:[...holidays],reminderRules:reminderRules.map(r=>({...r})),customize:{...customize},courseIconPrefs:{...courseIconPrefs},theme:document.documentElement.dataset.theme||'green',calendarDisplay:{...calendarDisplay},calendarView,checklistCollapsed:localStorage.getItem(CHECKLIST_COLLAPSE_KEY)==='1',loki:{url:lokiCfg.url,token:lokiCfg.token,color:lokiCfg.color,emoji:lokiCfg.emoji},updatedAt:new Date().toISOString()};
+  return {version:1,tasks:await idbGetAll(),holidays:[...holidays],reminderRules:reminderRules.map(r=>({...r})),customize:{...customize},courseIconPrefs:{...courseIconPrefs},theme:document.documentElement.dataset.theme||'green',calendarDisplay:{...calendarDisplay},calendarView,checklistCollapsed:localStorage.getItem(CHECKLIST_COLLAPSE_KEY)==='1',loki:{url:lokiCfg.url,token:lokiCfg.token,color:lokiCfg.color,emoji:lokiCfg.emoji},deletedTasks:{...deletedTasks},updatedAt:new Date().toISOString()};
 }
+/* ---- task sync: merge per task instead of "whoever saved last wins" ----
+   Each task carries updatedAt (stamped on every local write); deletions leave a tombstone.
+   A device that opens with an old copy can no longer wipe out a change made elsewhere. */
+const DELETED_TASKS_KEY='deadline-garden-deleted-tasks-v1',TOMBSTONE_DAYS=90;
+let deletedTasks={};try{deletedTasks=JSON.parse(localStorage.getItem(DELETED_TASKS_KEY)||'{}')||{}}catch{deletedTasks={}}
+function saveDeletedTasks(){const cut=Date.now()-TOMBSTONE_DAYS*864e5;for(const k in deletedTasks)if(!(deletedTasks[k]>cut))delete deletedTasks[k];try{localStorage.setItem(DELETED_TASKS_KEY,JSON.stringify(deletedTasks))}catch{}}
+function markTaskDeleted(id){deletedTasks[String(id)]=Date.now();saveDeletedTasks()}
+const taskStamp=t=>Number(t&&(t.updatedAt||t.createdAt))||0;
+function mergeTaskLists(local,remote,remoteDeleted){
+  const tomb={...deletedTasks};for(const [k,v] of Object.entries(remoteDeleted||{}))if(Number(v)>(tomb[k]||0))tomb[k]=Number(v);
+  const byId=new Map();
+  for(const t of remote||[])if(t&&t.id!=null)byId.set(String(t.id),t);
+  for(const t of local||[]){if(!t||t.id==null)continue;const k=String(t.id),r=byId.get(k);if(!r||taskStamp(t)>taskStamp(r))byId.set(k,t)}
+  for(const [k,t] of byId)if(tomb[k]&&tomb[k]>=taskStamp(t))byId.delete(k);
+  deletedTasks=tomb;saveDeletedTasks();
+  return [...byId.values()];
+}
+const taskSig=list=>JSON.stringify((list||[]).map(t=>[String(t.id),taskStamp(t),!!t.done]).sort((a,b)=>a[0]<b[0]?-1:1));
+let cloudUploading=null;
 async function uploadGardenState(){
   if(!supabaseClient||!currentCloudUser||cloudApplying)return;
+  if(cloudUploading)return cloudUploading.then(()=>uploadGardenState());
+  cloudUploading=(async()=>{
+    // read before write: if another device saved since we last looked, merge that in first
+    const {data,error}=await supabaseClient.from('garden_state').select('state,updated_at').eq('user_id',currentCloudUser.id).maybeSingle();
+    if(error){console.error('Cloud read before save failed:',error);return}
+    const remoteAt=data?Date.parse(data.updated_at||data.state?.updatedAt||'')||0:0;
+    if(data?.state&&remoteAt>lastCloudUpdatedAt){lastCloudUpdatedAt=remoteAt;await applyCloudState(data.state,{noPush:true})}
+    await uploadGardenStateNow();
+  })().finally(()=>{cloudUploading=null});
+  return cloudUploading;
+}
+async function uploadGardenStateNow(){
+  if(!supabaseClient||!currentCloudUser)return;
   const state=await collectGardenState();
   const updatedAt=new Date().toISOString();
   const {error}=await supabaseClient.from('garden_state').upsert({user_id:currentCloudUser.id,state,updated_at:updatedAt},{onConflict:'user_id'});
@@ -121,13 +153,16 @@ async function uploadGardenState(){
 }
 function queueCloudSync(){
   if(!supabaseClient||!currentCloudUser||cloudApplying)return;
-  clearTimeout(cloudSyncTimer);cloudSyncTimer=setTimeout(()=>uploadGardenState().catch(console.error),500);
+  clearTimeout(cloudSyncTimer);cloudSyncTimer=setTimeout(()=>{cloudSyncTimer=null;uploadGardenState().catch(console.error)},500);
 }
+function flushCloudSync(){if(cloudSyncTimer){clearTimeout(cloudSyncTimer);cloudSyncTimer=null;uploadGardenState().catch(console.error)}}
 async function applyCloudState(state){
   if(!state||!Array.isArray(state.tasks))return;
-  cloudApplying=true;
+  cloudApplying=true;let pushTasks=false;
   try{
-    await idbReplaceAll(state.tasks);
+    const merged=mergeTaskLists(await idbGetAll(),state.tasks,state.deletedTasks);
+    pushTasks=taskSig(merged)!==taskSig(state.tasks);
+    await idbReplaceAll(merged);
     if(Array.isArray(state.holidays)){holidays=state.holidays;try{localStorage.setItem(HOLIDAY_KEY,JSON.stringify(holidays))}catch{}}
     if(Array.isArray(state.reminderRules)){reminderRules=normalizeReminderRules(state.reminderRules);try{localStorage.setItem(REMINDER_RULES_KEY,JSON.stringify(reminderRules))}catch{}}
     if(state.customize&&typeof state.customize==='object'){Object.assign(customize,state.customize);try{localStorage.setItem(CUSTOMIZE_KEY,JSON.stringify(customize))}catch{}}
@@ -147,13 +182,14 @@ async function applyCloudState(state){
       if(!latest||latest.done){eventCompletionPromptOpen=false;eventCompletionPromptTaskId=null;closeModal()}
     }
   }finally{cloudApplying=false}
+  if(pushTasks&&!(arguments[1]&&arguments[1].noPush))setTimeout(()=>uploadGardenState().catch(console.error),300);
 }
 async function pollCloudState(){
-  if(!supabaseClient||!currentCloudUser||cloudApplying)return;
+  if(!supabaseClient||!currentCloudUser||cloudApplying||cloudUploading)return;
   const {data,error}=await supabaseClient.from('garden_state').select('state,updated_at').eq('user_id',currentCloudUser.id).maybeSingle();
   if(error||!data?.state)return;
   const remoteAt=Date.parse(data.updated_at||data.state?.updatedAt||'')||0;
-  if(remoteAt>lastCloudUpdatedAt+250){
+  if(remoteAt>lastCloudUpdatedAt){
     lastCloudUpdatedAt=remoteAt;
     await applyCloudState(data.state);
   }
@@ -163,6 +199,9 @@ function startCloudPolling(){
   cloudPollTimer=setInterval(()=>pollCloudState().catch(console.error),5000);
 }
 function stopCloudPolling(){clearInterval(cloudPollTimer);cloudPollTimer=null}
+document.addEventListener('visibilitychange',()=>{if(document.hidden)flushCloudSync();else pollCloudState().catch(console.error)});
+window.addEventListener('pagehide',flushCloudSync);
+window.addEventListener('focus',()=>pollCloudState().catch(console.error));
 async function syncAccountState(user){
   currentCloudUser=user||null;updateAccountButton(currentCloudUser);
   if(!currentCloudUser){stopCloudPolling();return}
@@ -224,8 +263,8 @@ async function submitAuth(){
 
 function openDB(){return new Promise((resolve,reject)=>{const r=indexedDB.open(DB_NAME,DB_VERSION);r.onupgradeneeded=()=>{const d=r.result;if(!d.objectStoreNames.contains(STORE))d.createObjectStore(STORE,{keyPath:'id'});};r.onsuccess=()=>{db=r.result;resolve(db)};r.onerror=()=>reject(r.error)})}
 function idbGetAll(){return new Promise((resolve,reject)=>{const r=db.transaction(STORE).objectStore(STORE).getAll();r.onsuccess=()=>resolve(r.result||[]);r.onerror=()=>reject(r.error)})}
-function idbPut(t){return new Promise((resolve,reject)=>{const r=db.transaction(STORE,'readwrite').objectStore(STORE).put(t);r.onsuccess=()=>{resolve();queueCloudSync()};r.onerror=()=>reject(r.error)})}
-function idbDelete(id){return new Promise((resolve,reject)=>{const r=db.transaction(STORE,'readwrite').objectStore(STORE).delete(id);r.onsuccess=()=>{resolve();queueCloudSync()};r.onerror=()=>reject(r.error)})}
+function idbPut(t){if(t&&typeof t==='object')t.updatedAt=Math.max(Date.now(),(t.updatedAt||0)+1);return new Promise((resolve,reject)=>{const r=db.transaction(STORE,'readwrite').objectStore(STORE).put(t);r.onsuccess=()=>{resolve();queueCloudSync()};r.onerror=()=>reject(r.error)})}
+function idbDelete(id){markTaskDeleted(id);return new Promise((resolve,reject)=>{const r=db.transaction(STORE,'readwrite').objectStore(STORE).delete(id);r.onsuccess=()=>{resolve();queueCloudSync()};r.onerror=()=>reject(r.error)})}
 
 function isDurationEvent(t){return t?.eventType==='duration'}
 function eventStartMs(t){if(!t.date)return Infinity;return new Date(`${t.date}T${isDurationEvent(t)?(t.startTime||'00:00'):(t.time||'23:59')}:00`).getTime()}
