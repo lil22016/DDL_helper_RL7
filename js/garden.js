@@ -695,6 +695,8 @@ function onClick(e){
     if(act==='sell'||act==='buyfood'||act==='cook'||act==='exchange')return market(act,a.dataset.id,+a.dataset.n||1);
     if(act==='visitAccept')return resolveVisit(true);
     if(act==='visitDecline')return resolveVisit(false);
+    if(act==='visitChat'){const v=MINE.visit;if(!v||busy)return;const set=visitChecked();visitPicks={vid:v.id,set};const ops=v.ops.filter((_,i)=>set.has(i));chatAbout={vid:v.id,ops:ops.length?ops:[...v.ops],all:!ops.length||ops.length===v.ops.length,say:v.say||''};closeSheet();return openChat()}
+    if(act==='chatAboutClear'){chatAbout=null;return renderChat()}
     return;
   }
   if(e.target.closest('[data-placed],[data-inv]'))return; // handled by pointer events
@@ -877,8 +879,8 @@ function renderSheet(){
     }else{
       s.innerHTML=sheetHead(L('VISIT','来访'),L(`${nm}'s suggestions for your garden`,`${nm}给你花园的建议`))+`<div class="gd-shop-body gd-form">
         ${v.say?`<div class="gd-quote"><span class="gd-ava">${esc(cemoji())}</span><p>${esc(v.say)}</p></div>`:''}
-        <div class="gd-visit-grid"><ol class="gd-ops gd-checks">${v.ops.map((o,i)=>`<li><label><input type="checkbox" data-visit-op="${i}" checked> ${esc(opTextHuman(o))}</label></li>`).join('')}</ol><div class="gd-preview"><div class="gd-label">${L('PREVIEW','预览')}</div><div id="gdVisitPreview"></div></div></div>
-        <div class="gd-row2"><button type="button" class="gd-buy gd-wide" data-gd="visitAccept"${busy?' disabled':''}>${L('Accept selected','接受勾选的')}</button><button type="button" class="gd-btn gd-wide" data-gd="visitDecline"${busy?' disabled':''}>${L('Keep mine as is','都不要')}</button></div>
+        <div class="gd-visit-grid"><ol class="gd-ops gd-checks">${v.ops.map((o,i)=>`<li><label><input type="checkbox" data-visit-op="${i}"${visitPicks&&visitPicks.vid===v.id&&!visitPicks.set.has(i)?'':' checked'}> <span>${esc(opTextHuman(o))}<em class="gd-op-warn" data-visit-warn="${i}"></em></span></label></li>`).join('')}</ol><div class="gd-preview"><div class="gd-label">${L('PREVIEW','预览')}</div><div id="gdVisitPreview"></div><div class="gd-pv-sum" id="gdVisitSum"></div></div></div>
+        <div class="gd-row3"><button type="button" class="gd-buy" data-gd="visitAccept"${busy?' disabled':''}>${L('Accept selected','接受勾选的')}</button><button type="button" class="gd-btn" data-gd="visitChat"${busy?' disabled':''}>💬 ${L(`Talk to ${nm} about these`,`就勾选的和${nm}聊聊`)}</button><button type="button" class="gd-btn" data-gd="visitDecline"${busy?' disabled':''}>${L('Keep mine as is','都不要')}</button></div>
       </div>`;
       renderVisitPreview();
     }
@@ -898,16 +900,33 @@ function renderSheet(){
     </div>`;
   }
 }
-function staticPlot(a,cell){
+function staticPlot(a,cell,marks={}){
   const f=FENCE_ART[a.fence]||FENCE_ART.wood,ft=Math.max(6,Math.round(cell*.33));let h='',p='';
-  for(let r=0;r<a.rows;r++)for(let c=0;c<a.cols;c++){h+=`<div class="gd-cell${(r+c)%2?' alt':''}"></div>`;const v=a.cells[`${r},${c}`],it=v&&item(v.item);if(it)p+=`<div class="gd-slot" style="grid-row:${r+1};grid-column:${c+1};z-index:${it.ground?1:r*2+10}"><div class="gd-item${it.tall?' tall':''}${it.ground?' ground':''}${v.flip?' flip':''}">${artHtml(it)}</div></div>`}
+  for(let r=0;r<a.rows;r++)for(let c=0;c<a.cols;c++){const mk=marks[`${r},${c}`];h+=`<div class="gd-cell${(r+c)%2?' alt':''}${mk?' pv-'+mk:''}"></div>`;const v=a.cells[`${r},${c}`],it=v&&item(v.item);if(it)p+=`<div class="gd-slot${mk?' pv-'+mk:''}" style="grid-row:${r+1};grid-column:${c+1};z-index:${it.ground?1:r*2+10}"><div class="gd-item${it.tall?' tall':''}${it.ground?' ground':''}${v.flip?' flip':''}">${artHtml(it)}</div></div>`}
   return `<div class="gd-plot gd-static" data-fence="${esc(a.fence)}" style="--gd-ft:${ft}px;--gd-cell:${cell}px;--gd-cols:${a.cols};--gd-rows:${a.rows};--gd-fh:url(&quot;data:image/svg+xml,${encodeURIComponent(f.h)}&quot;);--gd-fv:url(&quot;data:image/svg+xml,${encodeURIComponent(f.v)}&quot;)"><div class="gd-fence gd-fence-top"></div><div class="gd-fence gd-fence-left"></div><div class="gd-fence gd-fence-right"></div><div class="gd-grid" style="--gd-cols:${a.cols}">${h}</div><div class="gd-items" style="--gd-cols:${a.cols};--gd-rows:${a.rows}">${p}</div><div class="gd-fence gd-fence-bottom"></div></div>`;
 }
+let visitPicks=null; // remembers which boxes were ticked when you leave the sheet to chat
+const visitChecked=()=>new Set([...root.querySelectorAll('[data-visit-op]')].filter(x=>x.checked).map(x=>+x.dataset.visitOp));
+/* What the ticked suggestions would do. The picture ignores the ✓ limit (so you always see the idea);
+   a second, real run marks the steps that wouldn't go through right now. */
+function visitSim(picks){
+  const v=MINE.visit,real=clone(MINE),pic=clone(MINE),fail={},marks={};
+  pic.boughtChecks=(pic.boughtChecks||0)+1e6;const before=availOf(pic);
+  v.ops.forEach((op,i)=>{
+    if(!picks.has(i))return;
+    if(!applyOp(real,op))fail[i]=op.t==='place'&&item(op.id)&&!(real.inv[op.id]>0)?L(`not in your bag — tick “Buy ${itemName(item(op.id))}” too`,`背包里没有，要连「兑换${itemName(item(op.id))}」一起勾`):(lastErr||L('can’t be done','做不到'));
+    if(op.t==='place'&&item(op.id)&&!(pic.inv[op.id]>0))pic.inv[op.id]=1;
+    if(applyOp(pic,op)){const k=op.t==='place'||op.t==='move'?op.to:op.at;if(k)marks[k]=fail[i]?'short':'new'}
+  });
+  return {pic,marks,fail,cost:r1(before-availOf(pic))};
+}
 function renderVisitPreview(){
-  const box=root.querySelector('#gdVisitPreview'),v=MINE.visit;if(!box||!v)return;
-  const picks=new Set([...root.querySelectorAll('[data-visit-op]')].filter(x=>x.checked).map(x=>+x.dataset.visitOp));
-  const t=clone(MINE);v.ops.forEach((op,i)=>{if(picks.has(i))applyOp(t,op)});
-  box.innerHTML=staticPlot(t,Math.max(10,Math.floor(Math.min(320,window.innerWidth-80)/t.cols)));
+  const box=root.querySelector('#gdVisitPreview'),v=MINE.visit;if(!box||!v||v.kind!=='suggest')return;
+  const picks=visitChecked(),{pic,marks,fail,cost}=visitSim(picks),have=availOf(MINE);
+  box.innerHTML=staticPlot(pic,Math.max(10,Math.floor(Math.min(320,window.innerWidth-80)/pic.cols)),marks);
+  root.querySelectorAll('[data-visit-warn]').forEach(el=>{const i=+el.dataset.visitWarn;el.textContent=picks.has(i)&&fail[i]?` · ${fail[i]}`:''});
+  const sum=root.querySelector('#gdVisitSum'),nf=Object.keys(fail).length;
+  if(sum)sum.innerHTML=picks.size?`<span>${L('Ticked costs','勾选的共需')} <b>✓ ${fmt(cost)}</b> · ${L('you have','你有')} <b>✓ ${fmt(have)}</b></span>${nf?`<span class="gd-pv-bad">${L(`${nf} step${nf>1?'s':''} won’t go through yet (faded in the preview)`,`有 ${nf} 步暂时做不到（预览里是半透明的）`)}</span>`:''}`:`<span>${L('Nothing ticked — your garden stays as it is.','什么都没勾——花园保持原样。')}</span>`;
 }
 function opTextHuman(op){
   const nm=id=>itemName(item(id)),cell=k=>{const [r,c]=String(k).split(',');return L(`row ${+r+1}, col ${+c+1}`,`第 ${+r+1} 排第 ${+c+1} 列`)};
@@ -1058,7 +1077,7 @@ async function resolveVisit(accept){
 function showNews(){if(CHARB.news&&!CHARB.news.seen){bubble={text:CHARB.news.text,note:CHARB.news.note};CHARB.news.seen=true;persistChar(false)}}
 
 /* ---------- chat ---------- */
-let chatOpen=false,albumId='';
+let chatOpen=false,albumId='',chatAbout=null; // chatAbout: the suggestions your next message refers to
 function openChat(){chatOpen=true;const c=root.querySelector('#gdChat');c.classList.remove('hidden');root.classList.add('chat-open');requestAnimationFrame(()=>c.classList.add('open'));renderChat();setTimeout(()=>root.querySelector('#gdChatInput')?.focus(),50)}
 function closeChat(){if(!root)return;chatOpen=false;const c=root.querySelector('#gdChat');root.classList.remove('chat-open');if(!c)return;c.classList.remove('open');setTimeout(()=>{if(!chatOpen)c.classList.add('hidden')},220)}
 function renderChat(){
@@ -1066,16 +1085,19 @@ function renderChat(){
   let ai=false;try{ai=Char.hasAI()}catch{}
   c.innerHTML=`<div class="gd-chat-head"><span class="gd-ava">${esc(cemoji())}</span><div><strong>${nm}</strong><small>${ai?L('in character · uses your Garden API','按人设回复 · 使用 Garden 的 API'):L('no API — simple replies','未配置 API · 简单回复')}</small></div><button type="button" class="gd-icon" data-gd="chatClose" aria-label="${L('Close chat','关闭聊天')}">×</button></div>
   <div class="gd-chat-log" id="gdChatLog">${CHAT.msgs.length?'':`<p class="gd-chat-empty">${L(`Try: “Want to plant something now?”, “Put a tree in the back row”, or “Can I borrow 2 ✓?”`,`试试：“现在想种点什么吗？”“在后排种棵树吧”或者“能借我 2 个 ✓ 吗？”`)}</p>`}${CHAT.msgs.slice(-60).map(m=>`<div class="gd-msg ${m.role==='user'?'me':'them'}"><p>${esc(m.text)}</p>${m.note?`<small>${esc(m.note)}</small>`:''}</div>`).join('')}${busy?`<div class="gd-msg them"><p class="gd-typing"><i></i><i></i><i></i></p></div>`:''}</div>
-  <div class="gd-chat-input"><textarea id="gdChatInput" rows="1" maxlength="400" placeholder="${L(`Message ${nm}…`,`给${nm}发消息…`)}">${esc(draft)}</textarea><button type="button" class="gd-btn gd-btn-primary" data-gd="chatSend"${busy?' disabled':''}>${L('Send','发送')}</button></div>`;
+  ${chatAbout&&MINE.visit&&MINE.visit.id===chatAbout.vid?`<div class="gd-chat-ref"><span>↩ ${chatAbout.all?L(`About all ${chatAbout.ops.length} of ${nm}’s suggestions`,`关于${nm}的全部 ${chatAbout.ops.length} 条建议`):`${L('About','关于')}: ${esc(chatAbout.ops.map(opTextHuman).join(' · '))}`}</span><button type="button" class="gd-icon" data-gd="chatAboutClear" aria-label="${L('Remove','移除')}">×</button></div>`:''}<div class="gd-chat-input"><textarea id="gdChatInput" rows="1" maxlength="400" placeholder="${L(`Message ${nm}…`,`给${nm}发消息…`)}">${esc(draft)}</textarea><button type="button" class="gd-btn gd-btn-primary" data-gd="chatSend"${busy?' disabled':''}>${L('Send','发送')}</button></div>`;
   const log=c.querySelector('#gdChatLog');log.scrollTop=log.scrollHeight;
   const ta=c.querySelector('#gdChatInput');ta.onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing){e.preventDefault();sendChat()}};
 }
 async function sendChat(){
   const ta=root.querySelector('#gdChatInput'),text=(ta?.value||'').trim();if(!text||busy)return;
   ta.value='';
-  CHAT.msgs.push({id:uid(),role:'user',text,at:Date.now()});saveChat();
+  const ab=chatAbout&&MINE.visit&&MINE.visit.id===chatAbout.vid?chatAbout:null;chatAbout=null;
+  let about=null;
+  if(ab){const t=clone(MINE);t.boughtChecks=(t.boughtChecks||0)+1e6;const b0=availOf(t);ab.ops.forEach(op=>{if(op.t==='place'&&item(op.id)&&!(t.inv[op.id]>0))t.inv[op.id]=1;applyOp(t,op)});about={said:ab.say,items:ab.ops.map(opTextAI),all:ab.all,cost:r1(b0-availOf(t))}}
+  CHAT.msgs.push({id:uid(),role:'user',text,note:ab?`↩ ${ab.all?L(`all ${ab.ops.length} suggestions`,`全部 ${ab.ops.length} 条建议`):ab.ops.map(opTextHuman).join(' · ')}`:'',at:Date.now()});saveChat();
   busy=L('typing','正在输入');renderChat();renderSocial();renderSay();
-  const ctx={message:text,history:CHAT.msgs.slice(-13,-1),where:view,garden:decorateCtx(CHARB),myGarden:{...decorateCtx(MINE),avail:availOf(MINE)},myAvail:availOf(MINE),debt:debt(),repay:MINE.repayOn};
+  const ctx={message:text,about,history:CHAT.msgs.slice(-13,-1),where:view,garden:decorateCtx(CHARB),myGarden:{...decorateCtx(MINE),avail:availOf(MINE)},myAvail:availOf(MINE),debt:debt(),repay:MINE.repayOn};
   let res;
   try{res=await Char.chat(ctx)}catch(e){busy='';CHAT.msgs.push({id:uid(),role:'char',text:failMsg(e),at:Date.now()});saveChat(false);render();return}
   const notes=[];

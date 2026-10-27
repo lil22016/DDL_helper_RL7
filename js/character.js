@@ -259,6 +259,7 @@ Empty cells: ${(g.empty||[]).join(' ')||'none'}.`;
 }
 function fallbackChat(c){
   const t=String(c.message||'');
+  if(c.about){if(/钱|不够|贵|买不起|money|afford|enough|expensive|broke|poor/i.test(t))return {reply:LR('Then earn a few more ✓ first — the suggestion will keep.','那就先多赚几个 ✓——建议放着不会跑。'),actions:null,lend:0};return {reply:LR('Noted. Take it or leave it — it’s your garden.','知道了。采不采纳随你，毕竟是你的花园。'),actions:null,lend:0}}
   if(/种|布置|装饰|花园|plant|garden|decorat|grow/i.test(t)){const plan=fallbackDecorate(c.garden);return {reply:plan.say,actions:plan,lend:0}}
   if(/借|lend|borrow/i.test(t)){const n=Math.max(1,Math.min(20,parseInt((t.match(/\d+/)||['2'])[0],10)||2));const r=fallbackLoan({amount:n,charAvail:c.garden.avail,debt:c.debt,repay:c.repay});return {reply:r.reply,actions:null,lend:r.agree?r.amount:0}}
   return {reply:LR('(No API is set up, so I only understand “plant something” or “lend me 2”.)','（还没配置 API，我现在只听得懂“种点东西”或者“借我 2 个”。）'),actions:null,lend:0};
@@ -270,7 +271,8 @@ async function chat(c){
 ${gardenText(c.garden)}
 ${c.myGarden?gardenText({...c.myGarden,who:`${userName()}'s garden (you can only SUGGEST changes there; their shop prices are the same)`}):''}
 ${userName()} has ${fmt(c.myAvail)} ✓ and owes you ${fmt(c.debt)} ✓. If you lend them ✓ they ${c.repay?'will pay it back from their next finished tasks':'won’t pay it back (a gift)'}.
-${hist?`Conversation so far:\n${hist}\n`:''}${userName()} now says: "${c.message}"
+${hist?`Conversation so far:\n${hist}\n`:''}${c.about?`This message is a reply to the suggestions you left for ${userName()}'s garden${c.about.said?` (you had said: "${c.about.said}")`:''}. They are referring ${c.about.all?'to all of them':'specifically to these ones'}: ${c.about.items.join('; ')}. Together those cost ${fmt(c.about.cost)} ✓; ${userName()} has ${fmt(c.myAvail)} ✓. If you want to revise your suggestion (cheaper, fewer, different), put the new full version in "suggestForThem" — it replaces the old one.
+`:''}${userName()} now says: "${c.message}"
 Answer in character (1-3 sentences). If you decide to plant, buy, move things or change your garden — because they asked, or because you feel like it — put it in "actions" (spend at most your balance; place bought items on empty cells). If they ask to borrow ✓ and you agree, set "lend" to the number (at most ${Math.floor(c.garden.avail)}). If they ask your opinion about THEIR garden or you want to rearrange it, put concrete steps in "suggestForThem" (they will accept or decline; buying there is paid with their ✓). Otherwise leave these empty and lend 0.
 JSON shape: {"reply":"...","actions":{"buy":[],"place":[{"id":"id","to":"r,c"}],"move":[{"from":"r,c","to":"r,c"}],"fence":"","expand":""},"lend":0,"suggestForThem":{"buy":[],"place":[],"move":[]}}`;
   const j=await askJSON(personaSystem(),user,{maxTokens:900});
