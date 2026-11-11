@@ -88,12 +88,12 @@ Your taste memory: so far ${food} has been ${tasteWords(t.s)} (eaten ${t.n} time
 Tastes are stable: don't flip without a reason. Things you dislike can slowly grow on you if you're fed them often; a favourite can get boring if you've had it too many times today.
 Decide whether you like it this time and react in character in one short sentence.
 JSON shape: {"like":true,"reply":"..."}`;
-  const j=await Char.askJSON(Char.personaSystem(pf),user,{maxTokens:200});
+  const j=await Char.askJSON(Char.personaSystem(pf),user,{maxTokens:600});
   const like=!!j.like,before=t.s;
   if(like)t.s=Math.min(3,Math.max(t.s,0)+.4);else t.s=t.s<0?Math.min(3,t.s+.3):Math.max(-3,t.s-.8);
   const kind=like?(before<=-1||t.was?'acquired':'like'):(before>=1?'bored':'dislike');
   if(!like&&before<0)t.was=1;if(like)delete t.was;
-  return {like,kind,reply:String(j.reply||'').trim().slice(0,240)};
+  return {like,kind,reply:String(j.reply||'').trim().slice(0,400)};
 }
 
 
@@ -124,7 +124,7 @@ Their pantry right now: ${Object.entries(pantry).map(([k,n])=>`${goods()[k]?.en|
 ${hist?`Conversation so far:\n${hist}\n`:''}${who()} now says: "${text}"
 Answer in character in 1-3 sentences.
 JSON shape: {"reply":"..."}`;
-  const j=await Char.askJSON(Char.personaSystem(p),user,{maxTokens:300});
+  const j=await Char.askJSON(Char.personaSystem(p),user,{maxTokens:900});
   return String(j.reply||'').trim().slice(0,600)||charLine('chat','',p);
 }
 
@@ -286,7 +286,7 @@ async function give(food){
   log(cur,'user',food==='bouquet'?L(`💐 You gave ${p.name} a bouquet.`,`💐 你送了${p.name}一束花。`):L(`🎁 You gave ${p.name} ${gname(food)} as a gift.`,`🎁 你把${gname(food)}当礼物送给了${p.name}。`));
   busy=true;render();
   let text='';
-  if(F.useAI){try{const j=await Char.askJSON(Char.personaSystem(p),`${who()} gives you ${food==='bouquet'?'a bouquet of flowers they grew and picked themselves':`${g?.en||food} (${g?.e||''}) as a gift — a keepsake for you`} in Deadline Garden. ${tasteSummary(cur)} ${giftSummary(cur)}\nReact in character in one short sentence.\nJSON shape: {"reply":"..."}`,{maxTokens:150});text=String(j.reply||'').trim().slice(0,300)}catch{}}
+  if(F.useAI){try{const j=await Char.askJSON(Char.personaSystem(p),`${who()} gives you ${food==='bouquet'?'a bouquet of flowers they grew and picked themselves':`${g?.en||food} (${g?.e||''}) as a gift — a keepsake for you`} in Deadline Garden. ${tasteSummary(cur)} ${giftSummary(cur)}\nReact in character in one short sentence.\nJSON shape: {"reply":"..."}`,{maxTokens:600});text=String(j.reply||'').trim().slice(0,300)}catch{}}
   text=text||charLine('gift',food,p);
   busy=false;log(cur,'char',text);render();react(text,food==='bouquet'?'bouquet':'gift');
 }

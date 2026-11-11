@@ -51,8 +51,12 @@ async function ask(system,user,{maxTokens=900,temperature=0.9}={}){
   if(!hasAI())throw new Error(L('No API configured.','还没有配置 API。'));
   if(cfg.provider==='anthropic'){
     const base=(cfg.baseUrl||'https://api.anthropic.com').replace(/\/+$/,'').replace(/\/v1(\/messages)?$/,'');
-    const j=await post(`${base}/v1/messages`,{'content-type':'application/json','x-api-key':cfg.apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},{model:cfg.model,max_tokens:maxTokens,temperature,system,messages:[{role:'user',content:user}]});
-    return (j?.content||[]).map(b=>b.text||'').join('').trim();
+    const go=mt=>post(`${base}/v1/messages`,{'content-type':'application/json','x-api-key':cfg.apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},{model:cfg.model,max_tokens:mt,temperature,system,messages:[{role:'user',content:user}]});
+    const txt=j=>(j?.content||[]).map(b=>b.text||'').join('').trim();
+    let j=await go(maxTokens);
+    /* cut off at max_tokens → ask once more with a much bigger budget instead of showing half a sentence */
+    if(j?.stop_reason==='max_tokens'){try{const k=await go(Math.max(2000,maxTokens*4));if(txt(k))j=k}catch{}}
+    return txt(j);
   }
   let base=(cfg.baseUrl||'https://api.openai.com/v1').replace(/\/+$/,'');
   const url=/\/chat\/completions$/.test(base)?base:`${base}/chat/completions`;
@@ -62,8 +66,9 @@ async function ask(system,user,{maxTokens=900,temperature=0.9}={}){
   try{j=await post(url,headers,{model:cfg.model,messages,temperature,max_tokens:maxTokens})}
   catch(e){if(e.status===400)j=await post(url,headers,{model:cfg.model,messages});else throw e} // some models reject temperature / max_tokens
   let out=msgText(j);
-  /* reasoning models (DeepSeek-R1, Gemini 2.5, o-series, Qwen3…) can spend the whole max_tokens on thinking and return empty content */
-  if(!out){try{out=msgText(await post(url,headers,{model:cfg.model,messages,max_tokens:Math.max(4000,maxTokens*4)}))}catch{}}
+  /* reasoning models (DeepSeek-R1, Gemini 2.5, o-series, Qwen3…) can spend the whole max_tokens on thinking and return empty
+     or half-written content (finish_reason "length") → retry once with a much bigger budget */
+  if(!out||j?.choices?.[0]?.finish_reason==='length'){try{const t=msgText(await post(url,headers,{model:cfg.model,messages,max_tokens:Math.max(4000,maxTokens*4)}));if(t)out=t}catch{}}
   if(!out)out=String(j?.choices?.[0]?.message?.reasoning_content||'').trim();
   return out;
 }
@@ -72,6 +77,8 @@ function msgText(j){
   const t=Array.isArray(c)?c.map(p=>typeof p==='string'?p:p?.text||'').join(''):String(c||'');
   return stripThink(t);
 }
+/* a reply that was cut off mid-sentence: keep up to the last finished sentence, otherwise mark it with … */
+function cutTail(t){t=String(t||'').trim();if(!t||/[.!?。！？…~～)）」』"”'’*]$/.test(t))return t;const m=t.match(/^[\s\S]*[.!?。！？…~～](?=\s|$|["”’）)])["”’）)]?/);return m&&m[0].length>=t.length*.4?m[0].trim():t+'…'}
 const stripThink=t=>String(t||'').replace(/<think(?:ing)?>[\s\S]*?<\/think(?:ing)?>/gi,'').replace(/^[\s\S]*?<\/think(?:ing)?>/i,'').trim();
 /* Lenient: many models wrap the JSON in prose, cut it off at max_tokens, or just answer in character.
    If no JSON object can be read, the plain text is used as the reply so chats never fail. */
@@ -81,7 +88,7 @@ function parseJSON(text){
   for(let a=s.indexOf('{');a>=0;a=s.indexOf('{',a+1)){
     for(let b=s.lastIndexOf('}');b>a;b=s.lastIndexOf('}',b-1)){try{const o=JSON.parse(s.slice(a,b+1));if(o&&typeof o==='object'&&!Array.isArray(o))return o}catch{}}
   }
-  const pick=k=>{const m=s.match(new RegExp(`"${k}"\\s*:\\s*"((?:[^"\\\\]|\\\\.)*)`));if(!m)return '';try{return JSON.parse(`"${m[1]}"`)}catch{return m[1]}};
+  const pick=k=>{const m=s.match(new RegExp(`"${k}"\\s*:\\s*"((?:[^"\\\\]|\\\\.)*)(")?`));if(!m)return '';let v;try{v=JSON.parse(`"${m[1]}"`)}catch{v=m[1]}return m[2]?v:cutTail(v)};
   let reply=pick('reply')||pick('say');
   if(!reply&&s.indexOf('{')<0)reply=s.replace(/^["'“]|["'”]$/g,'').trim();
   if(!reply)throw new Error(L('The AI reply was not JSON.','AI 回复的不是 JSON。'));
@@ -306,7 +313,7 @@ async function react(c){
   const fb=()=>c.kind==='borrow'?(c.accepted?LR('Thanks. I won’t forget it.','谢了，我记着。'):LR('Fine. Be that way.','行吧，小气。')):(c.accepted===c.total?LR('See? Much better.','看吧，好看多了。'):c.accepted?LR('Half-listening, as usual.','只听了一半，老样子。'):LR('Your loss.','不听拉倒。'));
   if(!hasAI())return fb();
   const what=c.kind==='borrow'?`You asked ${userName()} to borrow ${c.amount} ✓ and they ${c.accepted?'said yes':'said no'}.`:`You suggested ${c.total} change(s) to ${userName()}'s garden and they accepted ${c.accepted} of them.${c.declinedText?` They declined: ${c.declinedText}.`:''}`;
-  const j=await askJSON(personaSystem(),`${what}\nReact in character in 1-2 sentences.\nJSON shape: {"reply":"..."}`,{maxTokens:200});
+  const j=await askJSON(personaSystem(),`${what}\nReact in character in 1-2 sentences.\nJSON shape: {"reply":"..."}`,{maxTokens:600});
   return String(j.reply||'').trim().slice(0,300)||fb();
 }
 
