@@ -4237,3 +4237,18 @@ html[data-theme="liquid"] .loki-outcome,html[data-theme="glass"] .loki-outcome,h
 .cs-check{display:inline-flex;align-items:center;gap:6px;font-size:13px;cursor:pointer}.cs-check input{width:18px;height:18px;accent-color:var(--accent)}
 .cs-check-block{display:flex;margin-top:10px}
 .cs-del{padding:8px 10px}
+
+/* v16.63 — Reminder rules: one tidy card per rule (type + × on top, value below); iOS time inputs can't overflow. */
+.reminder-rule-row input,.reminder-rule-row select{box-sizing:border-box;font-size:16px}
+.reminder-rule-row input[type=time]{-webkit-appearance:none;appearance:none;display:block;min-width:0;max-width:100%;text-align:left;min-height:42px}
+.reminder-rule-row input[type=time]::-webkit-date-and-time-value{text-align:left}
+@media(max-width:620px){
+  html .reminder-settings-card .account-reminders,html[data-theme] .reminder-settings-card .account-reminders{padding:0;border:0!important;background:none!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important;box-shadow:none!important;margin:12px 0 0}
+  .reminder-rules-list{gap:10px}
+  .reminder-rule-row{grid-template-columns:minmax(0,1fr) 40px;grid-template-areas:"type del" "value value";gap:8px;padding:10px;border:1px solid var(--border);border-radius:16px;background:rgba(255,255,255,.42)}
+  .reminder-rule-row .reminder-type{grid-area:type}.reminder-rule-row .reminder-value{grid-area:value;min-width:0}
+  .reminder-value{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+  .reminder-rule-row .reminder-delete{grid-area:del;width:40px;height:42px;align-self:stretch}
+  .reminder-rule-row input,.reminder-rule-row select{min-height:42px;padding:8px 11px}
+}
+@media(max-width:620px){html[data-theme="glass"] .reminder-rule-row,html[data-theme="liquid"] .reminder-rule-row{background:rgba(255,255,255,.06)!important;border-color:rgba(255,255,255,.24)!important}}

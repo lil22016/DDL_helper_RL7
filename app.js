@@ -27,6 +27,8 @@ const EVENT_PROMPT_SNOOZE_KEY='deadline-garden-event-prompt-snooze-v1';
 let eventCompletionPromptOpen=false,eventCompletionPromptTaskId=null;
 let holidays=[];
 let reminderRules=loadReminderRules();
+const REMINDER_RULES_AT_KEY='deadline-garden-reminder-rules-at-v1';
+let reminderRulesAt=0;try{reminderRulesAt=Number(localStorage.getItem(REMINDER_RULES_AT_KEY))||0}catch{}
 try{Object.assign(customize,JSON.parse(localStorage.getItem(CUSTOMIZE_KEY)||'{}')||{})}catch{}
 if(customize.effectSize==null)customize.effectSize=Number(customize.rainDropSize??50);
 if(customize.effectDensity==null)customize.effectDensity=Number(customize.rainDensity??50);
@@ -54,7 +56,7 @@ function normalizeReminderRules(value){
   return out.length?out:DEFAULT_REMINDER_RULES.map(r=>({...r}));
 }
 function loadReminderRules(){try{return normalizeReminderRules(JSON.parse(localStorage.getItem(REMINDER_RULES_KEY)||'null'))}catch{return DEFAULT_REMINDER_RULES.map(r=>({...r}))}}
-function saveReminderRules(rules){reminderRules=normalizeReminderRules(rules);try{localStorage.setItem(REMINDER_RULES_KEY,JSON.stringify(reminderRules))}catch{}queueCloudSync();return reminderRules}
+function saveReminderRules(rules){reminderRules=normalizeReminderRules(rules);reminderRulesAt=Date.now();try{localStorage.setItem(REMINDER_RULES_KEY,JSON.stringify(reminderRules));localStorage.setItem(REMINDER_RULES_AT_KEY,String(reminderRulesAt))}catch{}queueCloudSync();return reminderRules}
 function reminderRuleLabel(r){
   if(r.type==='time')return `Every day at ${new Date(`2000-01-01T${r.time}:00`).toLocaleTimeString(uiLocale(),{hour:'numeric',minute:'2-digit'})}`;
   const m=Number(r.minutes)||0;if(m%1440===0)return `${m/1440} day${m===1440?'':'s'} before deadline`;if(m%60===0)return `${m/60} hour${m===60?'':'s'} before deadline`;return `${m} minutes before deadline`;
@@ -109,7 +111,7 @@ async function idbReplaceAll(items){
   });
 }
 async function collectGardenState(){
-  return {version:1,tasks:await idbGetAll(),holidays:[...holidays],reminderRules:reminderRules.map(r=>({...r})),customize:{...customize},courseIconPrefs:{...courseIconPrefs},theme:document.documentElement.dataset.theme||'green',calendarDisplay:{...calendarDisplay},calendarView,checklistCollapsed:localStorage.getItem(CHECKLIST_COLLAPSE_KEY)==='1',loki:{url:lokiCfg.url,token:lokiCfg.token,color:lokiCfg.color,emoji:lokiCfg.emoji},deletedTasks:{...deletedTasks},updatedAt:new Date().toISOString()};
+  return {version:1,tasks:await idbGetAll(),holidays:[...holidays],reminderRules:reminderRules.map(r=>({...r})),reminderRulesAt,customize:{...customize},courseIconPrefs:{...courseIconPrefs},theme:document.documentElement.dataset.theme||'green',calendarDisplay:{...calendarDisplay},calendarView,checklistCollapsed:localStorage.getItem(CHECKLIST_COLLAPSE_KEY)==='1',loki:{url:lokiCfg.url,token:lokiCfg.token,color:lokiCfg.color,emoji:lokiCfg.emoji},deletedTasks:{...deletedTasks},updatedAt:new Date().toISOString()};
 }
 /* ---- task sync: merge per task instead of "whoever saved last wins" ----
    Each task carries updatedAt (stamped on every local write); deletions leave a tombstone.
@@ -164,7 +166,9 @@ async function applyCloudState(state){
     pushTasks=taskSig(merged)!==taskSig(state.tasks);
     await idbReplaceAll(merged);
     if(Array.isArray(state.holidays)){holidays=state.holidays;try{localStorage.setItem(HOLIDAY_KEY,JSON.stringify(holidays))}catch{}}
-    if(Array.isArray(state.reminderRules)){reminderRules=normalizeReminderRules(state.reminderRules);try{localStorage.setItem(REMINDER_RULES_KEY,JSON.stringify(reminderRules))}catch{}}
+    /* reminder rules: whichever device edited them last wins (not whichever saved last) — the push server reads the cloud copy */
+    if(Array.isArray(state.reminderRules)){const at=Number(state.reminderRulesAt)||0;if(at>=reminderRulesAt){reminderRules=normalizeReminderRules(state.reminderRules);reminderRulesAt=at;try{localStorage.setItem(REMINDER_RULES_KEY,JSON.stringify(reminderRules));localStorage.setItem(REMINDER_RULES_AT_KEY,String(at))}catch{}}else pushTasks=true}
+    else if(reminderRulesAt)pushTasks=true;
     if(state.customize&&typeof state.customize==='object'){Object.assign(customize,state.customize);try{localStorage.setItem(CUSTOMIZE_KEY,JSON.stringify(customize))}catch{}}
     if(state.courseIconPrefs&&typeof state.courseIconPrefs==='object'){courseIconPrefs={...state.courseIconPrefs};try{localStorage.setItem(COURSE_ICON_PREFS_KEY,JSON.stringify(courseIconPrefs))}catch{}}
     if(state.calendarDisplay&&typeof state.calendarDisplay==='object'){calendarDisplay={...calendarDisplay,...state.calendarDisplay};try{localStorage.setItem(CAL_DISPLAY_KEY,JSON.stringify(calendarDisplay))}catch{}}
