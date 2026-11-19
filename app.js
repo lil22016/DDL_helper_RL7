@@ -137,7 +137,7 @@ async function uploadGardenState(){
   if(cloudUploading)return cloudUploading.then(()=>uploadGardenState());
   cloudUploading=(async()=>{
     // read before write: if another device saved since we last looked, merge that in first
-    const {data,error}=await supabaseClient.from('garden_state').select('state,updated_at').eq('user_id',currentCloudUser.id).maybeSingle();
+    const {data,error}=await fetchCloudIfNewer();
     if(error){console.error('Cloud read before save failed:',error);return}
     const remoteAt=data?Date.parse(data.updated_at||data.state?.updatedAt||'')||0:0;
     if(data?.state&&remoteAt>lastCloudUpdatedAt){lastCloudUpdatedAt=remoteAt;await applyCloudState(data.state,{noPush:true})}
@@ -188,9 +188,18 @@ async function applyCloudState(state){
   }finally{cloudApplying=false}
   if(pushTasks&&!(arguments[1]&&arguments[1].noPush))setTimeout(()=>uploadGardenState().catch(console.error),300);
 }
-async function pollCloudState(){
-  if(!supabaseClient||!currentCloudUser||cloudApplying||cloudUploading)return;
+/* Egress saver: ask only for updated_at (a few bytes); download the full state only when another device saved since. */
+async function fetchCloudIfNewer(){
+  const {data:meta,error:e1}=await supabaseClient.from('garden_state').select('updated_at').eq('user_id',currentCloudUser.id).maybeSingle();
+  if(e1)return {error:e1};
+  const at=Date.parse(meta?.updated_at||'')||0;
+  if(!meta||at<=lastCloudUpdatedAt)return {data:null};
   const {data,error}=await supabaseClient.from('garden_state').select('state,updated_at').eq('user_id',currentCloudUser.id).maybeSingle();
+  return {data,error};
+}
+async function pollCloudState(){
+  if(!supabaseClient||!currentCloudUser||cloudApplying||cloudUploading||document.hidden)return;
+  const {data,error}=await fetchCloudIfNewer();
   if(error||!data?.state)return;
   const remoteAt=Date.parse(data.updated_at||data.state?.updatedAt||'')||0;
   if(remoteAt>lastCloudUpdatedAt){
@@ -200,7 +209,7 @@ async function pollCloudState(){
 }
 function startCloudPolling(){
   clearInterval(cloudPollTimer);
-  cloudPollTimer=setInterval(()=>pollCloudState().catch(console.error),5000);
+  cloudPollTimer=setInterval(()=>pollCloudState().catch(console.error),20000);
 }
 function stopCloudPolling(){clearInterval(cloudPollTimer);cloudPollTimer=null}
 document.addEventListener('visibilitychange',()=>{if(document.hidden)flushCloudSync();else pollCloudState().catch(console.error)});
