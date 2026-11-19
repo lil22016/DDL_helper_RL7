@@ -388,6 +388,7 @@ function renderCalendar(){
 }
 
 function openHolidayModal(existing=null,prefillDate=''){
+  if(!existing||!existing.id||!holidays.includes(existing))existing=null;if(typeof prefillDate!=='string')prefillDate=''; // guard: a click event passed in by mistake must not count as 'edit'
   const today=prefillDate||fmtDateInput(new Date()),h=existing||{name:'',start:today,end:today};
   showModal(`<div class="section-label">HOLIDAY</div><h3>${existing?'Edit holiday':'Add time off'}</h3><div class="form-grid"><div class="field full"><label>Name</label><input id="holidayName" value="${escapeHtml(h.name||'')}" placeholder="Fall Break"></div><div class="field"><label>Starts</label><input id="holidayStart" type="date" value="${h.start}"></div><div class="field"><label>Ends</label><input id="holidayEnd" type="date" value="${h.end}"></div></div><div class="next-meta" style="margin-top:10px">Holiday dates stay visible and softly highlighted. Existing tasks are kept unless you choose to clear them.</div><div class="modal-actions">${existing?'<button id="holidayDelete" class="danger-btn">Delete holiday</button>':''}<button id="holidayCancel" class="soft-btn">Cancel</button><button id="holidaySave" class="primary-btn">${existing?'Save changes':'Save holiday'}</button></div>`);
   $('#holidayCancel').onclick=closeModal;
@@ -2004,7 +2005,7 @@ $('#nextMonth').onclick=()=>{
 };
 $('#todayBtn').onclick=()=>{currentMonth=new Date();renderCalendar()};
 $('#displayBtn').onclick=openCalendarDisplay;
-$('#nextCountdown').onclick=()=>{const id=$('#nextCountdown').dataset.finishTask;if(id)askAlreadyFinished(tasks.find(t=>t.id===id))};$('#holidayBtn').onclick=openHolidayModal;
+$('#nextCountdown').onclick=()=>{const id=$('#nextCountdown').dataset.finishTask;if(id)askAlreadyFinished(tasks.find(t=>t.id===id))};$('#holidayBtn').onclick=()=>openHolidayModal();
 document.querySelectorAll('[data-cal-view]').forEach(b=>b.onclick=()=>setCalendarView(b.dataset.calView));
 $('#quickTodoAdd').onclick=addQuickTodo;
 $('#quickTodoInput').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();addQuickTodo()}};$('#quickCollapse').onclick=()=>{$('.quick-note').classList.add('collapsed-away');$('#quickBubble').classList.remove('hidden')};$('#quickBubble').onclick=()=>{const note=$('.quick-note');$('#quickBubble').classList.add('hidden');note.classList.remove('collapsed-away');note.classList.remove('quick-note-pop');void note.offsetWidth;note.classList.add('quick-note-pop');setTimeout(()=>note.classList.remove('quick-note-pop'),420)};
