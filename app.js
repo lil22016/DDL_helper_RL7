@@ -197,8 +197,11 @@ async function fetchCloudIfNewer(){
   const {data,error}=await supabaseClient.from('garden_state').select('state,updated_at').eq('user_id',currentCloudUser.id).maybeSingle();
   return {data,error};
 }
-async function pollCloudState(){
+let lastPollAt=0;
+async function pollCloudState(force=false){
   if(!supabaseClient||!currentCloudUser||cloudApplying||cloudUploading||document.hidden)return;
+  if(!force&&Date.now()-lastPollAt<4000)return; // focus + visibilitychange often fire together
+  lastPollAt=Date.now();
   const {data,error}=await fetchCloudIfNewer();
   if(error||!data?.state)return;
   const remoteAt=Date.parse(data.updated_at||data.state?.updatedAt||'')||0;
@@ -207,9 +210,10 @@ async function pollCloudState(){
     await applyCloudState(data.state);
   }
 }
+/* No timed polling (saves Supabase egress): the app checks the cloud when it opens, when you come back to it
+   (visibility / focus), before every save, and from ☰ → Sync now. */
 function startCloudPolling(){
-  clearInterval(cloudPollTimer);
-  cloudPollTimer=setInterval(()=>pollCloudState().catch(console.error),20000);
+  clearInterval(cloudPollTimer);cloudPollTimer=null;
 }
 function stopCloudPolling(){clearInterval(cloudPollTimer);cloudPollTimer=null}
 document.addEventListener('visibilitychange',()=>{if(document.hidden)flushCloudSync();else pollCloudState().catch(console.error)});
@@ -2157,6 +2161,7 @@ function openSidebar(){
   const link=lokiCfg.url&&lokiCfg.token?`${lokiCfg.url}/garden/feed?t=${lokiCfg.token}`:'';
   const zh=uiLanguage==='zh',nm=escapeHtml(lokiName());
   $('#sidebarBody').innerHTML=`<button id="sbReminders" class="soft-btn sidebar-item" type="button">⏰ Reminder settings</button>
+  <button id="sbSync" class="soft-btn sidebar-item" type="button">🔄 ${zh?'立即同步':'Sync now'}</button>
   <button id="sbCharacter" class="soft-btn sidebar-item sidebar-character" type="button"><span>🤖 ${zh?'角色与 API':'Character & API'}</span><small>${window.Char&&Char.mode()?(Char.mode()==='uranus'?(zh?'已连 Uranus':'Uranus'):(zh?'自己的 API':'Own API')):(zh?'未设置':'Not set')}</small></button>
   <details class="sidebar-section sidebar-fold" id="charAppearance"><summary class="section-label">${zh?`${nm} 外观`:`${nm.toUpperCase()} APPEARANCE`}</summary>
     <div class="sidebar-row"><label for="lokiColor">Color</label><input id="lokiColor" type="color" value="${escapeHtml(/^#[0-9a-f]{6}$/i.test(lokiCfg.color)?lokiCfg.color:'#8b7bd8')}"></div>
@@ -2166,6 +2171,13 @@ function openSidebar(){
   </details>`;
   r.classList.remove('hidden');r.setAttribute('aria-hidden','false');
   $('#sbReminders').onclick=()=>{closeSidebar();const root=$('#authRoot');root.classList.remove('hidden');root.setAttribute('aria-hidden','false');openReminderSettings()};
+  $('#sbSync').onclick=async()=>{
+    if(!supabaseClient||!currentCloudUser){toast(zh?'先登录账号才能同步。':'Sign in to sync.');return}
+    const b=$('#sbSync');b.disabled=true;b.textContent=zh?'🔄 同步中…':'🔄 Syncing…';
+    try{await pollCloudState(true);await uploadGardenState();toast(zh?'已同步。':'Synced.')}
+    catch(e){console.error(e);toast(zh?'同步失败，请稍后再试。':'Sync failed. Try again later.')}
+    finally{b.disabled=false;b.textContent=zh?'🔄 立即同步':'🔄 Sync now'}
+  };
   $('#sbCharacter').onclick=()=>{closeSidebar();if(window.Char)Char.openSettings()};
   const color=$('#lokiColor'),emoji=$('#lokiEmoji');
   color.oninput=()=>{lokiCfg.color=color.value;saveLokiCfg();applyLokiAppearance();queueCloudSync();renderLoki()};
